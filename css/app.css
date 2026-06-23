@@ -264,8 +264,9 @@
 }
 
 .section-title {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  font-weight: 600;
   margin: 0 0 16px;
   color: var(--ink);
 }

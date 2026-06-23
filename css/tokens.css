@@ -19,12 +19,13 @@
   --blue: #2F63B4;         /* azul (informação) */
   --cream: #E7E0D2;        /* creme (fundo suave alternativo) */
 
-  /* --- Tons neutros / texto --- */
-  --ink: #1A1230;          /* texto principal */
-  --muted: #6B6480;        /* texto secundário */
-  --bg: #F6F4FA;           /* fundo do corpo */
+  /* --- Tons neutros / texto (padrão Claude Design: creme/quente) --- */
+  --ink: #242016;          /* texto principal (quente, do design) */
+  --muted: #6F6149;        /* texto secundário (quente) */
+  --bg: #EBE5D8;           /* fundo do corpo (creme) */
   --card: #FFFFFF;         /* fundo de cartões */
-  --line: #E7E3EE;         /* bordas / divisores */
+  --card-cream: #F6F4EF;   /* superfície creme (igual ao cronograma) */
+  --line: #E3DBCB;         /* bordas / divisores (quente) */
 
   /* --- Formas / elevação --- */
   --rad: 16px;             /* raio padrão */
@@ -39,8 +40,9 @@
   --space-5: 24px;
   --space-6: 32px;
 
-  /* --- Tipografia --- */
-  --font: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  /* --- Tipografia (Claude Design: Fraunces nos títulos, Manrope no texto) --- */
+  --font: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-title: 'Fraunces', Georgia, 'Times New Roman', serif;
 }
 
 /* ============================================================
@@ -98,7 +100,8 @@ a:hover {
 h1, h2, h3, h4, h5, h6 {
   margin: 0 0 var(--space-3);
   line-height: 1.2;
-  font-weight: 700;
+  font-family: var(--font-title);
+  font-weight: 600;
   color: var(--ink);
 }
 
