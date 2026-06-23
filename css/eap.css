@@ -16,8 +16,8 @@
   --eap-cream: #faf6ee;       /* fundo creme claro do organograma */
   --eap-line: #cdbfe6;        /* cor dos conectores */
   --eap-line-w: 2px;          /* espessura dos conectores */
-  --eap-gap: 28px;            /* espaço horizontal entre disciplinas */
-  --eap-col-w: 220px;         /* largura de cada coluna de disciplina */
+  --eap-gap: 34px;            /* espaço horizontal entre disciplinas */
+  --eap-col-w: 280px;         /* largura de cada coluna de disciplina */
   --eap-drop: 26px;           /* altura da "descida" da raiz aos GTs */
   --eap-font-title: 'Fraunces', Georgia, 'Times New Roman', serif;
   --eap-font-body: 'Manrope', 'Hanken Grotesk', system-ui, sans-serif;
@@ -28,6 +28,15 @@
    ============================================================ */
 .eap-header {
   margin-bottom: 18px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.eap-toggle-all {
+  flex: 0 0 auto;
 }
 
 .eap-title {

@@ -64,7 +64,7 @@
 }
 
 .topbar-inner {
-  max-width: 1200px;
+  max-width: 1680px;
   margin: 0 auto;
   padding: 12px 20px;
   display: flex;
@@ -154,7 +154,7 @@
 }
 
 .tabs-inner {
-  max-width: 1200px;
+  max-width: 1680px;
   margin: 0 auto;
   padding: 0 12px;
   display: flex;
@@ -192,7 +192,7 @@
    Conteúdo / container
    ============================================================ */
 .container {
-  max-width: 1200px;
+  max-width: 1680px;
   margin: 0 auto;
   padding: 24px 20px 48px;
   width: 100%;

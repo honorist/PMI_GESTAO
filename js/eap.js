@@ -145,15 +145,20 @@
   function buildHeader(totalPacotes, totalDisc) {
     var head = el("header", "eap-header");
 
-    head.appendChild(el("h2", "eap-title", "EAP — Estrutura Analítica do Projeto"));
-
+    var txt = el("div", "eap-head-txt");
+    txt.appendChild(el("h2", "eap-title", "EAP — Estrutura Analítica do Projeto"));
     var subTxt =
       totalPacotes +
       (totalPacotes === 1 ? " pacote de trabalho" : " pacotes de trabalho") +
       " · " +
       totalDisc +
       (totalDisc === 1 ? " grupo de trabalho" : " grupos de trabalho");
-    head.appendChild(el("p", "eap-subtitle", subTxt));
+    txt.appendChild(el("p", "eap-subtitle", subTxt));
+    head.appendChild(txt);
+
+    var toggle = el("button", "btn sm eap-toggle-all", "Expandir tudo");
+    toggle.type = "button";
+    head.appendChild(toggle);
 
     return head;
   }
@@ -191,7 +196,7 @@
      Nível 1 + 2 — coluna de uma disciplina (nó + pilha de pacotes)
      ============================================================ */
   function buildColuna(disc, pacotes, cor) {
-    var col = el("div", "eap-col");
+    var col = el("div", "eap-col is-collapsed");
 
     // --- Nó da disciplina (botão colapsável) ---
     var node = el("button", "eap-node eap-node--disc");
@@ -199,7 +204,7 @@
     node.style.setProperty("--disc-cor", cor);
 
     var pkgPanelId = "eap-pkgs-" + (disc.id || normalizar(disc.nome) || "x");
-    node.setAttribute("aria-expanded", "true");
+    node.setAttribute("aria-expanded", "false");
     node.setAttribute("aria-controls", pkgPanelId);
 
     var titleRow = el("span", "eap-node__row");
@@ -291,6 +296,23 @@
 
     scroller.appendChild(tree);
     mount.appendChild(scroller);
+
+    // Botão "Expandir/Recolher tudo".
+    var toggle = mount.querySelector(".eap-toggle-all");
+    if (toggle) {
+      toggle.addEventListener("click", function () {
+        var cols = mount.querySelectorAll(".eap-col");
+        var anyCollapsed = Array.prototype.some.call(cols, function (c) {
+          return c.classList.contains("is-collapsed");
+        });
+        Array.prototype.forEach.call(cols, function (c) {
+          c.classList.toggle("is-collapsed", !anyCollapsed);
+          var n = c.querySelector(".eap-node--disc");
+          if (n) n.setAttribute("aria-expanded", anyCollapsed ? "true" : "false");
+        });
+        toggle.textContent = anyCollapsed ? "Recolher tudo" : "Expandir tudo";
+      });
+    }
   }
 
   /* ============================================================
