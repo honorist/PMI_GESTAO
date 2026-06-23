@@ -346,18 +346,24 @@
   function toggleSetFiltro(chave, id, todosIds) {
     var atual = ui[chave];
     if (!atual) {
-      atual = new Set(todosIds);
-      atual.delete(id);
+      // Tudo visível: o clique FOCA somente no item clicado.
+      atual = new Set([id]);
     } else if (atual.has(id)) {
-      atual.delete(id);
+      if (atual.size === 1) {
+        // Era o único em foco: clicar de novo volta a mostrar todos.
+        atual = null;
+      } else {
+        atual = new Set(atual);
+        atual.delete(id);
+      }
     } else {
+      // Adiciona o item ao foco atual.
+      atual = new Set(atual);
       atual.add(id);
     }
-    if (atual.size === todosIds.length) {
-      ui[chave] = null;
-    } else {
-      ui[chave] = atual;
-    }
+    // Se todos acabaram selecionados, equivale a "todas" (sem filtro).
+    if (atual && atual.size === todosIds.length) atual = null;
+    ui[chave] = atual;
   }
 
   /* ============================================================

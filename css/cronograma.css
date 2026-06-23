@@ -762,11 +762,13 @@
   font-size: 14px;
   font-family: var(--cro-font-text);
   color: var(--cro-ink);
-  border: 1px solid var(--cro-line);
+  border: 1.5px solid #C4B6E0;
   border-radius: 10px;
-  background: #FFFFFF;
+  background: #F4F1FA;
   outline: none;
 }
+.cro-field input[type="text"]::placeholder,
+.cro-textarea::placeholder { color: #9A8FB5; }
 .cro-textarea { resize: vertical; }
 
 .cro-field input:focus,
