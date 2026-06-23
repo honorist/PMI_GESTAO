@@ -117,70 +117,65 @@
 }
 
 /* ---- Lista de pacotes da EAP ---- */
-/* ---- Organograma de pacotes (mini árvore disciplina → pacotes) ---- */
-.dsc-org { --dsc-cor: #36177B; position: relative; }
+/* ---- Diagrama de aranha (radial): disciplina no centro → pacotes ---- */
+.dsc-spider-scroll { overflow: auto; }
+.dsc-spider { --dsc-cor: #36177B; position: relative; margin: 0 auto; }
 
-.dsc-org__root {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-top: 4px solid var(--dsc-cor);
-  border-radius: var(--rad-sm);
-  padding: 10px 18px;
-  box-shadow: 0 6px 16px rgba(26, 17, 69, .08);
+.dsc-spider__lines {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
 }
-.dsc-org__root-name { font-weight: 700; color: var(--ink); }
-.dsc-org__root-sub { font-size: .74rem; color: var(--muted); }
 
-.dsc-org__stack {
-  position: relative;
-  margin-top: 16px;
+.dsc-spider__center {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: var(--dsc-cor);
+  color: #fff;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 10px;
+  box-shadow: 0 10px 26px rgba(26, 17, 69, .28);
+  z-index: 3;
 }
-/* espinha vertical */
-.dsc-org__stack::before {
-  content: "";
-  position: absolute;
-  left: 11px;
-  top: -16px;
-  bottom: 18px;
-  width: 2px;
-  background: var(--dsc-cor);
-  opacity: .5;
-}
+.dsc-spider__center-name { font-weight: 700; font-size: .9rem; line-height: 1.15; }
+.dsc-spider__center-sub { font-size: .72rem; opacity: .85; margin-top: 4px; }
 
-.dsc-org__pkg {
-  position: relative;
-  margin-left: 30px;
-  border: 1px solid var(--line);
-  border-radius: var(--rad-sm);
-  padding: 10px 14px;
-  background: var(--bg);
-}
-/* ramo horizontal da espinha até o pacote */
-.dsc-org__pkg::before {
-  content: "";
+.dsc-spider__pkg {
   position: absolute;
-  left: -19px;
-  top: 18px;
-  width: 19px;
-  height: 2px;
-  background: var(--dsc-cor);
-  opacity: .5;
+  transform: translateY(-50%);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--dsc-cor);
+  border-radius: 10px;
+  padding: 7px 10px;
+  box-shadow: 0 4px 12px rgba(26, 17, 69, .1);
+  z-index: 2;
 }
-.dsc-org__pkg-top { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.dsc-org__code {
-  font-size: .72rem;
+.dsc-spider__pkg-top { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
+.dsc-spider__code {
+  font-size: .68rem;
   font-weight: 700;
   color: var(--purple-2);
   font-variant-numeric: tabular-nums;
 }
-.dsc-org__name { font-weight: 600; font-size: .9rem; color: var(--ink); }
-.dsc-org__desc { font-size: .78rem; color: var(--muted); margin-top: 3px; line-height: 1.3; }
+.dsc-spider__name {
+  font-weight: 600;
+  font-size: .8rem;
+  color: var(--ink);
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 .dsc-pacotes {
   list-style: none;

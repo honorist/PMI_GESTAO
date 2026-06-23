@@ -483,6 +483,20 @@
     return inp;
   }
 
+  // Categorias já usadas no tipo (receita/despesa), distintas e ordenadas.
+  function categoriasExistentes(kind) {
+    var fin = (window.Gestao.data && window.Gestao.data.financeiro) || {};
+    var arr = (kind === "despesa" ? fin.despesas : fin.receitas) || [];
+    var vistos = {};
+    arr.forEach(function (it) {
+      var c = (it.categoria || "").trim();
+      if (c) vistos[c] = true;
+    });
+    return Object.keys(vistos).sort(function (a, b) {
+      return a.localeCompare(b, "pt-BR");
+    });
+  }
+
   function openForm(kind, id) {
     var isDesp = kind === "despesa";
     var existing = id ? findItem(kind, id) : null;
@@ -504,9 +518,52 @@
     form.className = "fin-form";
 
     // Campos.
-    var inCategoria = makeInput("text", existing ? existing.categoria : "");
-    inCategoria.placeholder = isDesp ? "Ex.: Audiovisual" : "Ex.: Ingressos";
-    form.appendChild(field("Categoria", inCategoria));
+    // Categoria: select com as existentes + opção de criar nova.
+    var cats = categoriasExistentes(kind);
+    var selCat = document.createElement("select");
+    cats.forEach(function (c) {
+      var o = document.createElement("option");
+      o.value = c;
+      o.textContent = c;
+      selCat.appendChild(o);
+    });
+    var optNova = document.createElement("option");
+    optNova.value = "__nova__";
+    optNova.textContent = "+ Nova categoria…";
+    selCat.appendChild(optNova);
+
+    var inNovaCat = makeInput("text", "");
+    inNovaCat.placeholder = isDesp ? "Ex.: Audiovisual" : "Ex.: Ingressos";
+    inNovaCat.style.marginTop = "8px";
+    inNovaCat.classList.add("hidden");
+
+    var catAtual = existing ? (existing.categoria || "").trim() : "";
+    if (catAtual && cats.indexOf(catAtual) >= 0) {
+      selCat.value = catAtual;
+    } else if (catAtual) {
+      var oExtra = document.createElement("option");
+      oExtra.value = catAtual;
+      oExtra.textContent = catAtual;
+      selCat.insertBefore(oExtra, optNova);
+      selCat.value = catAtual;
+    } else if (!cats.length) {
+      selCat.value = "__nova__";
+      inNovaCat.classList.remove("hidden");
+    }
+
+    selCat.addEventListener("change", function () {
+      var nova = selCat.value === "__nova__";
+      inNovaCat.classList.toggle("hidden", !nova);
+      if (nova) inNovaCat.focus();
+    });
+
+    function getCategoria() {
+      return selCat.value === "__nova__" ? inNovaCat.value.trim() : selCat.value;
+    }
+
+    var catWrap = field("Categoria", selCat);
+    catWrap.appendChild(inNovaCat);
+    form.appendChild(catWrap);
 
     var inDescricao = makeInput("text", existing ? existing.descricao : "");
     inDescricao.placeholder = "Descrição do item";
@@ -553,7 +610,7 @@
         return;
       }
       var values = {
-        categoria: inCategoria.value.trim(),
+        categoria: getCategoria(),
         descricao: descricao,
         previsto: parseBRL(inPrevisto.value),
         realizado: parseBRL(inRealizado.value),

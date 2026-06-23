@@ -312,30 +312,70 @@
       return card;
     }
 
-    // Organograma: nó da disciplina (raiz) → pacotes ramificados.
+    // Diagrama de aranha (radial): disciplina no centro, pacotes ao redor.
     var cor = (disc && disc.cor) || "#36177B";
-    var org = el("div", "dsc-org");
-    org.style.setProperty("--dsc-cor", cor);
+    var n = pacotes.length;
+    var boxW = 152;
+    var R = Math.max(180, Math.round(n * 26));
+    var size = 2 * R + boxW + 100;
+    var cx = size / 2;
+    var cy = size / 2;
 
-    var root = el("div", "dsc-org__root");
-    root.appendChild(el("span", "dsc-org__root-name", (disc && disc.nome) || "Disciplina"));
-    root.appendChild(
-      el("span", "dsc-org__root-sub", pacotes.length + (pacotes.length === 1 ? " pacote" : " pacotes"))
-    );
-    org.appendChild(root);
+    var scroller = el("div", "dsc-spider-scroll");
+    var wrap = el("div", "dsc-spider");
+    wrap.style.width = size + "px";
+    wrap.style.height = size + "px";
+    wrap.style.setProperty("--dsc-cor", cor);
 
-    var stack = el("div", "dsc-org__stack");
-    pacotes.forEach(function (p) {
-      var box = el("div", "dsc-org__pkg");
-      var top = el("div", "dsc-org__pkg-top");
-      if (p.id) top.appendChild(el("span", "dsc-org__code", p.id));
-      top.appendChild(el("span", "dsc-org__name", p.nome || "(sem nome)"));
+    var NS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("class", "dsc-spider__lines");
+    svg.setAttribute("width", size);
+    svg.setAttribute("height", size);
+    svg.setAttribute("viewBox", "0 0 " + size + " " + size);
+
+    var boxes = [];
+    pacotes.forEach(function (p, i) {
+      var ang = ((-90 + (i * 360) / n) * Math.PI) / 180;
+      var x = cx + R * Math.cos(ang);
+      var y = cy + R * Math.sin(ang);
+
+      var ln = document.createElementNS(NS, "line");
+      ln.setAttribute("x1", cx);
+      ln.setAttribute("y1", cy);
+      ln.setAttribute("x2", x);
+      ln.setAttribute("y2", y);
+      ln.setAttribute("stroke", cor);
+      ln.setAttribute("stroke-width", "2");
+      ln.setAttribute("stroke-opacity", "0.4");
+      svg.appendChild(ln);
+
+      var box = el("div", "dsc-spider__pkg");
+      box.style.left = x - boxW / 2 + "px";
+      box.style.top = y + "px";
+      box.style.width = boxW + "px";
+      var top = el("div", "dsc-spider__pkg-top");
+      if (p.id) top.appendChild(el("span", "dsc-spider__code", p.id));
+      top.appendChild(el("span", "dsc-spider__name", p.nome || "(sem nome)"));
       box.appendChild(top);
-      if (p.descricao) box.appendChild(el("div", "dsc-org__desc", p.descricao));
-      stack.appendChild(box);
+      if (p.descricao) box.title = p.descricao; // detalhe no hover
+      boxes.push(box);
     });
-    org.appendChild(stack);
-    card.appendChild(org);
+
+    wrap.appendChild(svg);
+    boxes.forEach(function (b) { wrap.appendChild(b); });
+
+    var center = el("div", "dsc-spider__center");
+    center.style.left = cx + "px";
+    center.style.top = cy + "px";
+    center.appendChild(el("span", "dsc-spider__center-name", (disc && disc.nome) || "Disciplina"));
+    center.appendChild(
+      el("span", "dsc-spider__center-sub", n + (n === 1 ? " pacote" : " pacotes"))
+    );
+    wrap.appendChild(center);
+
+    scroller.appendChild(wrap);
+    card.appendChild(scroller);
 
     return card;
   }
