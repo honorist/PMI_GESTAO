@@ -433,9 +433,15 @@
     var card = document.createElement("div");
     card.className = "gate-card";
 
+    var logo = document.createElement("img");
+    logo.className = "gate-logo";
+    logo.src = "assets/pmirs-horizontal-color.png";
+    logo.alt = "PMI Rio Grande do Sul Chapter";
+    card.appendChild(logo);
+
     var h = document.createElement("h1");
     h.className = "gate-title";
-    h.textContent = "PMIRS Summit 2026 · Gestão";
+    h.textContent = "Summit 2026 · Gestão";
     var p = document.createElement("p");
     p.className = "gate-sub";
     p.textContent = "Área restrita. Informe a senha para acessar as informações.";
@@ -472,6 +478,7 @@
       "background:linear-gradient(160deg,#36177B,#1A1140);}" +
       ".gate-card{width:100%;max-width:380px;background:#fff;border-radius:16px;" +
       "padding:32px 28px;box-shadow:0 30px 80px rgba(0,0,0,.35);text-align:center;}" +
+      ".gate-logo{height:54px;width:auto;margin:0 auto 18px;display:block;}" +
       ".gate-title{font-size:20px;color:#1A1230;margin:0 0 6px;}" +
       ".gate-sub{font-size:14px;color:#6B6480;margin:0 0 22px;line-height:1.5;}" +
       ".gate-form{display:flex;flex-direction:column;gap:12px;}" +

@@ -1,686 +1,936 @@
 /* ============================================================
-   cronograma.css — Estilos do módulo Cronograma (Gantt/Timeline)
-   ------------------------------------------------------------
-   Injetado por js/cronograma.js (sem editar index.html).
-   Usa os tokens de marca de tokens.css (var(--purple), etc.).
-   Escopo: tudo prefixado por .cro- para não vazar p/ outros módulos.
+   cronograma.css — Gantt profissional (fiel ao design de referência)
+   Summit POA PMIRS 2026. Tipografia Fraunces + Manrope, paleta creme.
+   Escopo prefixado .cro-* e .cro-root para não afetar outros módulos.
    ============================================================ */
 
-/* ---- Barra de ferramentas (resumo + ações) ---- */
-.cro-toolbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 18px;
-}
+/* ---- Variáveis locais do módulo (paleta do design) ---- */
+.cro-root {
+  --cro-cream: #F6F4EF;
+  --cro-ink: #242016;
+  --cro-purple: #36177B;
+  --cro-sec: #6F6149;
+  --cro-sec-2: #9A8E76;
+  --cro-teal: #508EA6;
 
-.cro-toolbar .cro-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+  --cro-done: #3F7A4A;
+  --cro-pending: #E0611F;
+  --cro-future-bg: #E7E0D2;
+  --cro-future-border: #D4C8AF;
+  --cro-future-text: #6F6149;
+  --cro-urgent: #B83713;
 
-/* ---- Cards de resumo (topo) ---- */
-.cro-summary {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(4, 1fr);
-  margin-bottom: 18px;
-}
+  --cro-evento-bg: #F6E6B4;
+  --cro-evento-border: #D8B84E;
 
-.cro-stat {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--rad-sm);
-  padding: 14px 16px;
-  box-shadow: var(--shadow);
-}
+  --cro-line: #E7E0D2;
+  --cro-group-bg: #F1ECFB;
 
-.cro-stat .cro-stat-label {
-  font-size: .74rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .3px;
-  color: var(--muted);
-  margin: 0 0 6px;
-}
+  /* Larguras das colunas fixas do Gantt */
+  --cro-col-cod: 42px;
+  --cro-col-tarefa: 348px;
+  --cro-col-resp: 152px;
+  --cro-col-prazo: 78px;
+  --cro-timeline-min: 720px;
 
-.cro-stat .cro-stat-value {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--purple);
-  line-height: 1.1;
-}
+  --cro-font-title: "Fraunces", Georgia, "Times New Roman", serif;
+  --cro-font-text: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 
-.cro-stat .cro-stat-sub {
-  font-size: .78rem;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-/* Lista compacta de próximos prazos dentro do card */
-.cro-next-list {
-  list-style: none;
-  margin: 8px 0 0;
+  display: block;
+  font-family: var(--cro-font-text);
+  color: var(--cro-ink);
+  background: var(--cro-cream);
+  border-radius: 16px;
   padding: 0;
+  overflow: hidden;
+  box-shadow: 0 18px 50px rgba(36, 32, 22, 0.08);
+}
+
+/* ============================================================
+   1. HEADER
+   ============================================================ */
+.cro-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--cro-line);
+  padding: 22px 28px;
+}
+
+.cro-hdr-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+
+.cro-hdr-logo {
+  height: 54px;
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.cro-hdr-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 54px;
+  background: var(--cro-line);
+  flex: 0 0 auto;
+}
+
+.cro-hdr-titlewrap {
+  min-width: 0;
+}
+
+.cro-hdr-eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--cro-teal);
+}
+
+.cro-hdr-title {
+  margin: 0 0 6px;
+  font-family: var(--cro-font-title);
+  font-size: 34px;
+  line-height: 1.05;
+  font-weight: 600;
+  color: var(--cro-ink);
+}
+
+.cro-hdr-sub {
+  margin: 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--cro-sec);
+  max-width: 60ch;
+}
+
+.cro-hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 0 0 auto;
+}
+
+.cro-hdr-meta {
+  text-align: right;
+}
+
+.cro-hdr-updated {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cro-ink);
+}
+
+.cro-hdr-counts {
+  margin: 0;
+  font-size: 12px;
+  color: var(--cro-sec-2);
+}
+
+.cro-hdr-countdown {
+  background: var(--cro-purple);
+  color: #FFFFFF;
+  border-radius: 14px;
+  padding: 12px 18px;
+  text-align: center;
+  min-width: 92px;
+}
+
+.cro-countdown-num {
+  font-family: var(--cro-font-title);
+  font-size: 38px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.cro-countdown-label {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+/* ============================================================
+   2. LEGENDA
+   ============================================================ */
+.cro-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 28px;
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--cro-line);
+  font-size: 12px;
+  color: var(--cro-sec);
+}
+
+.cro-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cro-leg-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.cro-leg-swatch.is-urgente { background: var(--cro-urgent); }
+.cro-leg-swatch.is-pendente { background: var(--cro-pending); }
+.cro-leg-swatch.is-futuro { background: var(--cro-future-bg); border: 1px solid var(--cro-future-border); }
+.cro-leg-swatch.is-concluido { background: var(--cro-done); }
+.cro-leg-swatch.is-marco {
+  background: var(--cro-purple);
+  border-radius: 2px;
+  transform: rotate(45deg);
+  width: 11px;
+  height: 11px;
+  margin: 0 2px;
+}
+.cro-leg-swatch.is-hoje {
+  background: var(--cro-ink);
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+}
+
+/* ============================================================
+   3. MARCOS CRÍTICOS
+   ============================================================ */
+.cro-marcos {
+  padding: 22px 28px;
+  background: var(--cro-cream);
+  border-bottom: 1px solid var(--cro-line);
+}
+
+.cro-marcos-titulo {
+  margin: 0 0 4px;
+  font-family: var(--cro-font-title);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--cro-ink);
+}
+
+.cro-marcos-sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--cro-sec);
+}
+
+.cro-marcos-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+}
+
+.cro-marcos-col {
+  background: #FFFFFF;
+  border: 1px solid var(--cro-line);
+  border-radius: 12px;
+  padding: 12px 12px 14px;
+  min-width: 0;
+}
+
+.cro-marcos-mes {
+  font-family: var(--cro-font-title);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cro-purple);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--cro-line);
+}
+
+.cro-marcos-vazio {
+  color: var(--cro-sec-2);
+  font-size: 13px;
+}
+
+.cro-marcos-item {
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--cro-line);
+}
+.cro-marcos-item:last-child { border-bottom: 0; }
+
+.cro-marcos-itemhead {
+  display: flex;
+  align-items: baseline;
   gap: 6px;
 }
 
-.cro-next-list li {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: .82rem;
+.cro-marcos-star {
+  color: var(--cro-purple);
+  font-size: 11px;
+  flex: 0 0 auto;
 }
 
-.cro-next-list .cro-next-name {
-  color: var(--ink);
+.cro-marcos-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  display: inline-block;
+  align-self: center;
+}
+.cro-marcos-dot.is-urgente { background: var(--cro-urgent); }
+.cro-marcos-dot.is-pendente { background: var(--cro-pending); }
+.cro-marcos-dot.is-futuro { background: var(--cro-future-bg); border: 1px solid var(--cro-future-border); }
+.cro-marcos-dot.is-concluido { background: var(--cro-done); }
+
+.cro-marcos-nome {
+  font-size: 12.5px;
   font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--cro-ink);
+  line-height: 1.3;
 }
 
-.cro-next-list .cro-next-date {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.cro-marcos-data {
+  display: block;
+  margin-top: 2px;
+  margin-left: 20px;
+  font-size: 11px;
+  color: var(--cro-sec-2);
 }
 
-.cro-next-empty {
-  font-size: .82rem;
-  color: var(--muted);
-  margin-top: 8px;
+/* ============================================================
+   TOOLBAR (título + filtros + nova tarefa)
+   ============================================================ */
+.cro-toolbar {
+  padding: 18px 28px 6px;
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--cro-line);
 }
 
-/* ---- Filtros (chips/toggles + busca) ---- */
-.cro-filters {
+.cro-toolbar-top {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.cro-toolbar-titulo {
+  margin: 0;
+  font-family: var(--cro-font-title);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--cro-ink);
+}
+
+.cro-btn-nova {
+  font-family: var(--cro-font-text);
 }
 
 .cro-filter-row {
   display: flex;
   align-items: center;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .cro-filter-label {
-  font-size: .74rem;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: .3px;
-  color: var(--muted);
-  margin-right: 2px;
+  color: var(--cro-sec-2);
+  margin-right: 4px;
 }
 
-/* Chip de filtro (toggle) */
 .cro-chip {
-  appearance: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: .8rem;
+  padding: 5px 11px;
+  font-size: 12.5px;
   font-weight: 600;
-  background: var(--card);
-  color: var(--muted);
-  border: 1px solid var(--line);
+  font-family: var(--cro-font-text);
+  color: var(--cro-sec);
+  background: var(--cro-cream);
+  border: 1px solid var(--cro-line);
+  border-radius: 999px;
   cursor: pointer;
-  transition: background .12s ease, color .12s ease, border-color .12s ease;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, opacity 0.12s;
+}
+
+.cro-chip[aria-pressed="false"] {
+  opacity: 0.45;
+}
+
+.cro-chip.is-on {
+  color: var(--cro-ink);
+  border-color: var(--cro-sec-2);
+  background: #FFFFFF;
 }
 
 .cro-chip:hover {
-  background: #f1eef9;
+  border-color: var(--cro-purple);
 }
 
-.cro-chip[aria-pressed="true"] {
-  background: var(--purple);
-  border-color: var(--purple);
-  color: #fff;
-}
-
-/* Bolinha de cor da disciplina no chip */
-.cro-chip .cro-dot {
+.cro-dot,
+.cro-chip-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  display: inline-block;
   flex: 0 0 auto;
-  border: 1px solid rgba(0, 0, 0, .15);
 }
 
+.cro-chip-dot.is-urgente { background: var(--cro-urgent); }
+.cro-chip-dot.is-pendente { background: var(--cro-pending); }
+.cro-chip-dot.is-futuro { background: var(--cro-future-bg); border: 1px solid var(--cro-future-border); }
+.cro-chip-dot.is-concluido { background: var(--cro-done); }
+
 .cro-search {
+  flex: 1 1 200px;
+  min-width: 160px;
   padding: 7px 12px;
-  border-radius: var(--rad-sm);
-  border: 1px solid var(--line);
-  background: var(--card);
-  font-size: .88rem;
-  min-width: 180px;
+  font-size: 13px;
+  font-family: var(--cro-font-text);
+  border: 1px solid var(--cro-line);
+  border-radius: 999px;
+  background: var(--cro-cream);
+  outline: none;
+}
+.cro-search:focus {
+  border-color: var(--cro-purple);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(54, 23, 123, 0.12);
 }
 
 /* ============================================================
-   Gantt
+   4. GANTT
    ============================================================ */
 .cro-gantt-card {
-  padding: 0;
-  overflow: hidden;
+  padding: 0 28px 28px;
+  background: var(--cro-cream);
 }
 
 .cro-gantt-scroll {
   overflow-x: auto;
+  border: 1px solid var(--cro-line);
+  border-radius: 12px;
+  background: #FFFFFF;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
 }
 
-/* Largura mínima garante que o Gantt nunca esmague as barras;
-   em telas estreitas vira scroll horizontal. */
 .cro-gantt {
-  --cro-label-w: 230px;   /* coluna fixa de rótulos à esquerda */
-  --cro-row-h: 34px;      /* altura de cada linha de tarefa */
-  --cro-bar-h: 18px;      /* altura da barra */
-  min-width: 760px;
-  position: relative;
+  /* Largura mínima total = colunas fixas + timeline mínima */
+  min-width: calc(
+    var(--cro-col-cod) + var(--cro-col-tarefa) +
+    var(--cro-col-resp) + var(--cro-col-prazo) + var(--cro-timeline-min)
+  );
 }
 
-/* Cabeçalho de meses */
+/* Linha (header e linhas de dados) usam o mesmo grid de colunas */
+.cro-gantt-head,
+.cro-row {
+  display: grid;
+  grid-template-columns:
+    var(--cro-col-cod)
+    var(--cro-col-tarefa)
+    var(--cro-col-resp)
+    var(--cro-col-prazo)
+    minmax(var(--cro-timeline-min), 1fr);
+  align-items: stretch;
+}
+
 .cro-gantt-head {
-  display: flex;
   position: sticky;
   top: 0;
-  z-index: 3;
-  background: var(--card);
-  border-bottom: 2px solid var(--line);
+  z-index: 5;
+  background: #FFFFFF;
+  border-bottom: 2px solid var(--cro-line);
 }
 
-.cro-head-spacer {
-  flex: 0 0 var(--cro-label-w);
-  padding: 10px 14px;
-  font-size: .74rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .3px;
-  color: var(--muted);
-  border-right: 1px solid var(--line);
+.cro-cell {
+  padding: 9px 10px;
+  font-size: 12.5px;
+  min-width: 0;
+  border-right: 1px solid var(--cro-line);
   display: flex;
   align-items: center;
 }
+.cro-cell:last-child { border-right: 0; }
 
-.cro-head-months {
-  position: relative;
-  flex: 1 1 auto;
-  display: flex;
-}
-
-.cro-head-month {
-  flex: 1 1 0;
-  text-align: center;
-  padding: 10px 4px;
-  font-size: .78rem;
+.cro-gantt-head .cro-cell {
+  font-size: 10.5px;
   font-weight: 700;
-  color: var(--ink);
-  border-left: 1px solid var(--line);
-  text-transform: capitalize;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cro-sec-2);
 }
 
-.cro-head-month:first-child { border-left: none; }
+.cro-cell-cod {
+  justify-content: center;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--cro-sec-2);
+}
 
-/* Corpo do Gantt */
-.cro-gantt-body {
+.cro-cell-tarefa { flex-direction: column; align-items: flex-start; justify-content: center; }
+.cro-cell-resp { color: var(--cro-sec); }
+.cro-cell-prazo {
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--cro-sec);
+  white-space: nowrap;
+}
+
+/* --- Eixo de meses no header --- */
+.cro-axis {
+  display: grid !important;
+  grid-template-columns: repeat(6, 1fr);
+  padding: 0;
+}
+.cro-axis-month {
+  padding: 9px 6px;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--cro-sec-2);
+  border-left: 1px solid var(--cro-line);
+}
+.cro-axis-month:first-child { border-left: 0; }
+
+/* --- Group head --- */
+.cro-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--cro-group-bg);
+  border-top: 1px solid var(--cro-line);
+  border-left: 4px solid var(--cro-purple);
+}
+
+.cro-group-bar {
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.cro-group-name {
+  font-family: var(--cro-font-title);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--cro-purple);
+}
+
+.cro-group-quem {
+  font-size: 12px;
+  color: var(--cro-sec);
+}
+
+.cro-group-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cro-sec-2);
+  background: rgba(54, 23, 123, 0.07);
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+
+/* Grupo "Evento" destacado em dourado */
+.cro-group-head.is-evento {
+  background: var(--cro-evento-bg);
+  border-left-color: var(--cro-evento-border);
+}
+.cro-group-head.is-evento .cro-group-name { color: #6B5410; }
+.cro-row.is-evento { background: #FBF6E3; }
+
+/* --- Linhas de tarefa --- */
+.cro-row {
+  border-top: 1px solid var(--cro-line);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.cro-row:hover { background: #FBFAF7; }
+.cro-row.is-evento:hover { background: #F7EFD3; }
+
+.cro-row-nomehead {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.cro-row-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  align-self: center;
+}
+.cro-row-dot.is-urgente { background: var(--cro-urgent); }
+.cro-row-dot.is-pendente { background: var(--cro-pending); }
+.cro-row-dot.is-futuro { background: var(--cro-future-bg); border: 1px solid var(--cro-future-border); }
+.cro-row-dot.is-concluido { background: var(--cro-done); }
+
+.cro-row-nome {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cro-ink);
+  line-height: 1.3;
+}
+
+.cro-row-obs {
+  margin-top: 2px;
+  margin-left: 16px;
+  font-size: 11.5px;
+  color: var(--cro-sec-2);
+  line-height: 1.3;
+}
+
+.cro-cell-resp {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  align-self: center;
+}
+
+/* --- Track (timeline da linha) --- */
+.cro-track {
   position: relative;
+  padding: 0;
+  display: block !important;
+  min-height: 42px;
 }
 
-/* Linhas verticais de grade (uma por mês) sobre o corpo */
-.cro-gridlines {
+.cro-track-grid {
   position: absolute;
-  top: 0;
-  left: var(--cro-label-w);
-  right: 0;
-  bottom: 0;
+  inset: 0;
   pointer-events: none;
-  z-index: 0;
 }
 
-.cro-gridline {
+.cro-track-gridline {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--line);
+  background: var(--cro-line);
 }
 
-/* Linha "hoje" */
-.cro-today {
+.cro-track-evento {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(216, 184, 78, 0.18);
+  border-left: 1px dashed var(--cro-evento-border);
+  border-right: 1px dashed var(--cro-evento-border);
+}
+
+.cro-track-hoje {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 2px;
-  background: var(--orange);
+  background: var(--cro-ink);
   z-index: 2;
 }
 
-.cro-today::after {
-  content: "hoje";
-  position: absolute;
-  top: 2px;
-  left: 3px;
-  font-size: .62rem;
-  font-weight: 700;
-  color: var(--orange);
-  background: var(--card);
-  padding: 0 3px;
-  border-radius: 3px;
-  white-space: nowrap;
-}
-
-/* Cabeçalho de grupo (disciplina) */
-.cro-group-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  background: #faf8fe;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  position: relative;
-  z-index: 1;
-  font-weight: 700;
-  font-size: .85rem;
-  color: var(--ink);
-}
-
-.cro-group-head .cro-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  flex: 0 0 auto;
-}
-
-.cro-group-head .cro-group-count {
-  margin-left: auto;
-  font-size: .74rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-/* Linha de tarefa */
-.cro-row {
-  display: flex;
-  align-items: center;
-  height: var(--cro-row-h);
-  border-bottom: 1px solid #f1eef9;
-  position: relative;
-  z-index: 1;
-}
-
-.cro-row:hover { background: rgba(54, 23, 123, .04); }
-
-.cro-row-label {
-  flex: 0 0 var(--cro-label-w);
-  padding: 0 14px;
-  overflow: hidden;
-  border-right: 1px solid var(--line);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.cro-row-name {
-  font-size: .82rem;
-  font-weight: 600;
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cro-row-resp {
-  font-size: .7rem;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Faixa onde a barra é posicionada */
-.cro-track {
-  position: relative;
-  flex: 1 1 auto;
-  height: 100%;
-}
-
-/* Barra da tarefa (clicável p/ editar) */
+/* --- Barra --- */
 .cro-bar {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  height: var(--cro-bar-h);
-  min-width: 6px;
-  border-radius: 5px;
+  height: 22px;
+  min-width: 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   cursor: pointer;
-  border: none;
-  padding: 0;
+  padding: 0 6px;
   display: flex;
   align-items: center;
-  overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
-  transition: filter .12s ease, transform .05s ease;
-}
-
-.cro-bar:hover { filter: brightness(1.08); }
-.cro-bar:active { transform: translateY(-50%) scale(.99); }
-
-/* Rótulo curto dentro da barra (quando cabe) */
-.cro-bar-text {
-  font-size: .68rem;
+  justify-content: flex-start;
+  font-family: var(--cro-font-text);
+  font-size: 11px;
   font-weight: 700;
-  color: #fff;
-  padding: 0 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, .25);
+  z-index: 3;
+  box-shadow: 0 1px 3px rgba(36, 32, 22, 0.12);
+  transition: filter 0.1s, transform 0.1s;
 }
-
-/* Status: concluído = sólido + ícone; andamento = hachura;
-   pendente = mais claro (opacidade reduzida) */
-.cro-bar.is-concluido { /* cor cheia da disciplina (default) */ }
-
-.cro-bar.is-andamento {
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, .35) 0,
-    rgba(255, 255, 255, .35) 5px,
-    transparent 5px,
-    transparent 10px
-  );
-}
-
-.cro-bar.is-pendente {
-  opacity: .55;
+.cro-bar:hover { filter: brightness(1.06); }
+.cro-bar.is-futuro {
+  box-shadow: none;
+  font-weight: 600;
 }
 
 .cro-bar-check {
-  font-size: .7rem;
-  color: #fff;
-  padding-left: 5px;
-  flex: 0 0 auto;
+  font-size: 12px;
+  line-height: 1;
 }
 
-/* Marco = losango */
+/* --- Marco (losango roxo) --- */
 .cro-milestone {
   position: absolute;
   top: 50%;
   width: 16px;
   height: 16px;
-  transform: translate(-50%, -50%) rotate(45deg);
+  margin-left: -8px;
+  transform: translateY(-50%) rotate(45deg);
+  background: var(--cro-purple);
+  border: 2px solid #FFFFFF;
   border-radius: 3px;
   cursor: pointer;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
-  transition: filter .12s ease;
-  z-index: 1;
+  padding: 0;
+  z-index: 4;
+  box-shadow: 0 1px 4px rgba(54, 23, 123, 0.4);
+  transition: transform 0.1s, filter 0.1s;
+}
+.cro-milestone:hover {
+  filter: brightness(1.1);
+  transform: translateY(-50%) rotate(45deg) scale(1.12);
 }
 
-.cro-milestone:hover { filter: brightness(1.1); }
-.cro-milestone.is-pendente { opacity: .6; }
-
-/* ============================================================
-   Seção "Sem prazo definido"
-   ============================================================ */
-.cro-noplan {
-  margin-top: 18px;
-}
-
-.cro-noplan-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.cro-noplan-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--rad-sm);
-  background: var(--card);
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-  transition: background .12s ease;
-}
-
-.cro-noplan-item:hover { background: #faf8fe; }
-
-.cro-noplan-item .cro-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  flex: 0 0 auto;
-}
-
-.cro-noplan-item .cro-noplan-name {
-  font-weight: 600;
-  font-size: .88rem;
-  color: var(--ink);
-}
-
-.cro-noplan-item .cro-noplan-meta {
-  margin-left: auto;
-  font-size: .76rem;
-  color: var(--muted);
-  white-space: nowrap;
+.cro-gantt-vazio {
+  padding: 28px;
+  text-align: center;
+  color: var(--cro-sec-2);
+  font-size: 13px;
 }
 
 /* ============================================================
-   Legenda
-   ============================================================ */
-.cro-legend {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 14px;
-  font-size: .78rem;
-  color: var(--muted);
-}
-
-.cro-legend .cro-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.cro-legend .cro-sample {
-  width: 22px;
-  height: 12px;
-  border-radius: 4px;
-  background: var(--purple);
-  flex: 0 0 auto;
-}
-
-.cro-legend .cro-sample.is-andamento {
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, .4) 0,
-    rgba(255, 255, 255, .4) 4px,
-    transparent 4px,
-    transparent 8px
-  );
-}
-
-.cro-legend .cro-sample.is-pendente { opacity: .55; }
-
-.cro-legend .cro-sample.is-milestone {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  transform: rotate(45deg);
-}
-
-/* ============================================================
-   Modal (formulário de tarefa)
+   MODAL (formulário de tarefa)
    ============================================================ */
 .cro-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(26, 17, 69, .45);
+  z-index: 9000;
+  background: rgba(26, 17, 64, 0.45);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 5vh 16px 16px;
-  z-index: 200;
+  padding: 20px;
   overflow-y: auto;
 }
 
 .cro-modal {
-  background: var(--card);
-  border-radius: var(--rad);
-  box-shadow: var(--shadow);
   width: 100%;
   max-width: 520px;
-  padding: 22px;
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 24px 24px 20px;
+  box-shadow: 0 30px 80px rgba(26, 17, 64, 0.35);
+  font-family: var(--cro-font-text);
+  color: var(--cro-ink);
 }
 
-.cro-modal h3 {
+.cro-modal-title {
   margin: 0 0 16px;
-  color: var(--purple);
+  font-family: var(--cro-font-title);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--cro-ink);
 }
 
-.cro-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
-}
+.cro-field { margin-bottom: 12px; }
 
-.cro-field label {
-  font-size: .78rem;
+.cro-field > label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--cro-sec);
 }
 
 .cro-field input[type="text"],
 .cro-field input[type="date"],
-.cro-field select {
-  padding: 8px 10px;
-  border-radius: var(--rad-sm);
-  border: 1px solid var(--line);
-  background: var(--card);
-  font-size: .9rem;
+.cro-field select,
+.cro-textarea {
   width: 100%;
+  padding: 9px 11px;
+  font-size: 14px;
+  font-family: var(--cro-font-text);
+  color: var(--cro-ink);
+  border: 1px solid var(--cro-line);
+  border-radius: 10px;
+  background: #FFFFFF;
+  outline: none;
+}
+.cro-textarea { resize: vertical; }
+
+.cro-field input:focus,
+.cro-field select:focus,
+.cro-textarea:focus {
+  border-color: var(--cro-purple);
+  box-shadow: 0 0 0 3px rgba(54, 23, 123, 0.12);
 }
 
 .cro-field-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
-.cro-field-row .cro-field { flex: 1 1 0; }
-
-.cro-check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.cro-check input { width: 16px; height: 16px; }
-
-.cro-check label {
-  font-size: .85rem;
-  font-weight: 600;
-}
-
-/* Sub-bloco: criar nova disciplina */
 .cro-newdisc {
-  border: 1px dashed var(--line);
-  border-radius: var(--rad-sm);
+  background: var(--cro-cream);
+  border: 1px solid var(--cro-line);
+  border-radius: 10px;
   padding: 12px;
   margin-bottom: 12px;
-  background: #faf8fe;
 }
-
-.cro-newdisc .cro-field:last-child { margin-bottom: 0; }
-
-.cro-color-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.cro-newdisc.hidden { display: none; }
 
 .cro-color-row input[type="color"] {
-  width: 42px;
-  height: 34px;
+  width: 56px;
+  height: 36px;
   padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: var(--rad-sm);
-  background: var(--card);
+  border: 1px solid var(--cro-line);
+  border-radius: 8px;
+  background: #FFFFFF;
+  cursor: pointer;
+}
+
+.cro-check-row {
+  display: flex;
+  gap: 22px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.cro-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--cro-ink);
+  cursor: pointer;
+}
+.cro-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cro-purple);
   cursor: pointer;
 }
 
 .cro-form-error {
-  color: var(--orange);
-  font-size: .82rem;
-  font-weight: 600;
   margin: 4px 0 12px;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: #8A2412;
+  background: #FBE9E3;
+  border: 1px solid #F0C4B6;
+  border-radius: 10px;
 }
+.cro-form-error.hidden { display: none; }
 
 .cro-modal-actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 18px;
 }
-
-.cro-modal-actions .cro-right {
+.cro-modal-right {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   margin-left: auto;
 }
 
-.btn-danger {
-  background: rgba(224, 97, 31, .12);
-  border-color: rgba(224, 97, 31, .3);
-  color: var(--orange);
+/* Botões (fallback local — herdam o estilo global se existir) */
+.cro-root .btn,
+.cro-modal .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: var(--cro-font-text);
+  border-radius: 10px;
+  border: 1px solid var(--cro-line);
+  background: #FFFFFF;
+  color: var(--cro-ink);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, filter 0.12s;
 }
+.cro-root .btn:hover,
+.cro-modal .btn:hover { border-color: var(--cro-sec-2); }
 
-.btn-danger:hover {
-  background: rgba(224, 97, 31, .2);
+.cro-root .btn-primary,
+.cro-modal .btn-primary {
+  background: var(--cro-purple);
+  border-color: var(--cro-purple);
+  color: #FFFFFF;
+}
+.cro-root .btn-primary:hover,
+.cro-modal .btn-primary:hover { filter: brightness(1.08); }
+
+.cro-modal .btn-danger {
+  background: #FFFFFF;
+  border-color: #E2B7AC;
+  color: var(--cro-urgent);
+}
+.cro-modal .btn-danger:hover {
+  background: #FBE9E3;
+  border-color: var(--cro-urgent);
 }
 
 /* ============================================================
-   Responsivo
+   FOCO ACESSÍVEL
    ============================================================ */
-@media (max-width: 720px) {
-  .cro-summary {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  /* Em telas estreitas a coluna de rótulos encolhe um pouco */
-  .cro-gantt {
-    --cro-label-w: 150px;
-  }
+.cro-root :focus-visible,
+.cro-modal :focus-visible {
+  outline: 3px solid var(--cro-teal);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.cro-milestone:focus-visible {
+  outline-offset: 3px;
 }
 
-@media (max-width: 480px) {
-  .cro-summary {
-    grid-template-columns: 1fr;
+/* ============================================================
+   RESPONSIVO
+   ============================================================ */
+@media (max-width: 900px) {
+  .cro-marcos-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
+  .cro-hdr-title { font-size: 28px; }
+}
 
-  .cro-field-row {
+@media (max-width: 720px) {
+  .cro-header {
     flex-direction: column;
-    gap: 0;
+    align-items: flex-start;
+    padding: 18px 18px;
   }
+  .cro-hdr-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .cro-hdr-meta { text-align: left; }
+  .cro-legend { padding: 12px 18px; gap: 12px; }
+  .cro-marcos { padding: 18px; }
+  .cro-marcos-grid { grid-template-columns: repeat(2, 1fr); }
+  .cro-toolbar { padding: 14px 18px 4px; }
+  .cro-gantt-card { padding: 0 18px 18px; }
+  /* O Gantt mantém largura mínima e rola horizontalmente */
+  .cro-field-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 460px) {
+  .cro-marcos-grid { grid-template-columns: 1fr; }
+  .cro-hdr-divider { display: none; }
+  .cro-hdr-left { gap: 12px; }
 }

@@ -74,11 +74,17 @@
 
 .brand {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
   font-weight: 800;
   letter-spacing: .2px;
   white-space: nowrap;
+}
+
+.brand .brand-logo {
+  height: 36px;
+  width: auto;
+  display: block;
 }
 
 .brand .brand-event {

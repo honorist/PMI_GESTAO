@@ -25,9 +25,9 @@
     <header class="topbar">
       <div class="topbar-inner">
         <div class="brand">
-          <span class="brand-event">PMIRS Summit 2026</span>
+          <img class="brand-logo" src="assets/pmirs-horizontal-white.png" alt="PMI Rio Grande do Sul Chapter" />
           <span class="brand-sep">·</span>
-          <span class="brand-sub">Gestão</span>
+          <span class="brand-sub">Summit 2026 · Gestão</span>
         </div>
 
         <div class="topbar-actions">
@@ -102,6 +102,16 @@
             aria-controls="tab-disciplinas"
             tabindex="-1"
           >Disciplinas</button>
+
+          <button
+            class="tab-btn"
+            type="button"
+            role="tab"
+            data-tab="tab-eap"
+            aria-selected="false"
+            aria-controls="tab-eap"
+            tabindex="-1"
+          >EAP</button>
         </div>
       </nav>
     </header>
@@ -159,6 +169,16 @@
       >
         <div class="placeholder">Carregando…</div>
       </section>
+
+      <section
+        id="tab-eap"
+        class="tab-panel"
+        role="tabpanel"
+        aria-label="EAP"
+        hidden
+      >
+        <div class="placeholder">Carregando…</div>
+      </section>
     </main>
   </div>
 
@@ -174,5 +194,6 @@
   <script src="js/financeiro.js" defer></script>
   <script src="js/contratacoes.js" defer></script>
   <script src="js/disciplinas.js" defer></script>
+  <script src="js/eap.js" defer></script>
 </body>
 </html>

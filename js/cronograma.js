@@ -1,53 +1,81 @@
 /* ============================================================
-   cronograma.js — Módulo Cronograma (Gantt/Timeline editável)
+   cronograma.js — Módulo Cronograma (Gantt profissional, fiel ao design)
    ------------------------------------------------------------
-   Núcleo do app: visão de cronograma profissional com
-   - Gantt agrupado por disciplina (barras posicionadas por data)
-   - Marcos como losangos
-   - CRUD de tarefas (criar / editar / excluir) via modal
-   - Criação de disciplinas embutida no formulário
-   - Filtros por disciplina e status + busca por nome
-   - Cards de resumo no topo
-   - Persistência via Gestao.save() (localStorage)
+   Reproduz o Gantt do design de referência (Summit POA PMIRS 2026):
+   - HEADER com logo, título serifado, contagem regressiva p/ o evento
+   - LEGENDA de status (urgente / pendente / futuro / concluído / marco / hoje)
+   - MARCOS CRÍTICOS em grade por mês (Jun..Nov)
+   - GANTT em tabela agrupada por GT, com eixo fixo de 6 meses,
+     barras posicionadas por início/fim, marcos como losangos roxos,
+     linhas de grade por mês, faixa do evento e linha "HOJE"
+   - CRUD completo (criar / editar / excluir tarefas e prazos) via modal
+   - Filtros por GT e status + busca; persistência via Gestao.save()
 
-   Contrato (NÃO alterado aqui): window.Gestao.
-   Registra-se com Gestao.onTab('tab-cronograma', render).
-   Após qualquer edição em Gestao.data.cronograma: save() + render.
+   Contrato (NÃO alterado): window.Gestao. Vocabulário de status
+   preservado (concluido / andamento / pendente). Campos novos
+   (urgente, obs) são aditivos e não quebram outros módulos.
+
+   Posicionamento temporal (igual ao design): meses Jun..Nov (0..5),
+   dias por mês [30,31,31,30,31,30].
+   fração f(m,d) = ((m + (d-1)/dim[m]) / 6) * 100  (% no eixo)
    ============================================================ */
 
 (function () {
   "use strict";
 
-  /* ---- Constantes de domínio ---- */
+  /* ============================================================
+     Constantes de domínio e do eixo temporal
+     ============================================================ */
   var STATUS_OPTIONS = [
     { id: "concluido", label: "Concluído" },
     { id: "andamento", label: "Em andamento" },
     { id: "pendente", label: "Pendente" }
   ];
 
-  // Cor sugerida para disciplinas novas (paleta da marca).
   var DEFAULT_NEW_COLOR = "#36177B";
 
-  // Meses curtos em pt-BR (1=jan).
-  var MESES_CURTOS = [
-    "jan", "fev", "mar", "abr", "mai", "jun",
-    "jul", "ago", "set", "out", "nov", "dez"
-  ];
+  // Eixo fixo do design: Junho..Novembro de 2026.
+  var EIXO_ANO = 2026;
+  var EIXO_MES_INI = 6; // junho (1-based)
+  var EIXO_MESES = ["JUN", "JUL", "AGO", "SET", "OUT", "NOV"];
+  var MESES_LONGOS = ["Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro"];
+  // Dias por mês no eixo (jun..nov) — conforme o design.
+  var DIM = [30, 31, 31, 30, 31, 30];
+  var N_MESES = 6;
 
-  var MS_DIA = 24 * 60 * 60 * 1000;
+  // Data do evento (para contagem regressiva): 13/11/2026.
+  var EVENTO_INI = { mes: 11, dia: 13 };
+  var EVENTO_FIM = { mes: 11, dia: 14 };
+
+  var LARGURA_MIN_PCT = 1.1; // largura mínima de barra (%)
+
+  // Cores de status das barras (design).
+  var COR = {
+    concluido: { bg: "#3F7A4A", fg: "#FFFFFF", border: "#3F7A4A" },
+    pendente: { bg: "#E0611F", fg: "#FFFFFF", border: "#E0611F" },
+    futuro: { bg: "#E7E0D2", fg: "#6F6149", border: "#D4C8AF" },
+    urgente: { bg: "#B83713", fg: "#FFFFFF", border: "#B83713" },
+    marco: "#36177B"
+  };
 
   /* ---- Estado de UI (filtros/busca) — vive só no módulo ---- */
   var ui = {
-    discFiltro: null, // Set de disciplinaIds ativas (null = todas)
-    statusFiltro: null, // Set de status ativos (null = todos)
+    discFiltro: null, // Set de disciplinaIds (null = todas)
+    statusFiltro: null, // Set de chaves visuais (null = todas)
     busca: ""
   };
+
+  // Chaves visuais usadas como filtro de status (derivadas, não o status cru).
+  var VIS_OPTIONS = [
+    { id: "urgente", label: "Urgente" },
+    { id: "pendente", label: "Pendente" },
+    { id: "futuro", label: "Futuro" },
+    { id: "concluido", label: "Concluído" }
+  ];
 
   /* ============================================================
      Utilidades de data (tratando 'AAAA-MM-DD' como LOCAL)
      ============================================================ */
-
-  // Converte 'AAAA-MM-DD' para Date local (sem shift de fuso).
   function parseISO(iso) {
     if (!iso) return null;
     var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -55,44 +83,148 @@
     return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
   }
 
-  // Date local -> 'AAAA-MM-DD'.
-  function toISO(d) {
-    var y = d.getFullYear();
-    var mo = String(d.getMonth() + 1).padStart(2, "0");
-    var da = String(d.getDate()).padStart(2, "0");
-    return y + "-" + mo + "-" + da;
-  }
-
-  // Hoje, normalizado para meia-noite local.
   function hojeLocal() {
     var n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), n.getDate());
   }
 
-  // Nº de dias inteiros entre duas datas (b - a).
-  function diffDias(a, b) {
-    return Math.round((b.getTime() - a.getTime()) / MS_DIA);
+  function isoCurto(iso) {
+    if (!iso) return "";
+    var m = String(iso).match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : "";
+  }
+
+  // Data de hoje por extenso, p/ "Atualizado em".
+  function hojeExtenso() {
+    var h = hojeLocal();
+    var dia = String(h.getDate()).padStart(2, "0");
+    var idx = h.getMonth() + 1 - EIXO_MES_INI;
+    var nomeMes;
+    if (idx >= 0 && idx < MESES_LONGOS.length) {
+      nomeMes = MESES_LONGOS[idx].toLowerCase();
+    } else {
+      var todos = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
+        "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+      nomeMes = todos[h.getMonth()];
+    }
+    return dia + " de " + nomeMes + " de " + h.getFullYear();
+  }
+
+  // Dias inteiros entre hoje e a data do evento (13/11/2026).
+  function diasParaEvento() {
+    var h = hojeLocal();
+    var alvo = new Date(EIXO_ANO, EVENTO_INI.mes - 1, EVENTO_INI.dia);
+    return Math.round((alvo.getTime() - h.getTime()) / (24 * 60 * 60 * 1000));
   }
 
   /* ============================================================
-     Injeção do CSS do módulo (sem tocar no index.html)
+     Posicionamento no eixo fixo (Jun..Nov) — fórmula do design
      ============================================================ */
-  function ensureCSS() {
-    var href = "css/cronograma.css";
-    var existing = document.querySelector('link[data-cro-css]');
-    if (existing) return;
-    // Evita duplicar caso já exista um link igual por outro caminho.
+
+  // Fração 0..100 para (mês 1-based, dia 1-based).
+  function fracaoMesDia(mes1, dia1) {
+    var m = mes1 - EIXO_MES_INI; // 0..5
+    if (m < 0) { m = 0; dia1 = 1; }
+    if (m > N_MESES - 1) { m = N_MESES - 1; dia1 = DIM[m]; }
+    var dim = DIM[m] || 30;
+    var d = dia1 || 1;
+    if (d < 1) d = 1;
+    if (d > dim) d = dim;
+    var f = ((m + (d - 1) / dim) / N_MESES) * 100;
+    if (f < 0) f = 0;
+    if (f > 100) f = 100;
+    return f;
+  }
+
+  // Fração para um Date (clampa ao eixo).
+  function fracaoData(d) {
+    if (!d) return null;
+    return fracaoMesDia(d.getMonth() + 1, d.getDate());
+  }
+
+  // Fração de início de uma tarefa: usa 'inicio' (1º dia do mês no design).
+  function fracaoInicio(t) {
+    var ini = parseISO(t.inicio);
+    if (ini) return fracaoData(ini);
+    var fim = parseISO(t.fim);
+    if (fim) return fracaoData(fim);
+    return null;
+  }
+
+  // Fração de fim: usa 'fim'; se nulo (Contínuo), vai até o fim do eixo.
+  function fracaoFim(t) {
+    var fim = parseISO(t.fim);
+    if (fim) return fracaoData(fim);
+    var ini = parseISO(t.inicio);
+    if (ini) return 100; // sem fim definido = barra até o fim do período
+    return null;
+  }
+
+  /* ============================================================
+     Derivação visual do status (regra do design)
+     concluido -> verde
+     senão urgente -> vermelho
+     senão início no futuro (> hoje) -> creme (futuro)
+     senão -> laranja (pendente)
+     ============================================================ */
+  function classeVisual(t) {
+    if (t.status === "concluido") return "concluido";
+    if (t.urgente) return "urgente";
+    var ini = parseISO(t.inicio);
+    if (ini && ini > hojeLocal()) return "futuro";
+    return "pendente";
+  }
+
+  function visualLabel(id) {
+    var o = VIS_OPTIONS.filter(function (x) { return x.id === id; })[0];
+    return o ? o.label : "Pendente";
+  }
+
+  /* ============================================================
+     Injeção de fonte (Google Fonts) + CSS do módulo
+     ============================================================ */
+  function ensureHead() {
+    // Fontes Fraunces + Manrope.
+    if (!document.querySelector('link[data-cro-fonts]')) {
+      var pre1 = document.createElement("link");
+      pre1.rel = "preconnect";
+      pre1.href = "https://fonts.googleapis.com";
+      pre1.setAttribute("data-cro-fonts", "1");
+      document.head.appendChild(pre1);
+
+      var pre2 = document.createElement("link");
+      pre2.rel = "preconnect";
+      pre2.href = "https://fonts.gstatic.com";
+      pre2.crossOrigin = "anonymous";
+      pre2.setAttribute("data-cro-fonts", "1");
+      document.head.appendChild(pre2);
+
+      var f = document.createElement("link");
+      f.rel = "stylesheet";
+      f.setAttribute("data-cro-fonts", "1");
+      f.href =
+        "https://fonts.googleapis.com/css2?" +
+        "family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&" +
+        "family=Manrope:wght@400;500;600;700;800&display=swap";
+      document.head.appendChild(f);
+    }
+
+    // CSS do módulo (link único).
+    var jaTem = false;
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
       if ((links[i].getAttribute("href") || "").indexOf("cronograma.css") !== -1) {
-        return;
+        jaTem = true;
+        break;
       }
     }
-    var link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = href;
-    link.setAttribute("data-cro-css", "1");
-    document.head.appendChild(link);
+    if (!jaTem) {
+      var link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "css/cronograma.css";
+      link.setAttribute("data-cro-css", "1");
+      document.head.appendChild(link);
+    }
   }
 
   /* ============================================================
@@ -128,41 +260,38 @@
   }
 
   /* ============================================================
-     Acesso aos dados do cronograma (sempre normalizado)
+     Acesso/normalização dos dados do cronograma
      ============================================================ */
   function getCrono(data) {
     var c = data && data.cronograma;
     if (!c || typeof c !== "object") c = {};
     if (!Array.isArray(c.disciplinas)) c.disciplinas = [];
     if (!Array.isArray(c.tarefas)) c.tarefas = [];
-    // Garante que o objeto exista para edições posteriores.
     data.cronograma = c;
     return c;
   }
 
   function discById(crono) {
     var map = {};
-    crono.disciplinas.forEach(function (d) {
-      map[d.id] = d;
-    });
+    crono.disciplinas.forEach(function (d) { map[d.id] = d; });
     return map;
   }
 
-  // Cor da disciplina (fallback neutro se não encontrada).
   function corDisciplina(map, id) {
     var d = map[id];
-    return (d && d.cor) || "#6B6480";
+    return (d && d.cor) || "#6F6149";
   }
 
-  // Gera um id kebab-case único a partir do nome da disciplina.
   function slugify(nome) {
-    return String(nome)
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "") // remove acentos (diacríticos)
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 40) || "disciplina";
+    return (
+      String(nome)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "") // remove diacríticos
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 40) || "disciplina"
+    );
   }
 
   function idDisciplinaUnico(crono, nome) {
@@ -170,9 +299,7 @@
     var id = base;
     var n = 2;
     var existe = {};
-    crono.disciplinas.forEach(function (d) {
-      existe[d.id] = true;
-    });
+    crono.disciplinas.forEach(function (d) { existe[d.id] = true; });
     while (existe[id]) {
       id = base + "-" + n;
       n += 1;
@@ -181,232 +308,44 @@
   }
 
   /* ============================================================
-     Cálculo do intervalo do Gantt (em meses, com folga)
-     ============================================================ */
-  function calcularIntervalo(tarefas) {
-    var datas = [];
-    tarefas.forEach(function (t) {
-      var ini = parseISO(t.inicio);
-      var fim = parseISO(t.fim);
-      if (ini) datas.push(ini);
-      if (fim) datas.push(fim);
-    });
-
-    var min, max;
-    if (datas.length === 0) {
-      // Sem datas: usa o ano corrente como moldura mínima.
-      var h = hojeLocal();
-      min = new Date(h.getFullYear(), h.getMonth(), 1);
-      max = new Date(h.getFullYear(), h.getMonth() + 5, 1);
-    } else {
-      min = datas[0];
-      max = datas[0];
-      datas.forEach(function (d) {
-        if (d < min) min = d;
-        if (d > max) max = d;
-      });
-    }
-
-    // Folga: começa no 1º dia do mês de min, termina no último dia
-    // do mês de max (assim a barra final nunca encosta na borda).
-    var start = new Date(min.getFullYear(), min.getMonth(), 1);
-    var end = new Date(max.getFullYear(), max.getMonth() + 1, 0); // último dia do mês
-
-    // Lista de meses (1º dia de cada) no intervalo.
-    var meses = [];
-    var cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-    while (cursor <= end) {
-      meses.push(new Date(cursor.getFullYear(), cursor.getMonth(), 1));
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-    }
-
-    var totalDias = diffDias(start, end) + 1; // inclusivo
-    return { start: start, end: end, meses: meses, totalDias: totalDias };
-  }
-
-  // Posição percentual (0-100) de uma data dentro do intervalo.
-  function pctData(intervalo, d) {
-    var off = diffDias(intervalo.start, d);
-    return (off / intervalo.totalDias) * 100;
-  }
-
-  /* ============================================================
-     Filtros + ordenação das tarefas
+     Filtros + ordenação
      ============================================================ */
   function passaFiltro(t) {
     if (ui.discFiltro && !ui.discFiltro.has(t.disciplinaId)) return false;
-    if (ui.statusFiltro && !ui.statusFiltro.has(t.status)) return false;
+    if (ui.statusFiltro && !ui.statusFiltro.has(classeVisual(t))) return false;
     if (ui.busca) {
-      var alvo = (String(t.nome || "") + " " + String(t.responsavel || "")).toLowerCase();
+      var alvo = (
+        String(t.nome || "") + " " +
+        String(t.responsavel || "") + " " +
+        String(t.obs || "")
+      ).toLowerCase();
       if (alvo.indexOf(ui.busca) === -1) return false;
     }
     return true;
   }
 
-  // Ordena por data de início (nulos por último), depois por id.
+  // Ordena por código (numérico) quando houver; senão por início; senão id.
   function ordenarTarefas(lista) {
     return lista.slice().sort(function (a, b) {
-      var ia = parseISO(a.inicio);
-      var ib = parseISO(b.inicio);
-      if (ia && ib) {
-        if (ia.getTime() !== ib.getTime()) return ia - ib;
-      } else if (ia && !ib) {
+      var ca = a.codigo, cb = b.codigo;
+      if (ca && cb) {
+        var cmp = ca.localeCompare(cb, undefined, { numeric: true });
+        if (cmp !== 0) return cmp;
+      } else if (ca && !cb) {
         return -1;
-      } else if (!ia && ib) {
+      } else if (!ca && cb) {
         return 1;
       }
+      var ia = parseISO(a.inicio);
+      var ib = parseISO(b.inicio);
+      if (ia && ib && ia.getTime() !== ib.getTime()) return ia - ib;
       return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
     });
   }
 
-  /* ============================================================
-     CARDS DE RESUMO (topo)
-     ============================================================ */
-  function buildResumo(crono) {
-    var tarefas = crono.tarefas;
-    var total = tarefas.length;
-    var concluidas = tarefas.filter(function (t) {
-      return t.status === "concluido";
-    }).length;
-    var pctConcluido = total ? Math.round((concluidas / total) * 100) : 0;
-    var marcos = tarefas.filter(function (t) {
-      return t.marco === true;
-    }).length;
-
-    // Próximos 3 prazos: tarefas não concluídas com 'fim' no futuro
-    // (ou hoje), ordenadas pela data de fim mais próxima.
-    var hoje = hojeLocal();
-    var proximos = tarefas
-      .filter(function (t) {
-        if (t.status === "concluido") return false;
-        var f = parseISO(t.fim);
-        return f && f >= hoje;
-      })
-      .sort(function (a, b) {
-        return parseISO(a.fim) - parseISO(b.fim);
-      })
-      .slice(0, 3);
-
-    var statCards = [
-      cardStat("Tarefas", String(total), total === 1 ? "1 atividade" : total + " atividades"),
-      cardStat("Concluído", pctConcluido + "%", concluidas + " de " + total),
-      cardStat("Marcos", String(marcos), "pontos de controle")
-    ];
-
-    // Card de próximos prazos (lista).
-    var proxChildren = [
-      el("p", { cls: "cro-stat-label", text: "Próximos prazos" })
-    ];
-    if (proximos.length === 0) {
-      proxChildren.push(el("p", { cls: "cro-next-empty", text: "Sem prazos futuros pendentes." }));
-    } else {
-      var ul = el("ul", { cls: "cro-next-list" });
-      proximos.forEach(function (t) {
-        ul.appendChild(
-          el("li", {
-            children: [
-              el("span", { cls: "cro-next-name", text: t.nome, attrs: { title: t.nome } }),
-              el("span", { cls: "cro-next-date", text: Gestao.fmtData(t.fim) })
-            ]
-          })
-        );
-      });
-      proxChildren.push(ul);
-    }
-    var proxCard = el("div", { cls: "cro-stat", children: proxChildren });
-
-    return el("section", {
-      cls: "cro-summary",
-      attrs: { "aria-label": "Resumo do cronograma" },
-      children: statCards.concat([proxCard])
-    });
-  }
-
-  function cardStat(label, value, sub) {
-    return el("div", {
-      cls: "cro-stat",
-      children: [
-        el("p", { cls: "cro-stat-label", text: label }),
-        el("div", { cls: "cro-stat-value", text: value }),
-        el("div", { cls: "cro-stat-sub", text: sub })
-      ]
-    });
-  }
-
-  /* ============================================================
-     FILTROS (chips de disciplina + status + busca)
-     ============================================================ */
-  function buildFiltros(crono, onChange) {
-    var wrap = el("section", { cls: "cro-filters", attrs: { "aria-label": "Filtros" } });
-
-    // Linha de disciplinas
-    var rowDisc = el("div", { cls: "cro-filter-row" });
-    rowDisc.appendChild(el("span", { cls: "cro-filter-label", text: "Disciplinas" }));
-    crono.disciplinas.forEach(function (d) {
-      var ativo = !ui.discFiltro || ui.discFiltro.has(d.id);
-      var dot = el("span", { cls: "cro-dot", style: "background:" + d.cor });
-      var chip = el("button", {
-        cls: "cro-chip",
-        attrs: { type: "button", "aria-pressed": ativo ? "true" : "false" },
-        children: [dot, el("span", { text: d.nome })],
-        on: {
-          click: function () {
-            toggleSetFiltro("discFiltro", d.id, crono.disciplinas.map(function (x) { return x.id; }));
-            onChange();
-          }
-        }
-      });
-      rowDisc.appendChild(chip);
-    });
-    wrap.appendChild(rowDisc);
-
-    // Linha de status + busca
-    var rowStatus = el("div", { cls: "cro-filter-row" });
-    rowStatus.appendChild(el("span", { cls: "cro-filter-label", text: "Status" }));
-    STATUS_OPTIONS.forEach(function (s) {
-      var ativo = !ui.statusFiltro || ui.statusFiltro.has(s.id);
-      var chip = el("button", {
-        cls: "cro-chip",
-        attrs: { type: "button", "aria-pressed": ativo ? "true" : "false" },
-        text: s.label,
-        on: {
-          click: function () {
-            toggleSetFiltro("statusFiltro", s.id, STATUS_OPTIONS.map(function (x) { return x.id; }));
-            onChange();
-          }
-        }
-      });
-      rowStatus.appendChild(chip);
-    });
-
-    // Busca
-    var busca = el("input", {
-      cls: "cro-search",
-      attrs: {
-        type: "search",
-        placeholder: "Buscar tarefa ou responsável…",
-        "aria-label": "Buscar tarefa",
-        value: ui.busca
-      }
-    });
-    busca.addEventListener("input", function () {
-      ui.busca = busca.value.trim().toLowerCase();
-      // Atualiza só o Gantt para não perder o foco do input.
-      onChange({ keepFocus: true });
-    });
-    rowStatus.appendChild(busca);
-
-    wrap.appendChild(rowStatus);
-    return wrap;
-  }
-
-  // Alterna um item num conjunto-filtro. Conjunto null = "todos ativos".
-  // Clicar num item quando todos estão ativos isola... não: comportamento
-  // intuitivo = liga/desliga itens individualmente.
   function toggleSetFiltro(chave, id, todosIds) {
     var atual = ui[chave];
     if (!atual) {
-      // Estava "todos": cria um Set com todos e remove o clicado.
       atual = new Set(todosIds);
       atual.delete(id);
     } else if (atual.has(id)) {
@@ -414,7 +353,6 @@
     } else {
       atual.add(id);
     }
-    // Se voltou a conter todos, normaliza para null ("todos").
     if (atual.size === todosIds.length) {
       ui[chave] = null;
     } else {
@@ -423,269 +361,529 @@
   }
 
   /* ============================================================
-     GANTT
+     1. HEADER (logo + título + contagem regressiva)
      ============================================================ */
-  function buildGantt(crono, intervalo, onEditar) {
-    var map = discById(crono);
-
-    var card = el("div", { cls: "card cro-gantt-card" });
-    var scroll = el("div", { cls: "cro-gantt-scroll" });
-    var gantt = el("div", { cls: "cro-gantt" });
-
-    /* ---- Cabeçalho de meses ---- */
-    var head = el("div", { cls: "cro-gantt-head" });
-    head.appendChild(el("div", { cls: "cro-head-spacer", text: "Tarefa" }));
-    var headMonths = el("div", { cls: "cro-head-months" });
-    intervalo.meses.forEach(function (m) {
-      var rotulo = MESES_CURTOS[m.getMonth()] + " " + String(m.getFullYear()).slice(2);
-      headMonths.appendChild(el("div", { cls: "cro-head-month", text: rotulo }));
+  function buildHeader(crono) {
+    // --- Esquerda: logo + divisória + bloco de título ---
+    var logo = el("img", {
+      cls: "cro-hdr-logo",
+      attrs: {
+        src: "assets/pmirs-horizontal-color.png",
+        alt: "PMI Rio Grande do Sul Chapter"
+      }
     });
-    head.appendChild(headMonths);
-    gantt.appendChild(head);
+    var divisor = el("span", { cls: "cro-hdr-divider", attrs: { "aria-hidden": "true" } });
 
-    /* ---- Corpo ---- */
-    var body = el("div", { cls: "cro-gantt-body" });
-
-    // Linhas de grade verticais (uma por início de mês) + linha hoje.
-    var grid = el("div", { cls: "cro-gridlines" });
-    intervalo.meses.forEach(function (m, i) {
-      if (i === 0) return; // primeira borda é a do label
-      var left = pctData(intervalo, m);
-      grid.appendChild(el("div", { cls: "cro-gridline", style: "left:" + left + "%" }));
+    var eyebrow = el("p", {
+      cls: "cro-hdr-eyebrow",
+      text: "Cronograma do projeto · Summit POA PMIRS 2026"
     });
-    // Linha "hoje"
-    var hoje = hojeLocal();
-    if (hoje >= intervalo.start && hoje <= intervalo.end) {
-      grid.appendChild(el("div", { cls: "cro-today", style: "left:" + pctData(intervalo, hoje) + "%" }));
-    }
-    body.appendChild(grid);
-
-    // Agrupa tarefas (filtradas) por disciplina, na ordem das disciplinas.
-    var visiveis = crono.tarefas.filter(function (t) {
-      return temData(t) && passaFiltro(t);
+    var titulo = el("h2", { cls: "cro-hdr-title", text: "Plano macro de execução por GT" });
+    var sub = el("p", {
+      cls: "cro-hdr-sub",
+      text: "“O futuro é artificial. A liderança é emocional.” · 13 e 14 de novembro · TECNOPUC · Porto Alegre"
+    });
+    var tituloBloco = el("div", {
+      cls: "cro-hdr-titlewrap",
+      children: [eyebrow, titulo, sub]
     });
 
-    var algumaLinha = false;
-    crono.disciplinas.forEach(function (d) {
-      var doGrupo = ordenarTarefas(
-        visiveis.filter(function (t) {
-          return t.disciplinaId === d.id;
-        })
-      );
-      if (doGrupo.length === 0) return;
-      algumaLinha = true;
-
-      body.appendChild(grupoHead(d, doGrupo.length));
-      doGrupo.forEach(function (t) {
-        body.appendChild(linhaTarefa(t, d, intervalo, onEditar));
-      });
+    var esquerda = el("div", {
+      cls: "cro-hdr-left",
+      children: [logo, divisor, tituloBloco]
     });
 
-    // Tarefas com disciplina inexistente (órfãs) — agrupa no fim.
-    var orfas = ordenarTarefas(
-      visiveis.filter(function (t) {
-        return !map[t.disciplinaId];
-      })
-    );
-    if (orfas.length > 0) {
-      algumaLinha = true;
-      body.appendChild(
-        grupoHead({ nome: "Sem disciplina", cor: "#6B6480" }, orfas.length)
-      );
-      orfas.forEach(function (t) {
-        body.appendChild(linhaTarefa(t, { cor: "#6B6480" }, intervalo, onEditar));
-      });
-    }
+    // --- Direita: atualizado em + métricas + cartão de contagem ---
+    var nMarcos = crono.tarefas.filter(function (t) { return t.marco; }).length;
+    var nGTs = crono.disciplinas.filter(function (d) { return d.id !== "evento"; }).length;
+    var nEntregas = crono.tarefas.length;
 
-    if (!algumaLinha) {
-      body.appendChild(
-        el("div", {
-          cls: "empty",
-          text: "Nenhuma tarefa com data corresponde aos filtros."
-        })
-      );
-    }
-
-    gantt.appendChild(body);
-    scroll.appendChild(gantt);
-    card.appendChild(scroll);
-    card.appendChild(buildLegenda());
-    return card;
-  }
-
-  function temData(t) {
-    return !!(parseISO(t.inicio) || parseISO(t.fim));
-  }
-
-  function grupoHead(disc, count) {
-    return el("div", {
-      cls: "cro-group-head",
+    var meta = el("div", {
+      cls: "cro-hdr-meta",
       children: [
-        el("span", { cls: "cro-dot", style: "background:" + (disc.cor || "#6B6480") }),
-        el("span", { text: disc.nome }),
-        el("span", {
-          cls: "cro-group-count",
-          text: count + (count === 1 ? " tarefa" : " tarefas")
+        el("p", { cls: "cro-hdr-updated", text: "Atualizado em " + hojeExtenso() }),
+        el("p", {
+          cls: "cro-hdr-counts",
+          text: nEntregas + " entregas · " + nGTs + " GTs · " + nMarcos + " marcos"
         })
       ]
     });
-  }
 
-  function linhaTarefa(t, disc, intervalo, onEditar) {
-    var cor = disc.cor || "#6B6480";
+    var dias = diasParaEvento();
+    var diasTxt = dias >= 0 ? String(dias) : "0";
+    var labelDias = dias > 0 ? "dias p/ o evento" : (dias === 0 ? "é hoje!" : "evento realizado");
+    var cartao = el("div", {
+      cls: "cro-hdr-countdown",
+      attrs: { "aria-label": diasTxt + " dias para o evento" },
+      children: [
+        el("div", { cls: "cro-countdown-num", text: diasTxt }),
+        el("div", { cls: "cro-countdown-label", text: labelDias })
+      ]
+    });
 
-    // Rótulo (nome + responsável)
-    var labelChildren = [
-      el("span", { cls: "cro-row-name", text: t.nome, attrs: { title: t.nome } })
-    ];
-    if (t.responsavel) {
-      labelChildren.push(
-        el("span", { cls: "cro-row-resp", text: t.responsavel, attrs: { title: t.responsavel } })
-      );
-    }
-    var label = el("div", { cls: "cro-row-label", children: labelChildren });
+    var direita = el("div", { cls: "cro-hdr-right", children: [meta, cartao] });
 
-    var track = el("div", { cls: "cro-track" });
-
-    if (t.marco) {
-      track.appendChild(marcoNode(t, cor, intervalo, onEditar));
-    } else {
-      track.appendChild(barraNode(t, cor, intervalo, onEditar));
-    }
-
-    return el("div", {
-      cls: "cro-row",
-      children: [label, track]
+    return el("header", {
+      cls: "cro-header",
+      attrs: { "aria-label": "Cabeçalho do cronograma" },
+      children: [esquerda, direita]
     });
   }
 
-  // Barra de tarefa posicionada por início/fim.
-  function barraNode(t, cor, intervalo, onEditar) {
-    var ini = parseISO(t.inicio);
-    var fim = parseISO(t.fim);
-    // Se faltar uma das pontas, usa a outra como ponto (duração mínima).
-    if (!ini && fim) ini = fim;
-    if (ini && !fim) fim = ini;
-
-    var left = pctData(intervalo, ini);
-    // +1 dia para a barra cobrir o dia final inteiro.
-    var right = pctData(intervalo, new Date(fim.getFullYear(), fim.getMonth(), fim.getDate() + 1));
-    var width = Math.max(right - left, 0.6); // largura mínima visível
-
-    var titulo = montarTitulo(t);
-
-    var bar = el("button", {
-      cls: "cro-bar is-" + (t.status || "pendente"),
-      attrs: { type: "button", title: titulo, "aria-label": titulo },
-      style: "left:" + left + "%;width:" + width + "%;background:" + cor,
-      on: { click: function () { onEditar(t.id); } }
-    });
-
-    if (t.status === "concluido") {
-      bar.appendChild(el("span", { cls: "cro-bar-check", text: "✓", attrs: { "aria-hidden": "true" } }));
-    }
-    // Nome curto dentro da barra (CSS corta com ellipsis se não couber).
-    bar.appendChild(el("span", { cls: "cro-bar-text", text: t.nome }));
-    return bar;
-  }
-
-  // Marco como losango posicionado pela data de fim (ou início).
-  function marcoNode(t, cor, intervalo, onEditar) {
-    var d = parseISO(t.fim) || parseISO(t.inicio);
-    var left = pctData(intervalo, d);
-    var titulo = montarTitulo(t);
-    return el("button", {
-      cls: "cro-milestone is-" + (t.status || "pendente"),
-      attrs: { type: "button", title: titulo, "aria-label": "Marco: " + titulo },
-      style: "left:" + left + "%;background:" + cor,
-      on: { click: function () { onEditar(t.id); } }
-    });
-  }
-
-  function montarTitulo(t) {
-    var partes = [t.nome];
-    if (t.responsavel) partes.push("· " + t.responsavel);
-    var ini = Gestao.fmtData(t.inicio);
-    var fim = Gestao.fmtData(t.fim);
-    if (ini || fim) partes.push("(" + (ini || "?") + " – " + (fim || "?") + ")");
-    partes.push("[" + statusLabel(t.status) + "]");
-    if (t.marco) partes.push("⬥ marco");
-    return partes.join(" ");
-  }
-
-  function statusLabel(id) {
-    var s = STATUS_OPTIONS.filter(function (x) { return x.id === id; })[0];
-    return s ? s.label : "Pendente";
-  }
-
+  /* ============================================================
+     2. LEGENDA
+     ============================================================ */
   function buildLegenda() {
-    function item(cls, label, isMilestone) {
-      var sample = el("span", { cls: "cro-sample" + (cls ? " " + cls : "") });
-      if (isMilestone) sample.classList.add("is-milestone");
+    function swatch(cls) {
+      return el("span", { cls: "cro-leg-swatch " + cls, attrs: { "aria-hidden": "true" } });
+    }
+    function item(cls, label) {
       return el("span", {
-        cls: "cro-legend-item",
-        children: [sample, el("span", { text: label })]
+        cls: "cro-leg-item",
+        children: [swatch(cls), el("span", { text: label })]
       });
     }
     return el("div", {
       cls: "cro-legend",
       attrs: { "aria-label": "Legenda" },
       children: [
-        item("is-concluido", "Concluído"),
-        item("is-andamento", "Em andamento"),
+        item("is-urgente", "Urgente"),
         item("is-pendente", "Pendente"),
-        item("", "Marco", true)
+        item("is-futuro", "Futuro"),
+        item("is-concluido", "Concluído"),
+        item("is-marco", "Marco crítico"),
+        item("is-hoje", "Hoje")
       ]
     });
   }
 
   /* ============================================================
-     SEÇÃO "SEM PRAZO DEFINIDO"
+     3. MARCOS CRÍTICOS (grade por mês Jun..Nov)
      ============================================================ */
-  function buildSemPrazo(crono, onEditar) {
+  function buildMarcos(crono) {
     var map = discById(crono);
-    var semData = ordenarTarefas(
-      crono.tarefas.filter(function (t) {
-        return !temData(t) && passaFiltro(t);
+    var marcos = crono.tarefas.filter(function (t) { return t.marco; });
+
+    // Agrupa por mês do eixo (índice 0..5) usando a data de fim (ou início).
+    var porMes = [];
+    for (var i = 0; i < N_MESES; i++) porMes.push([]);
+    marcos.forEach(function (t) {
+      var d = parseISO(t.fim) || parseISO(t.inicio);
+      if (!d) return;
+      var idx = d.getMonth() + 1 - EIXO_MES_INI;
+      if (idx < 0) idx = 0;
+      if (idx > N_MESES - 1) idx = N_MESES - 1;
+      porMes[idx].push(t);
+    });
+
+    var grade = el("div", { cls: "cro-marcos-grid" });
+    for (var m = 0; m < N_MESES; m++) {
+      var col = el("div", { cls: "cro-marcos-col" });
+      col.appendChild(el("div", { cls: "cro-marcos-mes", text: MESES_LONGOS[m] }));
+
+      var lista = ordenarTarefas(porMes[m]);
+      if (lista.length === 0) {
+        col.appendChild(el("div", { cls: "cro-marcos-vazio", text: "—" }));
+      } else {
+        lista.forEach(function (t) {
+          var cls = classeVisual(t);
+          var bolinha = el("span", {
+            cls: "cro-marcos-dot is-" + cls,
+            attrs: { "aria-hidden": "true" }
+          });
+          var estrela = el("span", {
+            cls: "cro-marcos-star",
+            text: "★",
+            attrs: { "aria-hidden": "true" }
+          });
+          var nome = el("span", { cls: "cro-marcos-nome", text: t.nome });
+          var data = el("span", {
+            cls: "cro-marcos-data",
+            text: t.fim ? Gestao.fmtData(t.fim) : (t.inicio ? Gestao.fmtData(t.inicio) : "")
+          });
+          col.appendChild(
+            el("div", {
+              cls: "cro-marcos-item",
+              children: [
+                el("span", { cls: "cro-marcos-itemhead", children: [estrela, bolinha, nome] }),
+                data
+              ]
+            })
+          );
+        });
+      }
+      grade.appendChild(col);
+    }
+
+    return el("section", {
+      cls: "cro-marcos",
+      attrs: { "aria-label": "Marcos críticos do projeto" },
+      children: [
+        el("h3", { cls: "cro-marcos-titulo", text: "Marcos críticos do projeto" }),
+        el("p", {
+          cls: "cro-marcos-sub",
+          text: "Pontos de controle que destravam o restante do plano, organizados por mês."
+        }),
+        grade
+      ]
+    });
+  }
+
+  /* ============================================================
+     4. GANTT (tabela agrupada por GT)
+     ============================================================ */
+  // Larguras (px) das colunas fixas — devem casar com o CSS.
+  var COL = {
+    cod: 42,
+    tarefa: 348,
+    resp: 152,
+    prazo: 78
+  };
+
+  function buildGantt(crono, onEditar) {
+    var map = discById(crono);
+
+    var card = el("div", { cls: "cro-gantt-card" });
+    var scroll = el("div", { cls: "cro-gantt-scroll" });
+    var gantt = el("div", { cls: "cro-gantt" });
+
+    /* ---- Cabeçalho sticky ---- */
+    gantt.appendChild(buildGanttHead());
+
+    /* ---- Corpo ---- */
+    var body = el("div", { cls: "cro-gantt-body" });
+
+    // Agrupa por disciplina, na ordem das disciplinas (com filtros).
+    var visiveis = crono.tarefas.filter(passaFiltro);
+    var algumaLinha = false;
+
+    crono.disciplinas.forEach(function (d) {
+      var doGrupo = ordenarTarefas(
+        visiveis.filter(function (t) { return t.disciplinaId === d.id; })
+      );
+      if (doGrupo.length === 0) return;
+      algumaLinha = true;
+
+      var ehEvento = d.id === "evento";
+      body.appendChild(grupoHead(d, doGrupo.length, ehEvento));
+      doGrupo.forEach(function (t) {
+        body.appendChild(linhaTarefa(t, d, onEditar, ehEvento));
+      });
+    });
+
+    // Tarefas órfãs (disciplina inexistente).
+    var orfas = ordenarTarefas(
+      visiveis.filter(function (t) { return !map[t.disciplinaId]; })
+    );
+    if (orfas.length > 0) {
+      algumaLinha = true;
+      var fake = { nome: "Sem disciplina", cor: "#6F6149", responsavel: "" };
+      body.appendChild(grupoHead(fake, orfas.length, false));
+      orfas.forEach(function (t) {
+        body.appendChild(linhaTarefa(t, fake, onEditar, false));
+      });
+    }
+
+    if (!algumaLinha) {
+      body.appendChild(
+        el("div", { cls: "cro-gantt-vazio", text: "Nenhuma tarefa corresponde aos filtros." })
+      );
+    }
+
+    gantt.appendChild(body);
+    scroll.appendChild(gantt);
+    card.appendChild(scroll);
+    return card;
+  }
+
+  // Cabeçalho com colunas fixas + eixo de meses.
+  function buildGanttHead() {
+    var head = el("div", { cls: "cro-gantt-head" });
+
+    head.appendChild(el("div", { cls: "cro-cell cro-cell-cod", text: "Cód" }));
+    head.appendChild(el("div", { cls: "cro-cell cro-cell-tarefa", text: "Tarefa / Entrega" }));
+    head.appendChild(el("div", { cls: "cro-cell cro-cell-resp", text: "Responsável" }));
+    head.appendChild(el("div", { cls: "cro-cell cro-cell-prazo", text: "Prazo" }));
+
+    var timeline = el("div", { cls: "cro-cell cro-cell-timeline cro-axis" });
+    EIXO_MESES.forEach(function (m) {
+      timeline.appendChild(el("div", { cls: "cro-axis-month", text: m }));
+    });
+    head.appendChild(timeline);
+
+    return head;
+  }
+
+  function grupoHead(disc, count, ehEvento) {
+    var children = [
+      el("span", {
+        cls: "cro-group-bar",
+        style: "background:" + (disc.cor || "#6F6149"),
+        attrs: { "aria-hidden": "true" }
+      }),
+      el("span", { cls: "cro-group-name", text: disc.nome })
+    ];
+    if (disc.responsavel) {
+      children.push(el("span", { cls: "cro-group-quem", text: disc.responsavel }));
+    }
+    children.push(
+      el("span", {
+        cls: "cro-group-count",
+        text: count + (count === 1 ? " entrega" : " entregas")
       })
     );
-    if (semData.length === 0) return null;
 
-    var lista = el("div", { cls: "cro-noplan-list" });
-    semData.forEach(function (t) {
-      var cor = corDisciplina(map, t.disciplinaId);
-      var children = [
-        el("span", { cls: "cro-dot", style: "background:" + cor }),
-        el("span", { cls: "cro-noplan-name", text: t.nome })
-      ];
-      var metaTxt = [];
-      if (t.responsavel) metaTxt.push(t.responsavel);
-      metaTxt.push(statusLabel(t.status));
-      children.push(el("span", { cls: "cro-noplan-meta", text: metaTxt.join(" · ") }));
+    return el("div", {
+      cls: "cro-group-head" + (ehEvento ? " is-evento" : ""),
+      children: children
+    });
+  }
 
-      lista.appendChild(
+  function linhaTarefa(t, disc, onEditar, ehEvento) {
+    var cor = disc.cor || "#6F6149";
+    var vis = classeVisual(t);
+
+    // Coluna código
+    var celCod = el("div", {
+      cls: "cro-cell cro-cell-cod",
+      text: t.codigo ? t.codigo : (t.marco ? "★" : "")
+    });
+
+    // Coluna tarefa: bolinha de status + nome + observação
+    var bolinha = el("span", {
+      cls: "cro-row-dot is-" + vis,
+      attrs: { "aria-hidden": "true" }
+    });
+    var nome = el("span", { cls: "cro-row-nome", text: t.nome });
+    var headNome = el("div", { cls: "cro-row-nomehead", children: [bolinha, nome] });
+    var tarefaChildren = [headNome];
+    if (t.obs) {
+      tarefaChildren.push(el("div", { cls: "cro-row-obs", text: t.obs }));
+    }
+    var celTarefa = el("div", { cls: "cro-cell cro-cell-tarefa", children: tarefaChildren });
+
+    // Coluna responsável
+    var celResp = el("div", {
+      cls: "cro-cell cro-cell-resp",
+      text: t.responsavel || "—",
+      attrs: t.responsavel ? { title: t.responsavel } : {}
+    });
+
+    // Coluna prazo
+    var celPrazo = el("div", {
+      cls: "cro-cell cro-cell-prazo",
+      text: t.fim ? Gestao.fmtData(t.fim).slice(0, 5) : (t.inicio ? "—" : "cont.")
+    });
+
+    // Coluna timeline (barra ou marco)
+    var track = el("div", { cls: "cro-cell cro-cell-timeline cro-track" });
+    track.appendChild(buildGridOverlay());
+    if (t.marco) {
+      track.appendChild(marcoNode(t, onEditar));
+    } else {
+      track.appendChild(barraNode(t, cor, vis, onEditar));
+    }
+
+    var linha = el("div", {
+      cls: "cro-row" + (ehEvento ? " is-evento" : "") + (t.urgente ? " is-urgente-row" : ""),
+      children: [celCod, celTarefa, celResp, celPrazo, track]
+    });
+
+    // Clique na linha (fora da barra) também edita.
+    linha.addEventListener("click", function (e) {
+      if (e.target.closest(".cro-bar, .cro-milestone")) return;
+      onEditar(t.id);
+    });
+
+    return linha;
+  }
+
+  // Linhas de grade verticais por mês + faixa do evento + linha hoje,
+  // desenhadas dentro de cada track (alinhadas ao eixo).
+  function buildGridOverlay() {
+    var grid = el("div", { cls: "cro-track-grid", attrs: { "aria-hidden": "true" } });
+    // Bordas dos meses (entre meses): 1/6, 2/6, ...
+    for (var i = 1; i < N_MESES; i++) {
+      var left = (i / N_MESES) * 100;
+      grid.appendChild(el("div", { cls: "cro-track-gridline", style: "left:" + left + "%" }));
+    }
+    // Faixa do evento (13–14/11).
+    var evIni = fracaoMesDia(EVENTO_INI.mes, EVENTO_INI.dia);
+    var evFim = fracaoMesDia(EVENTO_FIM.mes, EVENTO_FIM.dia);
+    var w = Math.max(evFim - evIni, 0.8);
+    grid.appendChild(
+      el("div", { cls: "cro-track-evento", style: "left:" + evIni + "%;width:" + w + "%" })
+    );
+    // Linha "hoje".
+    var h = hojeLocal();
+    if (h.getFullYear() === EIXO_ANO) {
+      var hf = fracaoData(h);
+      if (hf != null) {
+        grid.appendChild(el("div", { cls: "cro-track-hoje", style: "left:" + hf + "%" }));
+      }
+    }
+    return grid;
+  }
+
+  function barraNode(t, cor, vis, onEditar) {
+    var left = fracaoInicio(t);
+    var right = fracaoFim(t);
+    if (left == null && right == null) {
+      // Sem datas: barra mínima no início do eixo (raro).
+      left = 0;
+      right = LARGURA_MIN_PCT;
+    }
+    if (left == null) left = right;
+    if (right == null) right = left;
+    var width = Math.max(right - left, LARGURA_MIN_PCT);
+    if (left + width > 100) left = Math.max(0, 100 - width);
+
+    var titulo = montarTitulo(t);
+
+    // Cor: barra creme (futuro) usa cor neutra do design; demais usam
+    // a cor do status, mas mantemos um leve tom da disciplina como acento.
+    var paleta = COR[vis] || COR.pendente;
+
+    var bar = el("button", {
+      cls: "cro-bar is-" + vis,
+      attrs: { type: "button", title: titulo, "aria-label": titulo },
+      style:
+        "left:" + left + "%;width:" + width + "%;" +
+        "background:" + paleta.bg + ";color:" + paleta.fg + ";" +
+        "border-color:" + paleta.border + ";",
+      on: {
+        click: function (e) {
+          e.stopPropagation();
+          onEditar(t.id);
+        }
+      }
+    });
+
+    if (vis === "concluido") {
+      bar.appendChild(el("span", { cls: "cro-bar-check", text: "✓", attrs: { "aria-hidden": "true" } }));
+    }
+    return bar;
+  }
+
+  function marcoNode(t, onEditar) {
+    var d = parseISO(t.fim) || parseISO(t.inicio);
+    var left = d != null ? fracaoData(d) : 0;
+    var titulo = montarTitulo(t);
+    var losango = el("button", {
+      cls: "cro-milestone",
+      attrs: { type: "button", title: titulo, "aria-label": "Marco: " + titulo },
+      style: "left:" + left + "%;",
+      on: {
+        click: function (e) {
+          e.stopPropagation();
+          onEditar(t.id);
+        }
+      }
+    });
+    return losango;
+  }
+
+  function montarTitulo(t) {
+    var partes = [t.nome];
+    if (t.responsavel) partes.push("· " + t.responsavel);
+    var fim = Gestao.fmtData(t.fim);
+    if (fim) partes.push("(prazo " + fim + ")");
+    partes.push("[" + visualLabel(classeVisual(t)) + "]");
+    if (t.marco) partes.push("★ marco");
+    if (t.obs) partes.push("— " + t.obs);
+    return partes.join(" ");
+  }
+
+  /* ============================================================
+     TOOLBAR (título da seção + filtros + nova tarefa)
+     ============================================================ */
+  function buildToolbar(crono, onNova, onChange) {
+    var btnNova = el("button", {
+      cls: "btn btn-primary cro-btn-nova",
+      attrs: { type: "button" },
+      children: [
+        el("span", { text: "+", attrs: { "aria-hidden": "true" } }),
+        el("span", { text: " Nova tarefa" })
+      ],
+      on: { click: onNova }
+    });
+
+    // Linha 1: rótulo + ação
+    var topo = el("div", {
+      cls: "cro-toolbar-top",
+      children: [
+        el("h3", { cls: "cro-toolbar-titulo", text: "Gantt do projeto" }),
+        btnNova
+      ]
+    });
+
+    // Linha 2: filtros de GT
+    var rowDisc = el("div", { cls: "cro-filter-row" });
+    rowDisc.appendChild(el("span", { cls: "cro-filter-label", text: "GT" }));
+    crono.disciplinas.forEach(function (d) {
+      var ativo = !ui.discFiltro || ui.discFiltro.has(d.id);
+      var dot = el("span", { cls: "cro-dot", style: "background:" + d.cor });
+      rowDisc.appendChild(
         el("button", {
-          cls: "cro-noplan-item",
-          attrs: { type: "button" },
-          children: children,
-          on: { click: function () { onEditar(t.id); } }
+          cls: "cro-chip" + (ativo ? " is-on" : ""),
+          attrs: { type: "button", "aria-pressed": ativo ? "true" : "false" },
+          children: [dot, el("span", { text: d.nome })],
+          on: {
+            click: function () {
+              toggleSetFiltro("discFiltro", d.id, crono.disciplinas.map(function (x) { return x.id; }));
+              onChange();
+            }
+          }
         })
       );
     });
 
+    // Linha 3: filtros de status + busca
+    var rowStatus = el("div", { cls: "cro-filter-row" });
+    rowStatus.appendChild(el("span", { cls: "cro-filter-label", text: "Status" }));
+    VIS_OPTIONS.forEach(function (s) {
+      var ativo = !ui.statusFiltro || ui.statusFiltro.has(s.id);
+      rowStatus.appendChild(
+        el("button", {
+          cls: "cro-chip cro-chip-vis is-" + s.id + (ativo ? " is-on" : ""),
+          attrs: { type: "button", "aria-pressed": ativo ? "true" : "false" },
+          children: [el("span", { cls: "cro-chip-dot is-" + s.id }), el("span", { text: s.label })],
+          on: {
+            click: function () {
+              toggleSetFiltro("statusFiltro", s.id, VIS_OPTIONS.map(function (x) { return x.id; }));
+              onChange();
+            }
+          }
+        })
+      );
+    });
+
+    var busca = el("input", {
+      cls: "cro-search",
+      attrs: {
+        type: "search",
+        placeholder: "Buscar tarefa, responsável ou obs…",
+        "aria-label": "Buscar tarefa",
+        value: ui.busca
+      }
+    });
+    busca.addEventListener("input", function () {
+      ui.busca = busca.value.trim().toLowerCase();
+      onChange({ keepFocus: true });
+    });
+    rowStatus.appendChild(busca);
+
     return el("section", {
-      cls: "cro-noplan",
-      children: [
-        el("h3", { cls: "section-title", text: "Sem prazo definido" }),
-        lista
-      ]
+      cls: "cro-toolbar",
+      attrs: { "aria-label": "Controles do cronograma" },
+      children: [topo, rowDisc, rowStatus]
     });
   }
 
   /* ============================================================
-     MODAL — formulário de tarefa (criar / editar)
+     MODAL — formulário de tarefa (criar / editar / excluir)
      ============================================================ */
-  var modalAberto = null; // referência ao overlay aberto
+  var modalAberto = null;
 
   function abrirModal(crono, tarefa, onSalvo) {
     fecharModal();
@@ -693,31 +891,31 @@
     var editando = !!tarefa;
     var dados = tarefa || {
       nome: "",
+      codigo: null,
       disciplinaId: crono.disciplinas[0] ? crono.disciplinas[0].id : "",
       responsavel: "",
       inicio: "",
       fim: "",
       status: "pendente",
-      marco: false
+      urgente: false,
+      marco: false,
+      obs: ""
     };
 
-    // --- Campos ---
-    var inpNome = inputText("nome-tarefa", dados.nome, "Ex.: Curadoria de palestrantes");
+    var inpNome = inputText("cro-f-nome", dados.nome, "Ex.: Curadoria de palestrantes");
 
-    // Select de disciplina + opção "Nova disciplina…"
-    var selDisc = el("select", { attrs: { id: "sel-disc" } });
+    // Select de disciplina + "Nova disciplina…"
+    var selDisc = el("select", { attrs: { id: "cro-f-disc" } });
     crono.disciplinas.forEach(function (d) {
       var op = el("option", { text: d.nome, attrs: { value: d.id } });
       if (d.id === dados.disciplinaId) op.selected = true;
       selDisc.appendChild(op);
     });
-    var opNova = el("option", { text: "+ Nova disciplina…", attrs: { value: "__nova__" } });
-    selDisc.appendChild(opNova);
+    selDisc.appendChild(el("option", { text: "+ Nova disciplina…", attrs: { value: "__nova__" } }));
 
-    // Bloco de criação de disciplina (oculto por padrão)
-    var inpDiscNome = inputText("nova-disc-nome", "", "Nome da disciplina");
+    var inpDiscNome = inputText("cro-f-discnome", "", "Nome do GT / disciplina");
     var inpDiscCor = el("input", {
-      attrs: { type: "color", value: DEFAULT_NEW_COLOR, id: "nova-disc-cor", "aria-label": "Cor da disciplina" }
+      attrs: { type: "color", value: DEFAULT_NEW_COLOR, id: "cro-f-disccor", "aria-label": "Cor da disciplina" }
     });
     var blocoNova = el("div", {
       cls: "cro-newdisc hidden",
@@ -726,7 +924,7 @@
         el("div", {
           cls: "cro-field",
           children: [
-            el("label", { text: "Cor", attrs: { for: "nova-disc-cor" } }),
+            el("label", { text: "Cor", attrs: { for: "cro-f-disccor" } }),
             el("div", { cls: "cro-color-row", children: [inpDiscCor] })
           ]
         })
@@ -736,70 +934,90 @@
       blocoNova.classList.toggle("hidden", selDisc.value !== "__nova__");
     });
 
-    var inpResp = inputText("resp-tarefa", dados.responsavel || "", "Ex.: Maria · João");
-    var inpIni = inputDate("ini-tarefa", isoCurto(dados.inicio));
-    var inpFim = inputDate("fim-tarefa", isoCurto(dados.fim));
+    var inpCodigo = inputText("cro-f-codigo", dados.codigo || "", "Ex.: 1.2.3 (opcional)");
+    var inpResp = inputText("cro-f-resp", dados.responsavel || "", "Ex.: Maria · João");
+    var inpIni = inputDate("cro-f-ini", isoCurto(dados.inicio));
+    var inpFim = inputDate("cro-f-fim", isoCurto(dados.fim));
 
-    var selStatus = el("select", { attrs: { id: "sel-status" } });
+    var selStatus = el("select", { attrs: { id: "cro-f-status" } });
     STATUS_OPTIONS.forEach(function (s) {
       var op = el("option", { text: s.label, attrs: { value: s.id } });
       if (s.id === dados.status) op.selected = true;
       selStatus.appendChild(op);
     });
 
-    var chkMarco = el("input", { attrs: { type: "checkbox", id: "chk-marco" } });
+    var chkUrgente = el("input", { attrs: { type: "checkbox", id: "cro-f-urgente" } });
+    chkUrgente.checked = !!dados.urgente;
+    var chkMarco = el("input", { attrs: { type: "checkbox", id: "cro-f-marco" } });
     chkMarco.checked = !!dados.marco;
+
+    var inpObs = el("textarea", {
+      cls: "cro-textarea",
+      attrs: { id: "cro-f-obs", rows: "2", placeholder: "Observação curta (opcional)" }
+    });
+    inpObs.value = dados.obs || "";
 
     var erro = el("div", { cls: "cro-form-error hidden", attrs: { role: "alert" } });
 
-    // --- Botões ---
     var btnCancelar = el("button", {
-      cls: "btn", text: "Cancelar", attrs: { type: "button" },
-      on: { click: fecharModal }
+      cls: "btn", text: "Cancelar", attrs: { type: "button" }, on: { click: fecharModal }
     });
     var btnSalvar = el("button", {
-      cls: "btn btn-primary", text: editando ? "Salvar alterações" : "Criar tarefa",
+      cls: "btn btn-primary",
+      text: editando ? "Salvar alterações" : "Criar tarefa",
       attrs: { type: "submit" }
     });
-
-    var direita = el("div", { cls: "cro-right", children: [btnCancelar, btnSalvar] });
+    var direita = el("div", { cls: "cro-modal-right", children: [btnCancelar, btnSalvar] });
 
     var acoesChildren = [];
     if (editando) {
-      var btnExcluir = el("button", {
-        cls: "btn btn-danger", text: "Excluir", attrs: { type: "button" },
-        on: {
-          click: function () {
-            if (window.confirm('Excluir a tarefa "' + dados.nome + '"? Esta ação não pode ser desfeita.')) {
-              excluirTarefa(crono, dados.id);
-              fecharModal();
-              onSalvo();
+      acoesChildren.push(
+        el("button", {
+          cls: "btn btn-danger", text: "Excluir", attrs: { type: "button" },
+          on: {
+            click: function () {
+              if (window.confirm('Excluir a tarefa "' + dados.nome + '"? Esta ação não pode ser desfeita.')) {
+                excluirTarefa(crono, dados.id);
+                fecharModal();
+                onSalvo();
+              }
             }
           }
-        }
-      });
-      acoesChildren.push(btnExcluir);
+        })
+      );
     }
     acoesChildren.push(direita);
     var acoes = el("div", { cls: "cro-modal-actions", children: acoesChildren });
 
-    // --- Form ---
     var form = el("form", {
       attrs: { novalidate: "novalidate" },
       children: [
         field("Nome da tarefa", inpNome),
-        field("Disciplina", selDisc),
+        field("GT / disciplina", selDisc),
         blocoNova,
-        field("Responsável", inpResp),
         el("div", {
           cls: "cro-field-row",
-          children: [field("Início", inpIni), field("Fim", inpFim)]
+          children: [field("Código (EAP)", inpCodigo), field("Responsável", inpResp)]
+        }),
+        el("div", {
+          cls: "cro-field-row",
+          children: [field("Início", inpIni), field("Prazo / fim", inpFim)]
         }),
         field("Status", selStatus),
         el("div", {
-          cls: "cro-check",
-          children: [chkMarco, el("label", { text: "É um marco (milestone)", attrs: { for: "chk-marco" } })]
+          cls: "cro-check-row",
+          children: [
+            el("label", {
+              cls: "cro-check",
+              children: [chkUrgente, el("span", { text: "Urgente" })]
+            }),
+            el("label", {
+              cls: "cro-check",
+              children: [chkMarco, el("span", { text: "É um marco (★)" })]
+            })
+          ]
         }),
+        field("Observação", inpObs),
         erro,
         acoes
       ]
@@ -808,17 +1026,10 @@
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       var res = coletarESalvar({
-        crono: crono,
-        tarefa: tarefa,
-        inpNome: inpNome,
-        selDisc: selDisc,
-        inpDiscNome: inpDiscNome,
-        inpDiscCor: inpDiscCor,
-        inpResp: inpResp,
-        inpIni: inpIni,
-        inpFim: inpFim,
-        selStatus: selStatus,
-        chkMarco: chkMarco
+        crono: crono, tarefa: tarefa,
+        inpNome: inpNome, selDisc: selDisc, inpDiscNome: inpDiscNome, inpDiscCor: inpDiscCor,
+        inpCodigo: inpCodigo, inpResp: inpResp, inpIni: inpIni, inpFim: inpFim,
+        selStatus: selStatus, chkUrgente: chkUrgente, chkMarco: chkMarco, inpObs: inpObs
       });
       if (res.ok) {
         fecharModal();
@@ -832,23 +1043,15 @@
     var modal = el("div", {
       cls: "cro-modal",
       attrs: { role: "dialog", "aria-modal": "true", "aria-label": editando ? "Editar tarefa" : "Nova tarefa" },
-      children: [
-        el("h3", { text: editando ? "Editar tarefa" : "Nova tarefa" }),
-        form
-      ]
+      children: [el("h3", { cls: "cro-modal-title", text: editando ? "Editar tarefa" : "Nova tarefa" }), form]
     });
 
     var overlay = el("div", {
       cls: "cro-modal-overlay",
-      on: {
-        click: function (e) {
-          if (e.target === overlay) fecharModal();
-        }
-      },
+      on: { click: function (e) { if (e.target === overlay) fecharModal(); } },
       children: [modal]
     });
 
-    // Fecha com ESC.
     overlay._escHandler = function (e) {
       if (e.key === "Escape") fecharModal();
     };
@@ -868,58 +1071,66 @@
     modalAberto = null;
   }
 
-  // Lê o formulário, valida, aplica em Gestao.data, salva.
   function coletarESalvar(f) {
     var nome = f.inpNome.value.trim();
     if (!nome) return { ok: false, erro: "Informe o nome da tarefa." };
 
-    // Resolve disciplina (existente ou nova).
     var disciplinaId = f.selDisc.value;
     if (disciplinaId === "__nova__") {
       var nomeDisc = f.inpDiscNome.value.trim();
       if (!nomeDisc) return { ok: false, erro: "Informe o nome da nova disciplina." };
       var novoId = idDisciplinaUnico(f.crono, nomeDisc);
-      f.crono.disciplinas.push({ id: novoId, nome: nomeDisc, cor: f.inpDiscCor.value || DEFAULT_NEW_COLOR });
+      f.crono.disciplinas.push({
+        id: novoId,
+        nome: nomeDisc,
+        cor: f.inpDiscCor.value || DEFAULT_NEW_COLOR,
+        responsavel: ""
+      });
       disciplinaId = novoId;
     }
     if (!disciplinaId) return { ok: false, erro: "Selecione ou crie uma disciplina." };
 
-    var ini = f.inpIni.value || null; // já é 'AAAA-MM-DD' do input date
+    var ini = f.inpIni.value || null;
     var fim = f.inpFim.value || null;
-
-    // Validação: fim não pode ser anterior ao início.
     if (ini && fim && fim < ini) {
-      return { ok: false, erro: "A data de fim não pode ser anterior à de início." };
+      return { ok: false, erro: "O prazo (fim) não pode ser anterior ao início." };
     }
 
     var status = f.selStatus.value;
+    var urgente = f.chkUrgente.checked;
     var marco = f.chkMarco.checked;
     var progresso = status === "concluido" ? 100 : 0;
+    var codigo = f.inpCodigo.value.trim() || null;
+    var responsavel = f.inpResp.value.trim() || null;
+    var obs = f.inpObs.value.trim() || "";
 
     if (f.tarefa) {
-      // Edição: atualiza o objeto existente in-place (padrão do app).
       var t = f.tarefa;
       t.nome = nome;
+      t.codigo = codigo;
       t.disciplinaId = disciplinaId;
-      t.responsavel = f.inpResp.value.trim() || null;
+      t.responsavel = responsavel;
       t.inicio = ini;
       t.fim = fim;
       t.status = status;
+      t.urgente = urgente;
       t.marco = marco;
       t.progresso = progresso;
+      t.obs = obs;
     } else {
-      // Criação: novo objeto com id único.
       f.crono.tarefas.push({
         id: Gestao.uid("t"),
-        codigo: null, // sem código EAP na criação manual
+        codigo: codigo,
         disciplinaId: disciplinaId,
         nome: nome,
+        responsavel: responsavel,
         inicio: ini,
         fim: fim,
         status: status,
-        responsavel: f.inpResp.value.trim() || null,
+        urgente: urgente,
         marco: marco,
-        progresso: progresso
+        progresso: progresso,
+        obs: obs
       });
     }
 
@@ -944,133 +1155,83 @@
       attrs: { type: "text", id: id, value: value || "", placeholder: placeholder || "" }
     });
   }
-
   function inputDate(id, value) {
     return el("input", { attrs: { type: "date", id: id, value: value || "" } });
   }
-
   function field(label, control) {
     var id = control.getAttribute && control.getAttribute("id");
     return el("div", {
       cls: "cro-field",
-      children: [
-        el("label", { text: label, attrs: id ? { for: id } : {} }),
-        control
-      ]
+      children: [el("label", { text: label, attrs: id ? { for: id } : {} }), control]
     });
-  }
-
-  // Garante 'AAAA-MM-DD' para o input date (corta ISO completo se houver).
-  function isoCurto(iso) {
-    if (!iso) return "";
-    var m = String(iso).match(/^(\d{4}-\d{2}-\d{2})/);
-    return m ? m[1] : "";
   }
 
   /* ============================================================
      RENDER PRINCIPAL
      ============================================================ */
   function render(mount, data) {
-    ensureCSS();
+    ensureHead();
     var crono = getCrono(data);
 
     clear(mount);
+    mount.classList.add("cro-root");
 
-    // Re-render completo (usado após edições/filtros estruturais).
-    function rerender() {
-      render(mount, data);
-    }
+    function rerender() { render(mount, data); }
 
-    // Abre o modal para editar uma tarefa por id.
     function editarPorId(id) {
       var t = crono.tarefas.filter(function (x) { return x.id === id; })[0];
       if (t) abrirModal(crono, t, rerender);
     }
+    function novaTarefa() {
+      abrirModal(crono, null, rerender);
+    }
 
-    // --- Toolbar (título + botão nova tarefa) ---
-    var btnNova = el("button", {
-      cls: "btn btn-primary",
-      attrs: { type: "button" },
-      children: [
-        el("span", { text: "+", attrs: { "aria-hidden": "true" } }),
-        el("span", { text: " Nova tarefa" })
-      ],
-      on: { click: function () { abrirModal(crono, null, rerender); } }
-    });
+    // 1. Header
+    mount.appendChild(buildHeader(crono));
 
-    var toolbar = el("div", {
-      cls: "cro-toolbar",
-      children: [
-        el("div", {
-          children: [
-            el("h2", { cls: "section-title", text: "Cronograma" }),
-            el("p", { cls: "muted-text", style: "margin:0;font-size:.88rem", text: "Linha do tempo das atividades, agrupadas por disciplina." })
-          ]
-        }),
-        el("div", { cls: "cro-actions", children: [btnNova] })
-      ]
-    });
-    mount.appendChild(toolbar);
+    // 2. Legenda
+    mount.appendChild(buildLegenda());
 
-    // --- Resumo ---
-    mount.appendChild(buildResumo(crono));
+    // 3. Marcos críticos
+    mount.appendChild(buildMarcos(crono));
 
-    // --- Filtros ---
-    // onChange: re-render completo (atualiza resumo/filtros também).
-    // Para a busca, queremos manter o foco: re-render apenas do Gantt.
-    var filtros = buildFiltros(crono, function (opts) {
+    // Toolbar (título + filtros + nova)
+    var toolbar = buildToolbar(crono, novaTarefa, function (opts) {
       if (opts && opts.keepFocus) {
         atualizarSomenteGantt(mount, crono, editarPorId);
       } else {
         rerender();
       }
     });
-    mount.appendChild(filtros);
+    mount.appendChild(toolbar);
 
-    // --- Gantt ---
-    var intervalo = calcularIntervalo(crono.tarefas);
-    var gantt = buildGantt(crono, intervalo, editarPorId);
+    // 4. Gantt
+    var gantt = buildGantt(crono, editarPorId);
     gantt.setAttribute("data-cro-gantt-root", "1");
     mount.appendChild(gantt);
-
-    // --- Sem prazo definido ---
-    var semPrazo = buildSemPrazo(crono, editarPorId);
-    if (semPrazo) mount.appendChild(semPrazo);
   }
 
-  // Atualiza apenas o bloco do Gantt + a seção "sem prazo", preservando
-  // o restante (e o foco do campo de busca).
+  // Atualiza apenas o Gantt (preserva foco do campo de busca).
   function atualizarSomenteGantt(mount, crono, editarPorId) {
     var antigo = mount.querySelector('[data-cro-gantt-root]');
     if (!antigo) return;
-    var intervalo = calcularIntervalo(crono.tarefas);
-    var novo = buildGantt(crono, intervalo, editarPorId);
+    var novo = buildGantt(crono, editarPorId);
     novo.setAttribute("data-cro-gantt-root", "1");
     antigo.parentNode.replaceChild(novo, antigo);
-
-    // Atualiza/insere a seção "sem prazo".
-    var antigaSP = mount.querySelector(".cro-noplan");
-    var novaSP = buildSemPrazo(crono, editarPorId);
-    if (antigaSP && novaSP) {
-      antigaSP.parentNode.replaceChild(novaSP, antigaSP);
-    } else if (antigaSP && !novaSP) {
-      antigaSP.parentNode.removeChild(antigaSP);
-    } else if (!antigaSP && novaSP) {
-      mount.appendChild(novaSP);
-    }
   }
 
   /* ============================================================
      Registro no app
      ============================================================ */
-  if (window.Gestao && typeof Gestao.onTab === "function") {
-    Gestao.onTab("tab-cronograma", render);
-  } else {
-    // app.js ainda não carregou: tenta novamente quando o DOM estiver pronto.
-    document.addEventListener("DOMContentLoaded", function () {
-      if (window.Gestao && typeof Gestao.onTab === "function") {
-        Gestao.onTab("tab-cronograma", render);
-      }
-    });
+  function registrar() {
+    if (window.Gestao && typeof Gestao.onTab === "function") {
+      Gestao.onTab("tab-cronograma", render);
+      return true;
+    }
+    return false;
+  }
+
+  if (!registrar()) {
+    document.addEventListener("DOMContentLoaded", registrar);
   }
 })();
