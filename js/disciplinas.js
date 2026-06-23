@@ -296,7 +296,7 @@
   /* ============================================================
      Seção: pacotes da EAP
      ============================================================ */
-  function buildPacotes(pacotes, semPar) {
+  function buildPacotes(pacotes, semPar, disc) {
     var card = el("div", "card dsc-section");
 
     var title = el("div", "dsc-section__title");
@@ -312,15 +312,30 @@
       return card;
     }
 
-    var ul = el("ul", "dsc-pacotes");
+    // Organograma: nó da disciplina (raiz) → pacotes ramificados.
+    var cor = (disc && disc.cor) || "#36177B";
+    var org = el("div", "dsc-org");
+    org.style.setProperty("--dsc-cor", cor);
+
+    var root = el("div", "dsc-org__root");
+    root.appendChild(el("span", "dsc-org__root-name", (disc && disc.nome) || "Disciplina"));
+    root.appendChild(
+      el("span", "dsc-org__root-sub", pacotes.length + (pacotes.length === 1 ? " pacote" : " pacotes"))
+    );
+    org.appendChild(root);
+
+    var stack = el("div", "dsc-org__stack");
     pacotes.forEach(function (p) {
-      var li = el("li", "dsc-pacote");
-      if (p.id) li.appendChild(el("div", "dsc-pacote__code", p.id));
-      li.appendChild(el("div", "dsc-pacote__name", p.nome));
-      if (p.descricao) li.appendChild(el("div", "dsc-pacote__desc", p.descricao));
-      ul.appendChild(li);
+      var box = el("div", "dsc-org__pkg");
+      var top = el("div", "dsc-org__pkg-top");
+      if (p.id) top.appendChild(el("span", "dsc-org__code", p.id));
+      top.appendChild(el("span", "dsc-org__name", p.nome || "(sem nome)"));
+      box.appendChild(top);
+      if (p.descricao) box.appendChild(el("div", "dsc-org__desc", p.descricao));
+      stack.appendChild(box);
     });
-    card.appendChild(ul);
+    org.appendChild(stack);
+    card.appendChild(org);
 
     return card;
   }
@@ -421,7 +436,7 @@
     var painel = el("div");
     painel.appendChild(buildHead(disc, status, pct));
     painel.appendChild(buildTarefas(tarefas));
-    painel.appendChild(buildPacotes(pacotes, !eapDisc));
+    painel.appendChild(buildPacotes(pacotes, !eapDisc, disc));
     painel.appendChild(buildContratacoes(fornecedores));
     return painel;
   }

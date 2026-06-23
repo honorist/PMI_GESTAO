@@ -117,6 +117,71 @@
 }
 
 /* ---- Lista de pacotes da EAP ---- */
+/* ---- Organograma de pacotes (mini árvore disciplina → pacotes) ---- */
+.dsc-org { --dsc-cor: #36177B; position: relative; }
+
+.dsc-org__root {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--dsc-cor);
+  border-radius: var(--rad-sm);
+  padding: 10px 18px;
+  box-shadow: 0 6px 16px rgba(26, 17, 69, .08);
+}
+.dsc-org__root-name { font-weight: 700; color: var(--ink); }
+.dsc-org__root-sub { font-size: .74rem; color: var(--muted); }
+
+.dsc-org__stack {
+  position: relative;
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* espinha vertical */
+.dsc-org__stack::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: -16px;
+  bottom: 18px;
+  width: 2px;
+  background: var(--dsc-cor);
+  opacity: .5;
+}
+
+.dsc-org__pkg {
+  position: relative;
+  margin-left: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  padding: 10px 14px;
+  background: var(--bg);
+}
+/* ramo horizontal da espinha até o pacote */
+.dsc-org__pkg::before {
+  content: "";
+  position: absolute;
+  left: -19px;
+  top: 18px;
+  width: 19px;
+  height: 2px;
+  background: var(--dsc-cor);
+  opacity: .5;
+}
+.dsc-org__pkg-top { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.dsc-org__code {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--purple-2);
+  font-variant-numeric: tabular-nums;
+}
+.dsc-org__name { font-weight: 600; font-size: .9rem; color: var(--ink); }
+.dsc-org__desc { font-size: .78rem; color: var(--muted); margin-top: 3px; line-height: 1.3; }
+
 .dsc-pacotes {
   list-style: none;
   margin: 0;
