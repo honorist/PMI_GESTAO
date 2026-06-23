@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PMIRS Summit 2026 · Gestão</title>
+  <meta name="description" content="App interno de gestão do PMIRS Summit 2026 — Tecnopuc, Porto Alegre, 13–14 nov 2026." />
+
+  <!-- Fonte da marca: Hanken Grotesk -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Estilos -->
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+
+<body>
+  <div class="app">
+    <!-- ===================== Topbar ===================== -->
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <span class="brand-event">PMIRS Summit 2026</span>
+          <span class="brand-sep">·</span>
+          <span class="brand-sub">Gestão</span>
+        </div>
+
+        <div class="topbar-actions">
+          <span
+            id="save-status"
+            class="save-status"
+            data-state="idle"
+            aria-live="polite"
+          >
+            <span class="dot" aria-hidden="true"></span>
+            <span class="save-label">salvo automaticamente</span>
+          </span>
+
+          <button id="btn-export" class="btn sm" type="button" title="Exportar backup JSON">
+            <span aria-hidden="true">⭳</span> <span class="label">Exportar</span>
+          </button>
+
+          <button id="btn-import" class="btn sm" type="button" title="Importar backup JSON">
+            <span aria-hidden="true">⭱</span> <span class="label">Importar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ===================== Abas ===================== -->
+      <nav class="tabs" aria-label="Seções da gestão">
+        <div class="tabs-inner" role="tablist">
+          <button
+            class="tab-btn"
+            type="button"
+            role="tab"
+            data-tab="tab-visao"
+            aria-selected="true"
+            aria-controls="tab-visao"
+          >Visão Geral</button>
+
+          <button
+            class="tab-btn"
+            type="button"
+            role="tab"
+            data-tab="tab-cronograma"
+            aria-selected="false"
+            aria-controls="tab-cronograma"
+            tabindex="-1"
+          >Cronograma</button>
+
+          <button
+            class="tab-btn"
+            type="button"
+            role="tab"
+            data-tab="tab-financeiro"
+            aria-selected="false"
+            aria-controls="tab-financeiro"
+            tabindex="-1"
+          >Financeiro</button>
+
+          <button
+            class="tab-btn"
+            type="button"
+            role="tab"
+            data-tab="tab-contratacoes"
+            aria-selected="false"
+            aria-controls="tab-contratacoes"
+            tabindex="-1"
+          >Contratações</button>
+
+          <button
+            class="tab-btn"
+            type="button"
+            role="tab"
+            data-tab="tab-disciplinas"
+            aria-selected="false"
+            aria-controls="tab-disciplinas"
+            tabindex="-1"
+          >Disciplinas</button>
+        </div>
+      </nav>
+    </header>
+
+    <!-- ===================== Conteúdo ===================== -->
+    <main class="container">
+      <!-- Faixa de avisos globais (ex.: falha de fetch) -->
+      <div id="app-banner"></div>
+
+      <section
+        id="tab-visao"
+        class="tab-panel"
+        role="tabpanel"
+        aria-label="Visão Geral"
+      >
+        <div class="placeholder">Carregando…</div>
+      </section>
+
+      <section
+        id="tab-cronograma"
+        class="tab-panel"
+        role="tabpanel"
+        aria-label="Cronograma"
+        hidden
+      >
+        <div class="placeholder">Carregando…</div>
+      </section>
+
+      <section
+        id="tab-financeiro"
+        class="tab-panel"
+        role="tabpanel"
+        aria-label="Financeiro"
+        hidden
+      >
+        <div class="placeholder">Carregando…</div>
+      </section>
+
+      <section
+        id="tab-contratacoes"
+        class="tab-panel"
+        role="tabpanel"
+        aria-label="Contratações"
+        hidden
+      >
+        <div class="placeholder">Carregando…</div>
+      </section>
+
+      <section
+        id="tab-disciplinas"
+        class="tab-panel"
+        role="tabpanel"
+        aria-label="Disciplinas"
+        hidden
+      >
+        <div class="placeholder">Carregando…</div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Input oculto para importação de backup -->
+  <input type="file" id="import-file" hidden accept="application/json" />
+
+  <!-- Camada central -->
+  <script src="js/app.js" defer></script>
+
+  <!-- Módulos (preenchidos por outros agentes; ainda podem não existir) -->
+  <script src="js/visao-geral.js" defer></script>
+  <script src="js/cronograma.js" defer></script>
+  <script src="js/financeiro.js" defer></script>
+  <script src="js/contratacoes.js" defer></script>
+  <script src="js/disciplinas.js" defer></script>
+</body>
+</html>

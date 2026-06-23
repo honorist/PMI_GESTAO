@@ -1,0 +1,171 @@
+/* ============================================================
+   disciplinas.css — Estilos do módulo "Disciplinas"
+   ------------------------------------------------------------
+   Carregado por js/disciplinas.js (injeção via <link> no <head>).
+   Complementa app.css. Estilos próprios: sub-navegação por
+   disciplina, cabeçalho colorido da disciplina e seções do
+   painel (tarefas, EAP, contratações).
+   ============================================================ */
+
+/* ---- Sub-navegação (pílulas das disciplinas) ---- */
+.dsc-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.dsc-tab {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: .88rem;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, color .15s ease;
+}
+
+.dsc-tab:hover { background: #f1eef9; }
+
+.dsc-tab__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+/* Disciplina selecionada: borda + fundo na cor da disciplina */
+.dsc-tab[aria-pressed="true"] {
+  color: #fff;
+  border-color: transparent;
+}
+
+.dsc-tab[aria-pressed="true"] .dsc-tab__dot {
+  background: #fff !important;
+}
+
+/* ---- Cabeçalho da disciplina (faixa colorida) ---- */
+.dsc-head {
+  border-radius: var(--rad);
+  padding: 22px 24px;
+  color: #fff;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+
+.dsc-head__title {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+  color: #fff;
+}
+
+.dsc-head__meta {
+  margin: 0;
+  font-size: .9rem;
+  color: rgba(255, 255, 255, .9);
+}
+
+.dsc-head__bar {
+  margin-top: 14px;
+  height: 12px;
+  background: rgba(255, 255, 255, .25);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.dsc-head__fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 999px;
+  transition: width .4s ease;
+  min-width: 2px;
+}
+
+/* ---- Resumo de status (chips de contagem) ---- */
+.dsc-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ---- Seção dentro do painel ---- */
+.dsc-section + .dsc-section {
+  margin-top: 16px;
+}
+
+.dsc-section__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.dsc-section__count {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ---- Lista de pacotes da EAP ---- */
+.dsc-pacotes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.dsc-pacote {
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  padding: 12px 14px;
+  background: var(--bg);
+}
+
+.dsc-pacote__code {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--purple-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.dsc-pacote__name {
+  font-weight: 600;
+  font-size: .92rem;
+  margin: 2px 0;
+}
+
+.dsc-pacote__desc {
+  font-size: .82rem;
+  color: var(--muted);
+}
+
+/* ---- Célula de status na tabela de tarefas ---- */
+.dsc-task-marco {
+  margin-left: 6px;
+  color: var(--orange);
+}
+
+/* ---- Responsivo ---- */
+@media (max-width: 720px) {
+  .dsc-pacotes { grid-template-columns: 1fr; }
+  .dsc-head { padding: 18px; }
+  .dsc-head__title { font-size: 1.2rem; }
+
+  /* Tabela de tarefas rola horizontalmente no celular */
+  .dsc-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

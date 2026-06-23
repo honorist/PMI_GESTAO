@@ -1,0 +1,686 @@
+/* ============================================================
+   cronograma.css — Estilos do módulo Cronograma (Gantt/Timeline)
+   ------------------------------------------------------------
+   Injetado por js/cronograma.js (sem editar index.html).
+   Usa os tokens de marca de tokens.css (var(--purple), etc.).
+   Escopo: tudo prefixado por .cro- para não vazar p/ outros módulos.
+   ============================================================ */
+
+/* ---- Barra de ferramentas (resumo + ações) ---- */
+.cro-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.cro-toolbar .cro-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---- Cards de resumo (topo) ---- */
+.cro-summary {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 18px;
+}
+
+.cro-stat {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+
+.cro-stat .cro-stat-label {
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+.cro-stat .cro-stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--purple);
+  line-height: 1.1;
+}
+
+.cro-stat .cro-stat-sub {
+  font-size: .78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Lista compacta de próximos prazos dentro do card */
+.cro-next-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cro-next-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: .82rem;
+}
+
+.cro-next-list .cro-next-name {
+  color: var(--ink);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cro-next-list .cro-next-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cro-next-empty {
+  font-size: .82rem;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+/* ---- Filtros (chips/toggles + busca) ---- */
+.cro-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.cro-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cro-filter-label {
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+  margin-right: 2px;
+}
+
+/* Chip de filtro (toggle) */
+.cro-chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 600;
+  background: var(--card);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+
+.cro-chip:hover {
+  background: #f1eef9;
+}
+
+.cro-chip[aria-pressed="true"] {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #fff;
+}
+
+/* Bolinha de cor da disciplina no chip */
+.cro-chip .cro-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 0, 0, .15);
+}
+
+.cro-search {
+  padding: 7px 12px;
+  border-radius: var(--rad-sm);
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: .88rem;
+  min-width: 180px;
+}
+
+/* ============================================================
+   Gantt
+   ============================================================ */
+.cro-gantt-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.cro-gantt-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Largura mínima garante que o Gantt nunca esmague as barras;
+   em telas estreitas vira scroll horizontal. */
+.cro-gantt {
+  --cro-label-w: 230px;   /* coluna fixa de rótulos à esquerda */
+  --cro-row-h: 34px;      /* altura de cada linha de tarefa */
+  --cro-bar-h: 18px;      /* altura da barra */
+  min-width: 760px;
+  position: relative;
+}
+
+/* Cabeçalho de meses */
+.cro-gantt-head {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--card);
+  border-bottom: 2px solid var(--line);
+}
+
+.cro-head-spacer {
+  flex: 0 0 var(--cro-label-w);
+  padding: 10px 14px;
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+  border-right: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+}
+
+.cro-head-months {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+}
+
+.cro-head-month {
+  flex: 1 1 0;
+  text-align: center;
+  padding: 10px 4px;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--ink);
+  border-left: 1px solid var(--line);
+  text-transform: capitalize;
+}
+
+.cro-head-month:first-child { border-left: none; }
+
+/* Corpo do Gantt */
+.cro-gantt-body {
+  position: relative;
+}
+
+/* Linhas verticais de grade (uma por mês) sobre o corpo */
+.cro-gridlines {
+  position: absolute;
+  top: 0;
+  left: var(--cro-label-w);
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.cro-gridline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+
+/* Linha "hoje" */
+.cro-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--orange);
+  z-index: 2;
+}
+
+.cro-today::after {
+  content: "hoje";
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: .62rem;
+  font-weight: 700;
+  color: var(--orange);
+  background: var(--card);
+  padding: 0 3px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Cabeçalho de grupo (disciplina) */
+.cro-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #faf8fe;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+  font-size: .85rem;
+  color: var(--ink);
+}
+
+.cro-group-head .cro-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.cro-group-head .cro-group-count {
+  margin-left: auto;
+  font-size: .74rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Linha de tarefa */
+.cro-row {
+  display: flex;
+  align-items: center;
+  height: var(--cro-row-h);
+  border-bottom: 1px solid #f1eef9;
+  position: relative;
+  z-index: 1;
+}
+
+.cro-row:hover { background: rgba(54, 23, 123, .04); }
+
+.cro-row-label {
+  flex: 0 0 var(--cro-label-w);
+  padding: 0 14px;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.cro-row-name {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cro-row-resp {
+  font-size: .7rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Faixa onde a barra é posicionada */
+.cro-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 100%;
+}
+
+/* Barra da tarefa (clicável p/ editar) */
+.cro-bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: var(--cro-bar-h);
+  min-width: 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+  transition: filter .12s ease, transform .05s ease;
+}
+
+.cro-bar:hover { filter: brightness(1.08); }
+.cro-bar:active { transform: translateY(-50%) scale(.99); }
+
+/* Rótulo curto dentro da barra (quando cabe) */
+.cro-bar-text {
+  font-size: .68rem;
+  font-weight: 700;
+  color: #fff;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .25);
+}
+
+/* Status: concluído = sólido + ícone; andamento = hachura;
+   pendente = mais claro (opacidade reduzida) */
+.cro-bar.is-concluido { /* cor cheia da disciplina (default) */ }
+
+.cro-bar.is-andamento {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, .35) 0,
+    rgba(255, 255, 255, .35) 5px,
+    transparent 5px,
+    transparent 10px
+  );
+}
+
+.cro-bar.is-pendente {
+  opacity: .55;
+}
+
+.cro-bar-check {
+  font-size: .7rem;
+  color: #fff;
+  padding-left: 5px;
+  flex: 0 0 auto;
+}
+
+/* Marco = losango */
+.cro-milestone {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border-radius: 3px;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  transition: filter .12s ease;
+  z-index: 1;
+}
+
+.cro-milestone:hover { filter: brightness(1.1); }
+.cro-milestone.is-pendente { opacity: .6; }
+
+/* ============================================================
+   Seção "Sem prazo definido"
+   ============================================================ */
+.cro-noplan {
+  margin-top: 18px;
+}
+
+.cro-noplan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cro-noplan-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background .12s ease;
+}
+
+.cro-noplan-item:hover { background: #faf8fe; }
+
+.cro-noplan-item .cro-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.cro-noplan-item .cro-noplan-name {
+  font-weight: 600;
+  font-size: .88rem;
+  color: var(--ink);
+}
+
+.cro-noplan-item .cro-noplan-meta {
+  margin-left: auto;
+  font-size: .76rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Legenda
+   ============================================================ */
+.cro-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  font-size: .78rem;
+  color: var(--muted);
+}
+
+.cro-legend .cro-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cro-legend .cro-sample {
+  width: 22px;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--purple);
+  flex: 0 0 auto;
+}
+
+.cro-legend .cro-sample.is-andamento {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, .4) 0,
+    rgba(255, 255, 255, .4) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.cro-legend .cro-sample.is-pendente { opacity: .55; }
+
+.cro-legend .cro-sample.is-milestone {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+/* ============================================================
+   Modal (formulário de tarefa)
+   ============================================================ */
+.cro-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 17, 69, .45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 5vh 16px 16px;
+  z-index: 200;
+  overflow-y: auto;
+}
+
+.cro-modal {
+  background: var(--card);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 520px;
+  padding: 22px;
+}
+
+.cro-modal h3 {
+  margin: 0 0 16px;
+  color: var(--purple);
+}
+
+.cro-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.cro-field label {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.cro-field input[type="text"],
+.cro-field input[type="date"],
+.cro-field select {
+  padding: 8px 10px;
+  border-radius: var(--rad-sm);
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: .9rem;
+  width: 100%;
+}
+
+.cro-field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.cro-field-row .cro-field { flex: 1 1 0; }
+
+.cro-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cro-check input { width: 16px; height: 16px; }
+
+.cro-check label {
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+/* Sub-bloco: criar nova disciplina */
+.cro-newdisc {
+  border: 1px dashed var(--line);
+  border-radius: var(--rad-sm);
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #faf8fe;
+}
+
+.cro-newdisc .cro-field:last-child { margin-bottom: 0; }
+
+.cro-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cro-color-row input[type="color"] {
+  width: 42px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  background: var(--card);
+  cursor: pointer;
+}
+
+.cro-form-error {
+  color: var(--orange);
+  font-size: .82rem;
+  font-weight: 600;
+  margin: 4px 0 12px;
+}
+
+.cro-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.cro-modal-actions .cro-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.btn-danger {
+  background: rgba(224, 97, 31, .12);
+  border-color: rgba(224, 97, 31, .3);
+  color: var(--orange);
+}
+
+.btn-danger:hover {
+  background: rgba(224, 97, 31, .2);
+}
+
+/* ============================================================
+   Responsivo
+   ============================================================ */
+@media (max-width: 720px) {
+  .cro-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Em telas estreitas a coluna de rótulos encolhe um pouco */
+  .cro-gantt {
+    --cro-label-w: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  .cro-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .cro-field-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}

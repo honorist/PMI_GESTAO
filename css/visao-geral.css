@@ -1,0 +1,304 @@
+/* ============================================================
+   visao-geral.css — Estilos do dashboard "Visão Geral"
+   ------------------------------------------------------------
+   Carregado por js/visao-geral.js (injeção via <link> no <head>).
+   Complementa as classes utilitárias de app.css (.card, .grid,
+   .badge, etc.) — aqui ficam só os componentes próprios do
+   panorama do evento (hero, KPIs, barras de avanço, prazos).
+   Paleta herdada de tokens.css (--purple, --green, --orange…).
+   ============================================================ */
+
+/* ---- Hero / cabeçalho do evento ---- */
+.vg-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: linear-gradient(135deg, var(--purple) 0%, var(--purple-dark) 100%);
+  color: #fff;
+  border-radius: var(--rad);
+  padding: 24px 28px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+.vg-hero__title {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.vg-hero__meta {
+  margin: 0;
+  color: var(--cream);
+  font-size: .95rem;
+}
+
+.vg-hero__meta .vg-hero__sep {
+  color: var(--teal);
+  margin: 0 8px;
+}
+
+/* Contagem regressiva (bloco numérico à direita) */
+.vg-countdown {
+  text-align: center;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: var(--rad-sm);
+  padding: 12px 22px;
+  min-width: 120px;
+}
+
+.vg-countdown__num {
+  display: block;
+  font-size: 2.4rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--teal);
+}
+
+.vg-countdown__label {
+  display: block;
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--cream);
+  margin-top: 4px;
+}
+
+.vg-countdown__num.is-passed {
+  color: var(--orange);
+}
+
+/* ---- KPIs ---- */
+.vg-kpi__label {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.vg-kpi__value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.vg-kpi__value.is-money {
+  font-size: 1.5rem;
+}
+
+.vg-kpi__hint {
+  margin-top: 6px;
+  font-size: .85rem;
+  color: var(--muted);
+}
+
+.vg-kpi__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+/* ---- Barra de progresso (reutilizável) ---- */
+.vg-bar {
+  position: relative;
+  height: 10px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.vg-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--purple);
+  transition: width .4s ease;
+  min-width: 2px;
+}
+
+.vg-bar.is-lg { height: 14px; }
+
+/* ---- Avanço por disciplina ---- */
+.vg-disc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vg-disc + .vg-disc {
+  margin-top: 14px;
+}
+
+.vg-disc__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vg-disc__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: .92rem;
+}
+
+.vg-disc__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.vg-disc__pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.vg-disc__count {
+  font-size: .8rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* ---- Próximos prazos (lista) ---- */
+.vg-prazos {
+  display: flex;
+  flex-direction: column;
+}
+
+.vg-prazo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.vg-prazo:last-child { border-bottom: none; }
+
+.vg-prazo__date {
+  flex: 0 0 auto;
+  text-align: center;
+  min-width: 56px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vg-prazo__day {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.vg-prazo__mon {
+  display: block;
+  font-size: .72rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: .4px;
+}
+
+.vg-prazo__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.vg-prazo__name {
+  font-weight: 600;
+  font-size: .92rem;
+  /* trunca nomes longos sem quebrar o layout */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vg-prazo__sub {
+  font-size: .8rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 2px;
+}
+
+.vg-prazo__sub .vg-disc__dot { width: 8px; height: 8px; }
+
+.vg-prazo.is-late .vg-prazo__day { color: var(--orange); }
+.vg-prazo.is-late {
+  background: rgba(224, 97, 31, .06);
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: var(--rad-sm);
+}
+
+/* ---- Timeline de marcos ---- */
+.vg-marcos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.vg-marco {
+  position: relative;
+  padding: 0 0 16px 22px;
+  border-left: 2px solid var(--line);
+}
+
+.vg-marco:last-child { padding-bottom: 0; border-left-color: transparent; }
+
+.vg-marco__node {
+  position: absolute;
+  left: -7px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--purple);
+  border: 2px solid var(--card);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.vg-marco__date {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--purple-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.vg-marco__name {
+  font-size: .92rem;
+  font-weight: 600;
+}
+
+.vg-marco__sub {
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+/* ---- Links rápidos ---- */
+.vg-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ---- Responsivo ---- */
+@media (max-width: 720px) {
+  .vg-hero { padding: 20px; }
+  .vg-hero__title { font-size: 1.25rem; }
+  .vg-countdown { flex: 1 1 100%; }
+}

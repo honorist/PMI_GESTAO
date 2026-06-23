@@ -1,0 +1,124 @@
+/* ============================================================
+   tokens.css — Identidade visual do PMIRS Summit 2026
+   Variáveis de marca + reset básico + tipografia base.
+   Importado por todas as telas. Não conter regras de layout
+   de componentes (isso vive em app.css).
+   ============================================================ */
+
+:root {
+  /* --- Paleta de marca (igual ao site oficial) --- */
+  --purple: #36177B;       /* roxo principal (topbar) */
+  --purple-2: #4A1D8A;     /* roxo secundário (hover/realce) */
+  --purple-dark: #1A1140;  /* roxo escuro (cabeçalhos densos) */
+
+  --green: #3F7A4A;        /* verde institucional */
+  --green-bright: #1F9D6B; /* verde vivo (sucesso/positivo) */
+  --teal: #5FE0B0;         /* teal (acento/destaque) */
+
+  --orange: #E0611F;       /* laranja (alerta/atenção) */
+  --blue: #2F63B4;         /* azul (informação) */
+  --cream: #E7E0D2;        /* creme (fundo suave alternativo) */
+
+  /* --- Tons neutros / texto --- */
+  --ink: #1A1230;          /* texto principal */
+  --muted: #6B6480;        /* texto secundário */
+  --bg: #F6F4FA;           /* fundo do corpo */
+  --card: #FFFFFF;         /* fundo de cartões */
+  --line: #E7E3EE;         /* bordas / divisores */
+
+  /* --- Formas / elevação --- */
+  --rad: 16px;             /* raio padrão */
+  --rad-sm: 10px;          /* raio pequeno (botões, chips) */
+  --shadow: 0 18px 50px rgba(26, 17, 69, .12);
+
+  /* --- Espaçamentos de apoio (uso opcional) --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* --- Tipografia --- */
+  --font: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+/* ============================================================
+   Reset básico
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+svg {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--purple-2);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ============================================================
+   Tipografia base
+   ============================================================ */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0 0 var(--space-3);
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.1rem; }
+h4 { font-size: 1rem; }
+
+p {
+  margin: 0 0 var(--space-3);
+}
+
+small {
+  font-size: .82rem;
+  color: var(--muted);
+}
+
+/* Acessibilidade: foco visível e consistente */
+:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: var(--rad-sm);
+}

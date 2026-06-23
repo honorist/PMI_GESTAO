@@ -1,0 +1,224 @@
+/* ============================================================
+   contratacoes.css — estilos do módulo Contratações
+   ------------------------------------------------------------
+   Complementa app.css. Cobre o kanban por status, cards de
+   fornecedor, resumo do topo e o formulário de edição.
+   Injetado por js/contratacoes.js via <link> no <head>.
+   ============================================================ */
+
+/* --- Cores semânticas dos status --- */
+:root {
+  --ctr-a-contratar: #6B6480; /* cinza/muted */
+  --ctr-negociando: #E0611F;  /* laranja */
+  --ctr-fechado: #1F9D6B;     /* verde */
+}
+
+/* --- Kanban (3 colunas por status) --- */
+.ctr-kanban {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.ctr-col {
+  background: #f6f4fa;
+  border: 1px solid var(--line);
+  border-radius: var(--rad);
+  padding: 14px;
+  min-height: 120px;
+}
+
+.ctr-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ctr-col-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: .9rem;
+  color: var(--ink);
+}
+
+.ctr-col-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.ctr-col.s-a_contratar .ctr-col-dot { background: var(--ctr-a-contratar); }
+.ctr-col.s-negociando .ctr-col-dot { background: var(--ctr-negociando); }
+.ctr-col.s-fechado .ctr-col-dot { background: var(--ctr-fechado); }
+
+.ctr-col-meta {
+  font-size: .76rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.ctr-col-meta strong { color: var(--ink); }
+
+.ctr-col-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Borda esquerda do card colorida por status da coluna */
+.ctr-col.s-a_contratar .ctr-card { border-left: 3px solid var(--ctr-a-contratar); }
+.ctr-col.s-negociando .ctr-card { border-left: 3px solid var(--ctr-negociando); }
+.ctr-col.s-fechado .ctr-card { border-left: 3px solid var(--ctr-fechado); }
+
+/* --- Card de fornecedor --- */
+.ctr-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ctr-card-nome {
+  font-weight: 700;
+  font-size: .95rem;
+  color: var(--ink);
+}
+
+.ctr-card-nome.is-vazio {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ctr-card-valor {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--fin-destaque, #36177B);
+}
+
+.ctr-card-meta {
+  font-size: .8rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.ctr-card-obs {
+  font-size: .82rem;
+  color: var(--ink);
+}
+
+.ctr-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.ctr-card-foot .ctr-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+/* Select de status dentro do card */
+.ctr-status-select {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  background: var(--card);
+  color: var(--ink);
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+/* --- KPIs do topo --- */
+.ctr-kpi { display: flex; flex-direction: column; gap: 4px; }
+.ctr-kpi .ctr-kpi-label {
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+}
+.ctr-kpi .ctr-kpi-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.ctr-kpi.t-fechado .ctr-kpi-value { color: var(--ctr-fechado); }
+.ctr-kpi.t-negociando .ctr-kpi-value { color: var(--ctr-negociando); }
+.ctr-kpi.t-acontratar .ctr-kpi-value { color: var(--ctr-a-contratar); }
+
+/* --- Formulário (modal) --- */
+.ctr-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+}
+.ctr-form .ctr-field { display: flex; flex-direction: column; gap: 4px; }
+.ctr-form .ctr-field.full { grid-column: 1 / -1; }
+.ctr-form label { font-size: .8rem; font-weight: 600; color: var(--muted); }
+.ctr-form input,
+.ctr-form select,
+.ctr-form textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  background: var(--card);
+  color: var(--ink);
+  width: 100%;
+  font-family: inherit;
+}
+.ctr-form textarea { resize: vertical; min-height: 60px; }
+.ctr-form input:focus,
+.ctr-form select:focus,
+.ctr-form textarea:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+  border-color: var(--purple-2);
+}
+.ctr-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Modal backdrop (reaproveita o visual do financeiro) */
+.ctr-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 17, 69, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+.ctr-modal {
+  background: var(--card);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+/* --- Responsivo: kanban vira coluna única --- */
+@media (max-width: 860px) {
+  .ctr-kanban { grid-template-columns: 1fr; }
+  .ctr-form { grid-template-columns: 1fr; }
+}

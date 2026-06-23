@@ -1,0 +1,498 @@
+/* ============================================================
+   app.css — Estilos do shell + componentes reutilizáveis
+   ------------------------------------------------------------
+   COMPONENTES REUTILIZÁVEIS (use estas classes nos módulos):
+
+   Layout
+   - .container        wrapper centralizado com largura máxima
+   - .grid             grid responsivo auto-fit (cards)
+   - .grid.cols-2/3/4  grids de N colunas (colapsam no mobile)
+   - .stack            coluna com gap vertical padrão
+   - .row              linha flex com gap + alinhamento central
+   - .spread           linha flex com space-between
+
+   Superfícies
+   - .card             cartão branco com borda, raio e sombra leve
+   - .card-pad         padding interno padrão (já incluso em .card)
+   - .panel            bloco neutro mais simples (sem sombra)
+   - .section-title    título de seção dentro de uma aba
+
+   Ações
+   - .btn              botão neutro (borda)
+   - .btn-primary      botão roxo de ação principal
+   - .btn-ghost        botão transparente (links de ação)
+   - .btn.sm           variante compacta
+   - .btn[disabled]    estado desabilitado
+
+   Indicadores
+   - .badge            etiqueta arredondada (status)
+   - .badge.green / .orange / .blue / .purple / .muted  cores
+   - .chip             pílula de metadado
+
+   Dados
+   - .table            tabela estilizada (thead/tbody)
+   - .table.compact    espaçamento reduzido
+
+   Estados / utilidades
+   - .placeholder      bloco "Carregando…" / vazio
+   - .empty            estado vazio amigável
+   - .notice           faixa de aviso (ex.: falha de fetch)
+   - .notice.error     variante de erro
+   - .muted-text       texto secundário
+   - .hidden           display:none
+
+   Os módulos montam seu HTML dentro das <section id="tab-...">.
+   ============================================================ */
+
+/* ============================================================
+   App shell
+   ============================================================ */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Topbar roxa --- */
+.topbar {
+  background: var(--purple-dark);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 12px rgba(26, 17, 69, .25);
+}
+
+.topbar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 800;
+  letter-spacing: .2px;
+  white-space: nowrap;
+}
+
+.brand .brand-event {
+  font-size: 1.05rem;
+  color: #fff;
+}
+
+.brand .brand-sep {
+  color: var(--teal);
+  font-weight: 400;
+}
+
+.brand .brand-sub {
+  font-size: .9rem;
+  font-weight: 500;
+  color: var(--cream);
+}
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Indicador "salvo automaticamente" */
+.save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .8rem;
+  color: var(--cream);
+  white-space: nowrap;
+}
+
+.save-status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--teal);
+  transition: background .2s ease;
+}
+
+.save-status[data-state="saving"] .dot { background: var(--orange); }
+.save-status[data-state="error"] .dot { background: var(--orange); }
+.save-status[data-state="idle"] .dot { background: var(--green-bright); }
+
+/* Botões da topbar herdam aparência clara sobre roxo */
+.topbar .btn {
+  background: rgba(255, 255, 255, .08);
+  border-color: rgba(255, 255, 255, .25);
+  color: #fff;
+}
+
+.topbar .btn:hover {
+  background: rgba(255, 255, 255, .18);
+}
+
+/* ============================================================
+   Navegação por abas
+   ============================================================ */
+.tabs {
+  background: var(--purple);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.tabs-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 12px;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab-btn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: rgba(255, 255, 255, .78);
+  padding: 14px 18px;
+  font-weight: 600;
+  font-size: .95rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+
+.tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, .06);
+}
+
+.tab-btn[aria-selected="true"] {
+  color: #fff;
+  border-bottom-color: var(--teal);
+}
+
+/* ============================================================
+   Conteúdo / container
+   ============================================================ */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  width: 100%;
+}
+
+.tab-panel {
+  animation: fadeIn .18s ease;
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   Grid / layout utilitário
+   ============================================================ */
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* ============================================================
+   Cartões / superfícies
+   ============================================================ */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.card-pad { padding: 20px; }
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  padding: 16px;
+}
+
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 16px;
+  color: var(--ink);
+}
+
+.section-title .sub {
+  display: block;
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ============================================================
+   Botões
+   ============================================================ */
+.btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: var(--rad-sm);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: .9rem;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .05s ease;
+}
+
+.btn:hover { background: #f1eef9; }
+.btn:active { transform: translateY(1px); }
+
+.btn.sm {
+  padding: 6px 11px;
+  font-size: .82rem;
+}
+
+.btn-primary {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--purple-2);
+  border-color: var(--purple-2);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--purple-2);
+}
+
+.btn-ghost:hover {
+  background: rgba(54, 23, 123, .08);
+}
+
+.btn[disabled] {
+  opacity: .5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ============================================================
+   Badges / chips
+   ============================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  background: var(--line);
+  color: var(--muted);
+}
+
+.badge.green { background: rgba(31, 157, 107, .15); color: var(--green-bright); }
+.badge.orange { background: rgba(224, 97, 31, .15); color: var(--orange); }
+.badge.blue { background: rgba(47, 99, 180, .15); color: var(--blue); }
+.badge.purple { background: rgba(54, 23, 123, .12); color: var(--purple-2); }
+.badge.muted { background: var(--line); color: var(--muted); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 600;
+  background: var(--cream);
+  color: var(--purple-dark);
+  border: 1px solid rgba(26, 17, 69, .08);
+}
+
+/* ============================================================
+   Tabelas
+   ============================================================ */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .9rem;
+}
+
+.table thead th {
+  text-align: left;
+  font-weight: 700;
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--line);
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.table tbody tr:hover {
+  background: #faf8fe;
+}
+
+.table.compact thead th,
+.table.compact tbody td {
+  padding: 7px 10px;
+}
+
+.table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Estados / utilidades
+   ============================================================ */
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 160px;
+  color: var(--muted);
+  font-size: .95rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--rad);
+  background: var(--card);
+}
+
+.empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+}
+
+.notice {
+  padding: 14px 16px;
+  border-radius: var(--rad-sm);
+  background: rgba(47, 99, 180, .1);
+  border: 1px solid rgba(47, 99, 180, .25);
+  color: var(--blue);
+  font-size: .9rem;
+}
+
+.notice.error {
+  background: rgba(224, 97, 31, .1);
+  border-color: rgba(224, 97, 31, .3);
+  color: var(--orange);
+}
+
+.notice code {
+  background: rgba(0, 0, 0, .06);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: .85em;
+}
+
+.muted-text { color: var(--muted); }
+
+.hidden { display: none !important; }
+
+/* Faixa de aviso global (topo do container) */
+.app-banner {
+  margin-bottom: 16px;
+}
+
+/* ============================================================
+   Responsivo
+   ============================================================ */
+@media (max-width: 720px) {
+  .grid.cols-2,
+  .grid.cols-3,
+  .grid.cols-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-inner {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .brand .brand-sub { display: none; }
+
+  .topbar-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+
+  .container {
+    padding: 16px 14px 40px;
+  }
+
+  /* Abas viram scroll horizontal (já tem overflow-x: auto) */
+  .tab-btn {
+    padding: 12px 14px;
+    font-size: .9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand .brand-event { font-size: .95rem; }
+  .topbar .btn span.label { display: none; } /* só ícone em telas muito estreitas */
+}

@@ -1,0 +1,191 @@
+/* ============================================================
+   financeiro.css — estilos do módulo Financeiro
+   ------------------------------------------------------------
+   Complementa as classes reutilizáveis de app.css. Só contém
+   o que é específico do painel financeiro (cards de resumo,
+   barras orçado×realizado, edição inline, cores semânticas).
+   Injetado por js/financeiro.js via <link> no <head>.
+   ============================================================ */
+
+/* --- Cores semânticas do módulo --- */
+:root {
+  --fin-receita: #1F9D6B;   /* verde vivo (positivo) */
+  --fin-receita-2: #3F7A4A; /* verde institucional */
+  --fin-despesa: #E0611F;   /* laranja (atenção) */
+  --fin-destaque: #36177B;  /* roxo (destaque) */
+}
+
+/* --- Cards de resumo (KPIs) --- */
+.fin-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fin-kpi .fin-kpi-label {
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+}
+
+.fin-kpi .fin-kpi-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.fin-kpi .fin-kpi-sub {
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+/* Variantes de cor por tipo de KPI */
+.fin-kpi.is-receita .fin-kpi-value { color: var(--fin-receita); }
+.fin-kpi.is-despesa .fin-kpi-value { color: var(--fin-despesa); }
+.fin-kpi.is-positivo .fin-kpi-value { color: var(--fin-receita); }
+.fin-kpi.is-negativo .fin-kpi-value { color: var(--fin-despesa); }
+.fin-kpi.is-destaque { border-left: 4px solid var(--fin-destaque); }
+
+/* Faixa fina superior colorida por tipo de card */
+.fin-kpi-card { position: relative; overflow: hidden; }
+.fin-kpi-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--line);
+}
+.fin-kpi-card.t-receita::before { background: var(--fin-receita); }
+.fin-kpi-card.t-despesa::before { background: var(--fin-despesa); }
+.fin-kpi-card.t-saldo::before { background: var(--fin-destaque); }
+
+/* --- Barra orçado × realizado --- */
+.fin-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.fin-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width .25s ease;
+}
+
+.fin-bar.t-receita > span { background: var(--fin-receita); }
+.fin-bar.t-despesa > span { background: var(--fin-despesa); }
+
+.fin-bar-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.fin-bar-caption {
+  font-size: .78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --- Cabeçalho de grupo (categoria) na tabela --- */
+.fin-group-row td {
+  background: #f6f4fa;
+  font-weight: 700;
+  color: var(--fin-destaque);
+  text-transform: uppercase;
+  font-size: .76rem;
+  letter-spacing: .3px;
+}
+
+/* Linha de total da tabela */
+.fin-total-row td {
+  font-weight: 800;
+  border-top: 2px solid var(--line);
+  background: #faf8fe;
+}
+
+/* --- Ações na linha (editar / excluir) --- */
+.fin-actions {
+  display: inline-flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* --- Formulário inline de edição --- */
+.fin-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.fin-form .fin-field { display: flex; flex-direction: column; gap: 4px; }
+.fin-form .fin-field.full { grid-column: 1 / -1; }
+
+.fin-form label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.fin-form input,
+.fin-form select {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  background: var(--card);
+  color: var(--ink);
+  width: 100%;
+}
+
+.fin-form input:focus,
+.fin-form select:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+  border-color: var(--purple-2);
+}
+
+.fin-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Backdrop simples do modal de edição */
+.fin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 17, 69, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.fin-modal {
+  background: var(--card);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+/* Tabela com scroll horizontal em telas estreitas */
+.fin-table-wrap { overflow-x: auto; }
+
+@media (max-width: 720px) {
+  .fin-form { grid-template-columns: 1fr; }
+}
