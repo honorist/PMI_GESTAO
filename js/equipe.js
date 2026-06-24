@@ -459,33 +459,35 @@
     return card;
   }
 
+  // Árvore vertical indentada: Presidente → GP → demais (com linhas).
+  // Cabe toda na tela (sem rolagem horizontal), todos visíveis.
+  function nodeWrap(m, disciplinas, cls) {
+    var w = el("div", "eqp-tree__node " + cls);
+    w.appendChild(renderNode(m, disciplinas));
+    return w;
+  }
+
   function buildOrg(membros, disciplinas) {
     var c = classificar(membros);
-    var scroller = el("div", "eqp-org-scroll");
-    var org = el("div", "eqp-org");
+    var tree = el("div", "eqp-tree");
 
     if (c.pres) {
-      var l0 = el("div", "eqp-org__level eqp-org__level--drop");
-      l0.appendChild(renderNode(c.pres, disciplinas));
-      org.appendChild(l0);
+      tree.appendChild(nodeWrap(c.pres, disciplinas, "eqp-tree__n0"));
     }
     if (c.gp) {
-      var l1 = el("div", "eqp-org__level" + (c.resto.length ? " eqp-org__level--drop" : ""));
-      l1.appendChild(renderNode(c.gp, disciplinas));
-      org.appendChild(l1);
+      var bA = el("div", "eqp-tree__branch eqp-tree__branch--a");
+      bA.appendChild(nodeWrap(c.gp, disciplinas, "eqp-tree__n1"));
+      tree.appendChild(bA);
     }
     if (c.resto.length) {
-      var row = el("div", "eqp-org__row" + (c.resto.length === 1 ? " is-single" : ""));
+      var bB = el("div", "eqp-tree__branch eqp-tree__branch--b");
       c.resto.forEach(function (m) {
-        var col = el("div", "eqp-org__col");
-        col.appendChild(renderNode(m, disciplinas));
-        row.appendChild(col);
+        bB.appendChild(nodeWrap(m, disciplinas, "eqp-tree__leaf"));
       });
-      org.appendChild(row);
+      tree.appendChild(bB);
     }
 
-    scroller.appendChild(org);
-    return scroller;
+    return tree;
   }
 
   /* ============================================================

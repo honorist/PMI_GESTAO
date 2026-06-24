@@ -6,53 +6,33 @@
    Injetado por js/equipe.js via <link> no <head>.
    ============================================================ */
 
-/* --- Organograma (hierarquia: Presidente → GP → demais) --- */
-.eqp-org-scroll { overflow-x: auto; padding: 6px 2px 4px; }
-.eqp-org {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 100%;
-}
-.eqp-org__level {
-  display: flex;
-  justify-content: center;
-  position: relative;
-}
-/* descida vertical até o próximo nível */
-.eqp-org__level--drop { padding-bottom: 26px; }
-.eqp-org__level--drop::after {
+/* --- Organograma vertical indentado: Presidente → GP → demais --- */
+.eqp-tree { width: 100%; max-width: 560px; }
+.eqp-tree__node { position: relative; margin-bottom: 10px; }
+.eqp-tree__node .eqp-card { width: 100%; }
+
+/* ramos indentados com espinha vertical + cotovelo até cada nó */
+.eqp-tree__branch { position: relative; padding-left: 26px; }
+.eqp-tree__branch--a { margin-left: 16px; }   /* GP sob o Presidente */
+.eqp-tree__branch--b { margin-left: 44px; }   /* demais sob o GP */
+.eqp-tree__branch::before {
   content: "";
   position: absolute;
-  left: 50%;
-  bottom: 0;
+  left: 0;
+  top: -12px;
+  bottom: 26px;
   width: 2px;
-  height: 26px;
   background: var(--line);
-  transform: translateX(-50%);
 }
-/* linha de subordinados: quebra em várias linhas (todos visíveis,
-   sem corte horizontal). Conector único desce da Germânia (via
-   .eqp-org__level--drop::after). */
-.eqp-org__row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 16px;
-  position: relative;
-  padding-top: 8px;
-  width: 100%;
-  max-width: 1180px;
+.eqp-tree__branch > .eqp-tree__node::before {
+  content: "";
+  position: absolute;
+  left: -26px;
+  top: 26px;
+  width: 26px;
+  height: 2px;
+  background: var(--line);
 }
-.eqp-org__col {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 240px;
-}
-.eqp-org .eqp-card { width: 240px; }
-.eqp-org__level .eqp-card { width: 270px; }
 
 /* --- Grupo (GT) --- */
 .eqp-grupo {
