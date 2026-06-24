@@ -794,13 +794,40 @@
     inTitulo.placeholder = "Ex.: Alinhamento quinzenal dos GTs";
     form.appendChild(field("Título", inTitulo, true));
 
-    // Participantes (campo de texto, separados por vírgula).
-    var inPart = makeInput(
-      "text",
-      existing ? existing.participantes.join(", ") : ""
-    );
-    inPart.placeholder = "Nomes separados por vírgula";
-    form.appendChild(field("Participantes", inPart, true));
+    // Participantes: marca quem da equipe esteve + campo livre p/ externos.
+    var membrosEquipe = ((window.Gestao.data.equipe &&
+      window.Gestao.data.equipe.membros) || [])
+      .map(function (m) { return (m.nome || "").trim(); })
+      .filter(Boolean);
+    var jaPart = existing ? existing.participantes.slice() : [];
+
+    var partWrap = el("div", "reu-part");
+    var partChecks = [];
+    membrosEquipe.forEach(function (nome) {
+      var lbl = el("label", "reu-part-check");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = nome;
+      if (jaPart.indexOf(nome) !== -1) cb.checked = true;
+      lbl.appendChild(cb);
+      lbl.appendChild(document.createTextNode(" " + nome));
+      partWrap.appendChild(lbl);
+      partChecks.push(cb);
+    });
+    if (!membrosEquipe.length) {
+      partWrap.appendChild(
+        el("span", "muted-text", "Cadastre a equipe na aba Equipe para selecionar aqui.")
+      );
+    }
+    form.appendChild(field("Participantes (equipe)", partWrap, true));
+
+    // Externos: nomes que não estão na equipe (texto livre, vírgula).
+    var externos = jaPart.filter(function (n) {
+      return membrosEquipe.indexOf(n) === -1;
+    });
+    var inOutros = makeInput("text", externos.join(", "));
+    inOutros.placeholder = "Convidados/externos, separados por vírgula";
+    form.appendChild(field("Outros participantes", inOutros, true));
 
     // Editores dinâmicos.
     var pautaEd = listEditor({
@@ -840,7 +867,7 @@
     var taAta = document.createElement("textarea");
     taAta.value = existing ? existing.ata : "";
     taAta.placeholder = "Texto da ata / observações da reunião";
-    taAta.rows = 4;
+    taAta.rows = 7;
     form.appendChild(field("Ata", taAta, true));
 
     // Botões.
@@ -856,13 +883,15 @@
 
     form.addEventListener("submit", function (e) {
       e.preventDefault();
-      var participantes = inPart.value
+      var participantes = partChecks
+        .filter(function (c) { return c.checked; })
+        .map(function (c) { return c.value; });
+      inOutros.value
         .split(",")
-        .map(function (s) {
-          return s.trim();
-        })
-        .filter(function (s) {
-          return s.length > 0;
+        .map(function (s) { return s.trim(); })
+        .filter(function (s) { return s.length > 0; })
+        .forEach(function (n) {
+          if (participantes.indexOf(n) === -1) participantes.push(n);
         });
 
       var values = {

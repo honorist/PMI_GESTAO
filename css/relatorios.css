@@ -350,8 +350,321 @@
   flex-wrap: wrap;
 }
 
+/* ============================================================
+   RELATÓRIO GERENCIAL FINANCEIRO — componentes específicos
+   ------------------------------------------------------------
+   Cores da marca usadas nos gráficos:
+     roxo   #36177B (var --purple)
+     verde  #3F7A4A (var --green)
+     laranja#E0611F (var --orange)
+     azul   #2F63B4 (var --blue)
+   ============================================================ */
+
+/* Detalhe secundário dentro de célula (ex.: observação do serviço) */
+.rel-cell-sub {
+  display: block;
+  font-size: .76rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Marcadores de proposta anexada / pendente */
+.rel-ok {
+  color: var(--green-bright);
+  font-weight: 700;
+}
+.rel-warn-text {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+/* ---------- Gráfico de barras horizontais (categorias) ---------- */
+.rel-hbar-chart {
+  display: grid;
+  gap: 10px;
+}
+
+.rel-hbar-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) 3fr minmax(120px, auto);
+  align-items: center;
+  gap: 10px;
+  break-inside: avoid;
+}
+
+.rel-hbar-label {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rel-hbar-track {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.rel-hbar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  min-width: 2px;
+  background: var(--purple);
+}
+
+/* Cores de rodízio (até 4) + cores fixas opcionais */
+.rel-hbar--c0 { background: var(--purple); }
+.rel-hbar--c1 { background: var(--blue); }
+.rel-hbar--c2 { background: var(--green); }
+.rel-hbar--c3 { background: var(--orange); }
+.rel-hbar--verde { background: var(--green); }
+.rel-hbar--roxo { background: var(--purple); }
+
+.rel-hbar-val {
+  font-size: .8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* ---------- Gráfico de colunas (pipeline por status) ---------- */
+.rel-pipeline {
+  display: grid;
+  gap: 18px;
+}
+
+.rel-colchart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 18px;
+  height: 180px;
+  padding: 8px 4px 0;
+}
+
+.rel-colchart-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 0;
+  height: 100%;
+  min-width: 0;
+}
+
+.rel-colchart-val {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.rel-colchart-bararea {
+  flex: 1 1 auto;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.rel-colchart-bar {
+  display: block;
+  width: 64%;
+  max-width: 90px;
+  min-height: 4px;
+  border-radius: 8px 8px 0 0;
+  background: var(--purple);
+}
+
+.rel-col--azul    { background: var(--blue); }
+.rel-col--laranja { background: var(--orange); }
+.rel-col--verde   { background: var(--green); }
+
+.rel-colchart-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.rel-colchart-label {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.rel-colchart-qtd {
+  font-size: .72rem;
+  color: var(--muted);
+}
+
+/* ---------- Pilha de gráficos de alto nível ---------- */
+.rel-graf-stack {
+  display: grid;
+  gap: 22px;
+}
+
+.rel-graf-bloco { break-inside: avoid; }
+
+.rel-graf-titulo {
+  font-family: var(--font);
+  font-size: .82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--purple-2);
+  margin: 0 0 10px;
+}
+
+/* ---------- Compliance / Conformidade ---------- */
+.rel-compliance {
+  display: grid;
+  gap: 16px;
+}
+
+.rel-comp-score {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--rad-sm);
+  background: rgba(224, 97, 31, .08);
+  border: 1px solid rgba(224, 97, 31, .25);
+  break-inside: avoid;
+}
+
+.rel-comp-score.is-full {
+  background: rgba(31, 157, 107, .10);
+  border-color: rgba(31, 157, 107, .30);
+}
+
+.rel-comp-score-num {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--orange);
+  font-variant-numeric: tabular-nums;
+}
+
+.rel-comp-score.is-full .rel-comp-score-num { color: var(--green-bright); }
+
+.rel-comp-score-lab {
+  font-size: .82rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.rel-comp-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.rel-comp-item {
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: var(--rad-sm);
+  padding: 12px 14px;
+  background: var(--card-cream);
+  break-inside: avoid;
+}
+
+.rel-comp-item.is-ok   { border-left-color: var(--green-bright); }
+.rel-comp-item.is-warn { border-left-color: var(--orange); }
+
+.rel-comp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rel-comp-icon {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.rel-comp-item.is-ok   .rel-comp-icon { color: var(--green-bright); }
+.rel-comp-item.is-warn .rel-comp-icon { color: var(--orange); }
+
+.rel-comp-headtext {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rel-comp-titulo {
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.rel-comp-status {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+.rel-comp-item.is-ok   .rel-comp-status { color: var(--green-bright); }
+.rel-comp-item.is-warn .rel-comp-status { color: var(--orange); }
+
+.rel-comp-desc {
+  font-size: .78rem;
+  color: var(--muted);
+  margin: 6px 0 0;
+}
+
+.rel-comp-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.rel-comp-list li {
+  font-size: .8rem;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+
+.rel-comp-lembretes {
+  border: 1px dashed var(--line);
+  border-radius: var(--rad-sm);
+  padding: 12px 14px;
+  background: #fff;
+  break-inside: avoid;
+}
+
+.rel-comp-lembretes-titulo {
+  display: block;
+  font-size: .74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--purple-2);
+  margin-bottom: 6px;
+}
+
+.rel-comp-lembretes .rel-comp-list { margin-top: 0; }
+
 @media (max-width: 720px) {
   .rel-doc { padding: 22px 18px; }
+
+  .rel-hbar-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .rel-hbar-val { text-align: left; }
+  .rel-colchart { height: 150px; gap: 10px; }
 }
 
 /* ============================================================
@@ -432,24 +745,55 @@
     color: #36177B !important;
   }
 
-  /* Preserva fundos de barras e realces na impressão */
+  /* Realces de cor preservados também no relatório gerencial */
+  .rel-ok,
+  .rel-comp-item.is-ok .rel-comp-icon,
+  .rel-comp-item.is-ok .rel-comp-status,
+  .rel-comp-score.is-full .rel-comp-score-num {
+    color: #1a7a52 !important;
+  }
+
+  .rel-warn-text,
+  .rel-comp-item.is-warn .rel-comp-icon,
+  .rel-comp-item.is-warn .rel-comp-status,
+  .rel-comp-score-num {
+    color: #b14310 !important;
+  }
+
+  .rel-graf-titulo,
+  .rel-comp-lembretes-titulo {
+    color: #36177B !important;
+  }
+
+  /* Preserva fundos de barras, gráficos e realces na impressão */
   .rel-bar,
   .rel-bar > span,
   .rel-gt-bar,
   .rel-gt-bar > span,
   .rel-stat,
   .rel-group-row td,
-  .rel-total-row td {
+  .rel-total-row td,
+  .rel-hbar-track,
+  .rel-hbar-fill,
+  .rel-colchart-bar,
+  .rel-comp-score,
+  .rel-comp-item {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Quebras de página: não cortar tabelas/cartões/seções */
+  /* Quebras de página: não cortar tabelas/cartões/seções/gráficos */
   .rel-section,
   .rel-stat,
   .rel-bar-row,
   .rel-table tbody tr,
-  .rel-doc__head {
+  .rel-doc__head,
+  .rel-hbar-row,
+  .rel-colchart,
+  .rel-graf-bloco,
+  .rel-comp-item,
+  .rel-comp-score,
+  .rel-comp-lembretes {
     break-inside: avoid;
     page-break-inside: avoid;
   }

@@ -352,10 +352,25 @@
   box-shadow: var(--shadow);
   padding: 24px;
   width: 100%;
-  max-width: 720px;
+  max-width: 860px;
   max-height: 92vh;
   overflow: auto;
 }
+.reu-form textarea { min-height: 150px; }
+/* Participantes: chips com checkbox da equipe */
+.reu-part { display: flex; flex-wrap: wrap; gap: 6px 10px; padding: 2px 0; }
+.reu-part-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .85rem;
+  background: var(--card-cream);
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.reu-part-check input { margin: 0; }
 
 .reu-form {
   display: grid;
@@ -448,21 +463,26 @@
   gap: 8px;
 }
 
-/* Conjunto de campos de uma linha (decisão/ação). */
+/* Conjunto de campos de uma linha (decisão/ação). Quebra linha em
+   telas estreitas (data/status descem em vez de transbordar). */
 .reu-row-fields {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
 }
 
+/* base: todos ocupam espaço e podem encolher (width:auto sobrepõe o
+   width:100% do .reu-form input, que colapsava o "grow"). */
 .reu-row-fields .reu-row-input {
-  flex: 0 0 auto;
+  flex: 1 1 160px;
+  width: auto;
+  min-width: 0;
 }
 
 .reu-row-fields .reu-row-input.grow {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 3 1 220px;
 }
 
 .reu-row > .reu-row-input {
@@ -470,11 +490,15 @@
 }
 
 .reu-row-date {
-  max-width: 160px;
+  flex: 0 0 150px;
+  width: 150px;
+  max-width: 150px;
 }
 
 .reu-row-status {
-  max-width: 160px;
+  flex: 0 0 140px;
+  width: 140px;
+  max-width: 140px;
 }
 
 /* Botão remover linha. */

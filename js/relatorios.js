@@ -148,6 +148,13 @@
     };
   }
 
+  function getContratacoes() {
+    var c = getData().contratacoes || {};
+    return {
+      fornecedores: Array.isArray(c.fornecedores) ? c.fornecedores : []
+    };
+  }
+
   function getReunioes() {
     var r = getData().reunioes || {};
     return Array.isArray(r.reunioes) ? r.reunioes : [];
@@ -257,6 +264,112 @@
     bar.appendChild(fill);
     row.appendChild(bar);
     return row;
+  }
+
+  // Barra horizontal proporcional (rótulo + trilho + valor + %).
+  // items = [{ label, valor }]; maxVal define a escala (100%).
+  // colorClass aplica a cor de marca via .rel-hbar--<n> (rodízio se omitido).
+  function hbarChart(items, maxVal, fixedColorClass) {
+    var chart = el("div", "rel-hbar-chart");
+    var total = (items || []).reduce(function (a, it) {
+      return a + toNumber(it.valor);
+    }, 0);
+    var max = maxVal != null ? maxVal : Math.max.apply(null, [0].concat(
+      (items || []).map(function (it) { return toNumber(it.valor); })
+    ));
+
+    (items || []).forEach(function (it, i) {
+      var v = toNumber(it.valor);
+      var w = max > 0 ? Math.min(100, (v / max) * 100) : 0;
+      var colorClass = fixedColorClass || "rel-hbar--c" + (i % 4);
+
+      var row = el("div", "rel-hbar-row");
+
+      var lab = el("span", "rel-hbar-label", it.label);
+      row.appendChild(lab);
+
+      var track = el("div", "rel-hbar-track");
+      var fill = el("span", "rel-hbar-fill " + colorClass);
+      fill.style.width = w.toFixed(1) + "%";
+      track.appendChild(fill);
+      row.appendChild(track);
+
+      var caption =
+        fmtBRL(v) + (total > 0 ? " · " + pct(v, total, 0) : "");
+      row.appendChild(el("span", "rel-hbar-val", caption));
+
+      chart.appendChild(row);
+    });
+
+    if (!(items || []).length) {
+      chart.appendChild(el("p", "rel-empty", "Sem dados para o gráfico."));
+    }
+    return chart;
+  }
+
+  // Gráfico de colunas comparando valores por status do pipeline.
+  // cols = [{ label, valor, qtd, colorClass }]
+  function pipelineChart(cols) {
+    var max = Math.max.apply(null, [0].concat(
+      cols.map(function (c) { return toNumber(c.valor); })
+    ));
+    var chart = el("div", "rel-colchart");
+    cols.forEach(function (c) {
+      var v = toNumber(c.valor);
+      var h = max > 0 ? Math.max(2, (v / max) * 100) : 2;
+
+      var colWrap = el("div", "rel-colchart-col");
+      colWrap.appendChild(el("span", "rel-colchart-val", fmtBRL(v)));
+
+      var barArea = el("div", "rel-colchart-bararea");
+      var bar = el("span", "rel-colchart-bar " + (c.colorClass || ""));
+      bar.style.height = h.toFixed(1) + "%";
+      barArea.appendChild(bar);
+      colWrap.appendChild(barArea);
+
+      var foot = el("div", "rel-colchart-foot");
+      foot.appendChild(el("span", "rel-colchart-label", c.label));
+      foot.appendChild(
+        el("span", "rel-colchart-qtd", c.qtd + (c.qtd === 1 ? " contrato" : " contratos"))
+      );
+      colWrap.appendChild(foot);
+
+      chart.appendChild(colWrap);
+    });
+    return chart;
+  }
+
+  // Item de compliance: ✓ OK (verde) ou ⚠ N pendência(s) (laranja) + lista.
+  // check = { titulo, descricao, itens: [string], ok: bool }
+  function complianceItem(check) {
+    var ok = !!check.ok;
+    var card = el("div", "rel-comp-item " + (ok ? "is-ok" : "is-warn"));
+
+    var head = el("div", "rel-comp-head");
+    head.appendChild(el("span", "rel-comp-icon", ok ? "✓" : "⚠"));
+
+    var txt = el("div", "rel-comp-headtext");
+    txt.appendChild(el("span", "rel-comp-titulo", check.titulo));
+    var statusLabel = ok
+      ? "OK"
+      : check.itens.length +
+        (check.itens.length === 1 ? " pendência" : " pendências");
+    txt.appendChild(el("span", "rel-comp-status", statusLabel));
+    head.appendChild(txt);
+    card.appendChild(head);
+
+    if (check.descricao) {
+      card.appendChild(el("p", "rel-comp-desc", check.descricao));
+    }
+
+    if (!ok && check.itens.length) {
+      var ul = el("ul", "rel-comp-list");
+      check.itens.forEach(function (linha) {
+        ul.appendChild(el("li", null, linha));
+      });
+      card.appendChild(ul);
+    }
+    return card;
   }
 
   // Rodapé do documento.
@@ -576,19 +689,190 @@
     return { map: map, order: order };
   }
 
-  // Tabela financeira agrupada por categoria, com subtotais e total.
-  // kind = "receita" | "despesa" (despesa adiciona coluna Fornecedor).
-  function tabelaFinanceira(items, kind) {
-    var isDesp = kind === "despesa";
+  /* ------------------------------------------------------------
+     Cálculos puros (testáveis sem DOM) do relatório gerencial
+     ------------------------------------------------------------ */
 
-    // Colunas: Descrição | Previsto | Realizado [| Fornecedor]
-    var nCols = isDesp ? 4 : 3;
+  // Rótulos legíveis de status de contratação.
+  var STATUS_LABEL = {
+    a_contratar: "A contratar",
+    negociando: "Em negociação",
+    fechado: "Fechado"
+  };
 
-    if (!items.length) {
+  // Uma proposta é considerada anexada quando tem dataUrl (igual à
+  // regra usada em contratacoes.js).
+  function temProposta(f) {
+    return !!(f && f.proposta && f.proposta.dataUrl);
+  }
+
+  // Indicadores gerenciais consolidados (números, sem DOM).
+  function computeFinanceiro(fin, contr) {
+    var receitas = (fin && fin.receitas) || [];
+    var despesas = (fin && fin.despesas) || [];
+    var fornecedores = (contr && contr.fornecedores) || [];
+
+    var recPrev = sumBy(receitas, "previsto");
+    var recReal = sumBy(receitas, "realizado");
+    var despPrev = sumBy(despesas, "previsto");
+    var despReal = sumBy(despesas, "realizado");
+
+    var fechados = fornecedores.filter(function (f) {
+      return f.status === "fechado";
+    });
+    var negociando = fornecedores.filter(function (f) {
+      return f.status === "negociando";
+    });
+    var comprometido = sumBy(fechados, "valor"); // despesa comprometida
+    var emNegociacao = sumBy(negociando, "valor");
+
+    return {
+      recPrev: recPrev,
+      recReal: recReal,
+      despPrev: despPrev,
+      despReal: despReal,
+      pctReceita: recPrev > 0 ? (recReal / recPrev) * 100 : 0,
+      saldoProjetado: recPrev - despPrev,
+      saldoRealizado: recReal - despReal,
+      comprometido: comprometido,
+      emNegociacao: emNegociacao,
+      nFechados: fechados.length
+    };
+  }
+
+  // Pipeline de contratações: quantidade + valor por status.
+  function computePipeline(contr) {
+    var fornecedores = (contr && contr.fornecedores) || [];
+    var ordem = ["a_contratar", "negociando", "fechado"];
+    return ordem.map(function (st) {
+      var grupo = fornecedores.filter(function (f) {
+        return f.status === st;
+      });
+      return {
+        status: st,
+        label: STATUS_LABEL[st] || st,
+        qtd: grupo.length,
+        valor: sumBy(grupo, "valor")
+      };
+    });
+  }
+
+  // Soma de valores por categoria (para gráficos), ordenada desc.
+  function computePorCategoria(items, prop) {
+    var groups = groupByCategoria(items);
+    return groups.order
+      .map(function (cat) {
+        return { label: cat, valor: sumBy(groups.map[cat], prop || "previsto") };
+      })
+      .filter(function (r) {
+        return r.valor > 0;
+      })
+      .sort(function (a, b) {
+        return b.valor - a.valor;
+      });
+  }
+
+  // Verificações de conformidade derivadas dos dados.
+  // Retorna { checks:[{titulo,descricao,itens,ok}], okCount, total, score }.
+  function computeCompliance(fin, contr) {
+    var despesas = (fin && fin.despesas) || [];
+    var fornecedores = (contr && contr.fornecedores) || [];
+    var fechados = fornecedores.filter(function (f) {
+      return f.status === "fechado";
+    });
+
+    function nomeOuRef(f) {
+      return (f.nome && f.nome.trim()) || f.categoria || f.id || "Fornecedor";
+    }
+
+    // 1) Contratos fechados SEM proposta anexada.
+    var semProposta = fechados
+      .filter(function (f) {
+        return !temProposta(f);
+      })
+      .map(function (f) {
+        return nomeOuRef(f) + " — " + fmtBRL(f.valor);
+      });
+
+    // 2) Fornecedores sem contato cadastrado.
+    var semContato = fornecedores
+      .filter(function (f) {
+        return !(f.contato && String(f.contato).trim());
+      })
+      .map(nomeOuRef);
+
+    // 3) Despesas sem fornecedor vinculado.
+    var despSemForn = despesas
+      .filter(function (d) {
+        return !(d.fornecedor && String(d.fornecedor).trim());
+      })
+      .map(function (d) {
+        return (d.descricao || d.categoria || "Despesa") + " — " + fmtBRL(d.previsto);
+      });
+
+    // 4) Contratos fechados sem GT/disciplina.
+    var semGt = fechados
+      .filter(function (f) {
+        return !(f.disciplinaId && String(f.disciplinaId).trim());
+      })
+      .map(function (f) {
+        return nomeOuRef(f) + " — " + fmtBRL(f.valor);
+      });
+
+    var checks = [
+      {
+        titulo: "Propostas anexadas aos contratos fechados",
+        descricao: "Todo contrato fechado deve ter a proposta comercial arquivada (risco documental).",
+        itens: semProposta
+      },
+      {
+        titulo: "Contato cadastrado por fornecedor",
+        descricao: "Cada fornecedor deve ter um contato para rastreabilidade.",
+        itens: semContato
+      },
+      {
+        titulo: "Despesas com fornecedor vinculado",
+        descricao: "Despesas devem apontar o fornecedor responsável.",
+        itens: despSemForn
+      },
+      {
+        titulo: "GT/disciplina definida nos contratos fechados",
+        descricao: "Cada contrato fechado deve estar associado a um GT responsável.",
+        itens: semGt
+      }
+    ].map(function (c) {
+      c.ok = c.itens.length === 0;
+      return c;
+    });
+
+    var okCount = checks.filter(function (c) {
+      return c.ok;
+    }).length;
+
+    return {
+      checks: checks,
+      okCount: okCount,
+      total: checks.length,
+      score: checks.length > 0 ? Math.round((okCount / checks.length) * 100) : 100
+    };
+  }
+
+  // Lembretes informativos (sempre exibidos como nota de processo).
+  var COMPLIANCE_LEMBRETES = [
+    "Arquivar os contratos assinados de cada fornecedor.",
+    "Manter as notas fiscais organizadas por fornecedor.",
+    "Emitir o relatório financeiro final no encerramento do evento."
+  ];
+
+  /* ------------------------------------------------------------
+     Tabela gerencial de CONTRATOS FECHADOS
+     ------------------------------------------------------------ */
+  function tabelaContratosFechados(fechados, nomeDisc) {
+    if (!fechados.length) {
       return el(
         "p",
         "rel-empty",
-        isDesp ? "Nenhuma despesa cadastrada." : "Nenhuma receita cadastrada."
+        "Nenhum contrato fechado até o momento."
       );
     }
 
@@ -597,51 +881,54 @@
 
     var thead = el("thead");
     var trh = el("tr");
-    trh.appendChild(el("th", null, "Descrição"));
-    trh.appendChild(el("th", "num", "Previsto"));
-    trh.appendChild(el("th", "num", "Realizado"));
-    if (isDesp) trh.appendChild(el("th", null, "Fornecedor"));
+    trh.appendChild(el("th", null, "Empresa"));
+    trh.appendChild(el("th", null, "Serviço"));
+    trh.appendChild(el("th", null, "GT"));
+    trh.appendChild(el("th", "num", "Valor"));
+    trh.appendChild(el("th", null, "Proposta"));
     thead.appendChild(trh);
     t.appendChild(thead);
 
     var tbody = el("tbody");
-    var groups = groupByCategoria(items);
+    fechados.forEach(function (f) {
+      var tr = el("tr");
 
-    groups.order.forEach(function (cat) {
-      var rows = groups.map[cat];
+      // Empresa
+      tr.appendChild(el("td", null, (f.nome && f.nome.trim()) || "—"));
 
-      // Cabeçalho do grupo.
-      var gTr = el("tr", "rel-group-row");
-      var gTd = el("td", null, cat);
-      gTd.colSpan = nCols;
-      gTr.appendChild(gTd);
-      tbody.appendChild(gTr);
+      // Serviço (categoria + observação como detalhe)
+      var tdServ = el("td");
+      tdServ.appendChild(el("span", null, f.categoria || "—"));
+      if (f.observacao && String(f.observacao).trim()) {
+        tdServ.appendChild(el("span", "rel-cell-sub", f.observacao));
+      }
+      tr.appendChild(tdServ);
 
-      // Itens.
-      rows.forEach(function (it) {
-        var tr = el("tr");
-        tr.appendChild(el("td", null, it.descricao || "—"));
-        tr.appendChild(el("td", "num", fmtBRL(it.previsto)));
-        tr.appendChild(el("td", "num", fmtBRL(it.realizado)));
-        if (isDesp) tr.appendChild(el("td", null, it.fornecedor || "—"));
-        tbody.appendChild(tr);
-      });
+      // GT (disciplina)
+      tr.appendChild(el("td", null, nomeDisc[f.disciplinaId] || "—"));
 
-      // Subtotal do grupo.
-      var sTr = el("tr", "rel-subtotal-row");
-      sTr.appendChild(el("td", null, "Subtotal · " + cat));
-      sTr.appendChild(el("td", "num", fmtBRL(sumBy(rows, "previsto"))));
-      sTr.appendChild(el("td", "num", fmtBRL(sumBy(rows, "realizado"))));
-      if (isDesp) sTr.appendChild(el("td", null, ""));
-      tbody.appendChild(sTr);
+      // Valor
+      tr.appendChild(el("td", "num", fmtBRL(f.valor)));
+
+      // Proposta ✓/✗
+      var tdProp = el("td");
+      if (temProposta(f)) {
+        tdProp.appendChild(el("span", "rel-ok", "✓ anexada"));
+      } else {
+        tdProp.appendChild(el("span", "rel-warn-text", "✗ pendente"));
+      }
+      tr.appendChild(tdProp);
+
+      tbody.appendChild(tr);
     });
 
-    // Total geral.
+    // Total dos contratos fechados.
     var totTr = el("tr", "rel-total-row");
-    totTr.appendChild(el("td", null, "Total geral"));
-    totTr.appendChild(el("td", "num", fmtBRL(sumBy(items, "previsto"))));
-    totTr.appendChild(el("td", "num", fmtBRL(sumBy(items, "realizado"))));
-    if (isDesp) totTr.appendChild(el("td", null, ""));
+    totTr.appendChild(el("td", null, "Total contratado (fechados)"));
+    totTr.appendChild(el("td", null, ""));
+    totTr.appendChild(el("td", null, ""));
+    totTr.appendChild(el("td", "num", fmtBRL(sumBy(fechados, "valor"))));
+    totTr.appendChild(el("td", null, ""));
     tbody.appendChild(totTr);
 
     t.appendChild(tbody);
@@ -649,73 +936,186 @@
     return wrap;
   }
 
+  /* ------------------------------------------------------------
+     RELATÓRIO FINANCEIRO GERENCIAL (documento)
+     ------------------------------------------------------------ */
   function buildFinanceiroDoc() {
     var fin = getFinanceiro();
+    var contr = getContratacoes();
+    var cron = getCronograma();
 
-    var recPrev = sumBy(fin.receitas, "previsto");
-    var recReal = sumBy(fin.receitas, "realizado");
-    var despPrev = sumBy(fin.despesas, "previsto");
-    var despReal = sumBy(fin.despesas, "realizado");
-    var saldo = recReal - despReal;
+    // Mapa disciplinaId -> nome (GT).
+    var nomeDisc = {};
+    cron.disciplinas.forEach(function (d) {
+      nomeDisc[d.id] = d.nome || d.id;
+    });
 
-    var doc = el("article", "rel-doc");
+    var k = computeFinanceiro(fin, contr);
+    var pipeline = computePipeline(contr);
+    var fechados = contr.fornecedores.filter(function (f) {
+      return f.status === "fechado";
+    });
+
+    var doc = el("article", "rel-doc rel-doc--gerencial");
     doc.id = "rel-doc-financeiro";
-    doc.setAttribute("aria-label", "Relatório financeiro");
+    doc.setAttribute("aria-label", "Relatório gerencial financeiro");
 
     doc.appendChild(
       docHead({
-        title: "Relatório financeiro",
+        title: "Relatório Gerencial Financeiro",
         meta: "Gerado em " + fmtData(hojeISO())
       })
     );
 
-    /* ---- Resumo ---- */
+    /* ---- 1. Sumário executivo ---- */
     var resumo = el("div", "rel-summary");
     resumo.appendChild(
       stat(
-        "Receitas",
-        fmtBRL(recReal),
-        "previsto: " + fmtBRL(recPrev),
+        "Receita prevista",
+        fmtBRL(k.recPrev),
+        "potencial de arrecadação",
+        "is-destaque"
+      )
+    );
+    resumo.appendChild(
+      stat(
+        "Receita realizada",
+        fmtBRL(k.recReal),
+        pct(k.recReal, k.recPrev, 1) + " executado",
         "is-positivo"
       )
     );
     resumo.appendChild(
       stat(
-        "Despesas",
-        fmtBRL(despReal),
-        "previsto: " + fmtBRL(despPrev),
+        "Despesa prevista",
+        fmtBRL(k.despPrev),
+        "orçamento planejado"
+      )
+    );
+    resumo.appendChild(
+      stat(
+        "Despesa comprometida",
+        fmtBRL(k.comprometido),
+        "contratos fechados · realizado: " + fmtBRL(k.despReal),
         "is-negativo"
       )
     );
     resumo.appendChild(
       stat(
-        "Saldo realizado",
-        fmtBRL(saldo),
-        "receita − despesa",
-        saldo >= 0 ? "is-positivo" : "is-negativo"
+        "Saldo projetado",
+        fmtBRL(k.saldoProjetado),
+        "receita prev. − despesa prev.",
+        k.saldoProjetado >= 0 ? "is-positivo" : "is-negativo"
       )
     );
     resumo.appendChild(
       stat(
-        "% receita realizada",
-        pct(recReal, recPrev, 1),
-        fmtBRL(recReal) + " de " + fmtBRL(recPrev),
-        "is-destaque"
+        "Saldo realizado",
+        fmtBRL(k.saldoRealizado),
+        "receita real. − despesa real.",
+        k.saldoRealizado >= 0 ? "is-positivo" : "is-negativo"
       )
     );
-    doc.appendChild(section("Resumo", resumo));
+    resumo.appendChild(
+      stat(
+        "Total contratado",
+        fmtBRL(k.comprometido),
+        k.nFechados + (k.nFechados === 1 ? " contrato fechado" : " contratos fechados")
+      )
+    );
+    resumo.appendChild(
+      stat(
+        "Em negociação",
+        fmtBRL(k.emNegociacao),
+        "valor em pipeline"
+      )
+    );
+    doc.appendChild(section("Sumário executivo", resumo));
 
-    /* ---- Receitas ---- */
-    doc.appendChild(section("Receitas", tabelaFinanceira(fin.receitas, "receita")));
+    /* ---- 2. Contratos fechados ---- */
+    doc.appendChild(
+      section("Contratos fechados", tabelaContratosFechados(fechados, nomeDisc))
+    );
 
-    /* ---- Despesas ---- */
-    doc.appendChild(section("Despesas", tabelaFinanceira(fin.despesas, "despesa")));
+    /* ---- 3. Pipeline de contratações (gráfico + números) ---- */
+    var pipeWrap = el("div", "rel-pipeline");
 
-    /* ---- Orçado × realizado ---- */
+    var pipeCols = [
+      { label: "A contratar", valor: pipeline[0].valor, qtd: pipeline[0].qtd, colorClass: "rel-col--azul" },
+      { label: "Em negociação", valor: pipeline[1].valor, qtd: pipeline[1].qtd, colorClass: "rel-col--laranja" },
+      { label: "Fechado", valor: pipeline[2].valor, qtd: pipeline[2].qtd, colorClass: "rel-col--verde" }
+    ];
+    pipeWrap.appendChild(pipelineChart(pipeCols));
+
+    // Tabela-resumo do pipeline (quantidade + valor por status).
+    pipeWrap.appendChild(
+      table(
+        [
+          { label: "Status", render: function (r) { return r.label; } },
+          { label: "Qtd.", num: true, render: function (r) { return String(r.qtd); } },
+          { label: "Valor", num: true, render: function (r) { return fmtBRL(r.valor); } }
+        ],
+        pipeline,
+        "Nenhuma contratação cadastrada."
+      )
+    );
+    doc.appendChild(section("Pipeline de contratações", pipeWrap));
+
+    /* ---- 4. Gráficos de alto nível ---- */
+    var despCats = computePorCategoria(fin.despesas, "previsto");
+    var recCats = computePorCategoria(fin.receitas, "previsto");
+
+    var graf = el("div", "rel-graf-stack");
+
+    // 4a. Despesas por categoria
+    var bloco1 = el("div", "rel-graf-bloco");
+    bloco1.appendChild(el("h5", "rel-graf-titulo", "Despesas por categoria (previsto)"));
+    bloco1.appendChild(hbarChart(despCats, null));
+    graf.appendChild(bloco1);
+
+    // 4b. Receitas por categoria/lote
+    var bloco2 = el("div", "rel-graf-bloco");
+    bloco2.appendChild(el("h5", "rel-graf-titulo", "Receitas por categoria (previsto)"));
+    bloco2.appendChild(hbarChart(recCats, null, "rel-hbar--verde"));
+    graf.appendChild(bloco2);
+
+    // 4c. Orçado × realizado (receita e despesa)
+    var bloco3 = el("div", "rel-graf-bloco");
+    bloco3.appendChild(el("h5", "rel-graf-titulo", "Orçado × realizado"));
     var bars = el("div");
-    bars.appendChild(barRow("Receitas", recReal, recPrev, "t-receita"));
-    bars.appendChild(barRow("Despesas", despReal, despPrev, "t-despesa"));
-    doc.appendChild(section("Orçado × realizado", bars));
+    bars.appendChild(barRow("Receitas", k.recReal, k.recPrev, "t-receita"));
+    bars.appendChild(barRow("Despesas", k.despReal, k.despPrev, "t-despesa"));
+    bloco3.appendChild(bars);
+    graf.appendChild(bloco3);
+
+    doc.appendChild(section("Gráficos de alto nível", graf));
+
+    /* ---- 5. Compliance / Conformidade ---- */
+    var comp = computeCompliance(fin, contr);
+    var compWrap = el("div", "rel-compliance");
+
+    var scoreBox = el("div", "rel-comp-score" + (comp.okCount === comp.total ? " is-full" : ""));
+    scoreBox.appendChild(el("span", "rel-comp-score-num", comp.okCount + " / " + comp.total));
+    scoreBox.appendChild(el("span", "rel-comp-score-lab", "verificações em conformidade · " + comp.score + "%"));
+    compWrap.appendChild(scoreBox);
+
+    var grid = el("div", "rel-comp-grid");
+    comp.checks.forEach(function (c) {
+      grid.appendChild(complianceItem(c));
+    });
+    compWrap.appendChild(grid);
+
+    // Lembretes informativos de processo.
+    var lembrBox = el("div", "rel-comp-lembretes");
+    lembrBox.appendChild(el("span", "rel-comp-lembretes-titulo", "Lembretes de processo"));
+    var ul = el("ul", "rel-comp-list");
+    COMPLIANCE_LEMBRETES.forEach(function (txt) {
+      ul.appendChild(el("li", null, txt));
+    });
+    lembrBox.appendChild(ul);
+    compWrap.appendChild(lembrBox);
+
+    doc.appendChild(section("Compliance / Conformidade", compWrap));
 
     doc.appendChild(docFoot());
     return doc;
@@ -852,7 +1252,12 @@
       diasParaEvento: diasParaEvento,
       pct: pct,
       groupByCategoria: groupByCategoria,
-      formatMetaValor: formatMetaValor
+      formatMetaValor: formatMetaValor,
+      temProposta: temProposta,
+      computeFinanceiro: computeFinanceiro,
+      computePipeline: computePipeline,
+      computePorCategoria: computePorCategoria,
+      computeCompliance: computeCompliance
     };
   }
 })();
