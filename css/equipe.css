@@ -7,9 +7,21 @@
    ============================================================ */
 
 /* --- Organograma vertical indentado: Presidente → GP → demais --- */
-.eqp-tree { width: 100%; max-width: 560px; }
-.eqp-tree__node { position: relative; margin-bottom: 10px; }
+.eqp-tree { width: 100%; max-width: 420px; }
+.eqp-tree__node { position: relative; margin-bottom: 8px; }
 .eqp-tree__node .eqp-card { width: 100%; }
+
+/* Nós COMPACTOS no organograma (pensando fora da caixa): nome +
+   cargo + GT; contatos ocultos (acessíveis ao editar); ações
+   discretas. Reduz drasticamente a altura/área de cada quadrante. */
+.eqp-tree .eqp-card { padding: 8px 12px; }
+.eqp-tree .eqp-card__nome { font-size: .9rem; }
+.eqp-tree .eqp-card__papel { font-size: .74rem; margin-top: 0; }
+.eqp-tree .eqp-card__meta { margin-top: 4px; }
+.eqp-tree .eqp-card__meta .badge { font-size: .62rem; padding: 1px 7px; }
+.eqp-tree .eqp-card__contatos { display: none; }
+.eqp-tree .eqp-card__actions { margin-top: 6px; gap: 4px; }
+.eqp-tree .eqp-card__actions .btn { padding: 1px 7px; font-size: .7rem; }
 
 /* ramos indentados com espinha vertical + cotovelo até cada nó */
 .eqp-tree__branch { position: relative; padding-left: 26px; }
