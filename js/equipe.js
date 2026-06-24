@@ -435,6 +435,7 @@
      ============================================================ */
   function classificar(membros) {
     var pres = null;
+    var vp = null;
     var gp = null;
     var resto = [];
     membros.forEach(function (m) {
@@ -442,13 +443,15 @@
       var gt = normalizar(m.gt);
       if (!pres && (gt.indexOf("presidencia") === 0 || papel.indexOf("presidente") >= 0)) {
         pres = m;
+      } else if (!vp && (papel.indexOf("vp") >= 0 || papel.indexOf("vice") >= 0)) {
+        vp = m; // VP / Vice-presidência (entre Presidente e GP)
       } else if (!gp && papel.indexOf("gerente") >= 0 && papel.indexOf("projetos") >= 0) {
         gp = m;
       } else {
         resto.push(m);
       }
     });
-    return { pres: pres, gp: gp, resto: resto };
+    return { pres: pres, vp: vp, gp: gp, resto: resto };
   }
 
   // Nó do organograma = card do membro, com borda superior na cor do GT.
@@ -494,9 +497,16 @@
     var oc = el("div", "eqp-oc");
 
     if (c.pres) {
-      var l0 = el("div", "eqp-oc__lvl eqp-oc__lvl--drop");
+      var temAbaixo = c.vp || c.gp || c.resto.length;
+      var l0 = el("div", "eqp-oc__lvl" + (temAbaixo ? " eqp-oc__lvl--drop" : ""));
       l0.appendChild(miniNode(c.pres, disciplinas));
       oc.appendChild(l0);
+    }
+    if (c.vp) {
+      var temAbaixoVp = c.gp || c.resto.length;
+      var lvp = el("div", "eqp-oc__lvl" + (temAbaixoVp ? " eqp-oc__lvl--drop" : ""));
+      lvp.appendChild(miniNode(c.vp, disciplinas));
+      oc.appendChild(lvp);
     }
     if (c.gp) {
       var l1 = el("div", "eqp-oc__lvl" + (c.resto.length ? " eqp-oc__lvl--drop" : ""));
