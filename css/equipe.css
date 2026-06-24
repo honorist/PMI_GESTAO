@@ -6,45 +6,89 @@
    Injetado por js/equipe.js via <link> no <head>.
    ============================================================ */
 
-/* --- Organograma vertical indentado: Presidente → GP → demais --- */
-.eqp-tree { width: 100%; max-width: 420px; }
-.eqp-tree__node { position: relative; margin-bottom: 8px; }
-.eqp-tree__node .eqp-card { width: 100%; }
-
-/* Nós COMPACTOS no organograma (pensando fora da caixa): nome +
-   cargo + GT; contatos ocultos (acessíveis ao editar); ações
-   discretas. Reduz drasticamente a altura/área de cada quadrante. */
-.eqp-tree .eqp-card { padding: 8px 12px; }
-.eqp-tree .eqp-card__nome { font-size: .9rem; }
-.eqp-tree .eqp-card__papel { font-size: .74rem; margin-top: 0; }
-.eqp-tree .eqp-card__meta { margin-top: 4px; }
-.eqp-tree .eqp-card__meta .badge { font-size: .62rem; padding: 1px 7px; }
-.eqp-tree .eqp-card__contatos { display: none; }
-.eqp-tree .eqp-card__actions { margin-top: 6px; gap: 4px; }
-.eqp-tree .eqp-card__actions .btn { padding: 1px 7px; font-size: .7rem; }
-
-/* ramos indentados com espinha vertical + cotovelo até cada nó */
-.eqp-tree__branch { position: relative; padding-left: 26px; }
-.eqp-tree__branch--a { margin-left: 16px; }   /* GP sob o Presidente */
-.eqp-tree__branch--b { margin-left: 44px; }   /* demais sob o GP */
-.eqp-tree__branch::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: -12px;
-  bottom: 26px;
-  width: 2px;
-  background: var(--line);
+/* --- Organograma clássico top-down: Marcio → Germânia → equipe --- */
+.eqp-oc-scroll { overflow-x: auto; padding: 8px 2px 14px; }
+.eqp-oc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: max-content;   /* tão largo quanto a fileira da equipe */
+  min-width: 100%;      /* centraliza quando cabe; rola quando não cabe */
+  margin: 0 auto;
 }
-.eqp-tree__branch > .eqp-tree__node::before {
+/* níveis 1 e 2 (Presidente / GP) com descida vertical */
+.eqp-oc__lvl { display: flex; justify-content: center; position: relative; }
+.eqp-oc__lvl--drop { padding-bottom: 24px; }
+.eqp-oc__lvl--drop::after {
   content: "";
   position: absolute;
-  left: -26px;
-  top: 26px;
-  width: 26px;
+  left: 50%;
+  bottom: 0;
+  width: 2px;
+  height: 24px;
+  background: var(--line);
+  transform: translateX(-50%);
+}
+/* fileira da equipe com barramento horizontal + descidas a cada caixa */
+.eqp-oc__row { display: flex; justify-content: center; gap: 14px; position: relative; }
+.eqp-oc__row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 65px;     /* metade da largura da coluna (130/2) */
+  right: 65px;
   height: 2px;
   background: var(--line);
 }
+.eqp-oc__row.is-single::before { display: none; }
+.eqp-oc__col {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 130px;
+  padding-top: 26px;
+}
+.eqp-oc__col::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 26px;
+  background: var(--line);
+  transform: translateX(-50%);
+}
+
+/* caixa compacta de cada pessoa */
+.eqp-onode {
+  position: relative;
+  width: 100%;
+  min-width: 118px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--purple);
+  border-radius: 10px;
+  padding: 9px 8px 7px;
+  box-shadow: 0 3px 10px rgba(26, 17, 69, .08);
+  text-align: center;
+}
+.eqp-oc__lvl .eqp-onode { width: 168px; }
+.eqp-onode__nome { font-weight: 700; font-size: .82rem; color: var(--ink); line-height: 1.15; }
+.eqp-onode__papel { font-size: .67rem; color: var(--muted); margin-top: 2px; line-height: 1.15; }
+.eqp-onode__gt { font-size: .6rem; margin-top: 4px; padding: 1px 7px; }
+.eqp-onode__act { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
+.eqp-onode__btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: .82rem;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.eqp-onode__btn:hover { background: var(--card-cream); color: var(--ink); }
 
 /* --- Grupo (GT) --- */
 .eqp-grupo {

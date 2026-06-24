@@ -459,35 +459,62 @@
     return card;
   }
 
-  // Árvore vertical indentada: Presidente → GP → demais (com linhas).
-  // Cabe toda na tela (sem rolagem horizontal), todos visíveis.
-  function nodeWrap(m, disciplinas, cls) {
-    var w = el("div", "eqp-tree__node " + cls);
-    w.appendChild(renderNode(m, disciplinas));
-    return w;
+  // Organograma clássico top-down: Marcio → Germânia → equipe (caixas
+  // pequenas ligadas por linhas; rola na horizontal se não couber).
+  function miniNode(m, disciplinas) {
+    var cor = corDoGT(m.gt, disciplinas) || "#36177B";
+    var box = el("div", "eqp-onode");
+    box.style.borderTopColor = cor;
+
+    box.appendChild(el("div", "eqp-onode__nome", (m.nome || "").trim() || "—"));
+    if (m.papel && String(m.papel).trim()) {
+      box.appendChild(el("div", "eqp-onode__papel", String(m.papel)));
+    }
+    if (m.gt && String(m.gt).trim()) {
+      box.appendChild(el("span", "badge purple eqp-onode__gt", String(m.gt)));
+    }
+    var act = el("div", "eqp-onode__act");
+    var ed = el("button", "eqp-onode__btn", "✎");
+    ed.type = "button";
+    ed.title = "Editar";
+    ed.addEventListener("click", function () { openForm(m.id); });
+    var dl = el("button", "eqp-onode__btn", "×");
+    dl.type = "button";
+    dl.title = "Excluir";
+    dl.addEventListener("click", function () { removeMembro(m.id, m.nome); });
+    act.appendChild(ed);
+    act.appendChild(dl);
+    box.appendChild(act);
+    return box;
   }
 
   function buildOrg(membros, disciplinas) {
     var c = classificar(membros);
-    var tree = el("div", "eqp-tree");
+    var scroller = el("div", "eqp-oc-scroll");
+    var oc = el("div", "eqp-oc");
 
     if (c.pres) {
-      tree.appendChild(nodeWrap(c.pres, disciplinas, "eqp-tree__n0"));
+      var l0 = el("div", "eqp-oc__lvl eqp-oc__lvl--drop");
+      l0.appendChild(miniNode(c.pres, disciplinas));
+      oc.appendChild(l0);
     }
     if (c.gp) {
-      var bA = el("div", "eqp-tree__branch eqp-tree__branch--a");
-      bA.appendChild(nodeWrap(c.gp, disciplinas, "eqp-tree__n1"));
-      tree.appendChild(bA);
+      var l1 = el("div", "eqp-oc__lvl" + (c.resto.length ? " eqp-oc__lvl--drop" : ""));
+      l1.appendChild(miniNode(c.gp, disciplinas));
+      oc.appendChild(l1);
     }
     if (c.resto.length) {
-      var bB = el("div", "eqp-tree__branch eqp-tree__branch--b");
+      var row = el("div", "eqp-oc__row" + (c.resto.length === 1 ? " is-single" : ""));
       c.resto.forEach(function (m) {
-        bB.appendChild(nodeWrap(m, disciplinas, "eqp-tree__leaf"));
+        var col = el("div", "eqp-oc__col");
+        col.appendChild(miniNode(m, disciplinas));
+        row.appendChild(col);
       });
-      tree.appendChild(bB);
+      oc.appendChild(row);
     }
 
-    return tree;
+    scroller.appendChild(oc);
+    return scroller;
   }
 
   /* ============================================================
