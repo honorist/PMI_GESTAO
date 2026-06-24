@@ -1,20 +1,24 @@
 /* ============================================================
-   visao-geral.js — Módulo "Visão Geral" (dashboard do evento)
+   visao-geral.js — Módulo "Visão Geral" (dashboard gerencial)
    ------------------------------------------------------------
-   Panorama de leitura do PMIRS Summit 2026. Registra-se via
-   Gestao.onTab('tab-visao', render). Não faz CRUD.
+   Painel de leitura (sem CRUD) do PMIRS Summit 2026. Registra-se
+   via Gestao.onTab('tab-visao', render). Visão do macro ao detalhe,
+   com gráficos em SVG/CSS (sem bibliotecas, sem build).
 
-   Conteúdo:
-   1. Hero: nome/data do evento + contagem regressiva.
-   2. KPIs: % concluído, tarefas por status, marcos, saldo
-      financeiro, contratos por status.
-   3. Avanço por disciplina (barras coloridas, risco primeiro).
-   4. Próximos prazos (8 tarefas não concluídas mais próximas).
-   5. Timeline dos próximos marcos.
-   6. Links rápidos para outras abas.
+   Seções:
+   1. Cabeçalho padrão (Gestao.pageHeader) + contagem regressiva.
+   2. Faixa de KPIs (6 cartões de destaque gerenciais).
+   3. Gráficos lado a lado:
+      a) Status das tarefas — rosca (donut) SVG.
+      b) Avanço por GT — barras horizontais (risco primeiro).
+      c) Financeiro — orçado × realizado (receita e despesa).
+      d) Pipeline de contratações — colunas por status com valor.
+   4. Próximos prazos (atrasos em destaque) + próximos marcos.
+   5. Metas & KPIs (barras de progresso atual/alvo).
+   6. Ações pendentes das reuniões (resumo + próximas por prazo).
 
    Segurança: todo valor vai por textContent / createElement;
-   innerHTML só para markup estático sem dados.
+   innerHTML nunca recebe dados (só markup estático, quando há).
    ============================================================ */
 
 (function () {
@@ -23,13 +27,23 @@
   /* ---- Constantes de domínio ---- */
   // Data-âncora para a contagem regressiva (1º dia do evento, local).
   var EVENTO_INICIO = "2026-11-13";
-  var MAX_PRAZOS = 8;
+  var MAX_PRAZOS = 6;
   var MAX_MARCOS = 6;
+  var MAX_ACOES = 5;
   var MS_DIA = 24 * 60 * 60 * 1000;
   var MESES_ABREV = [
     "jan", "fev", "mar", "abr", "mai", "jun",
     "jul", "ago", "set", "out", "nov", "dez"
   ];
+  var SVG_NS = "http://www.w3.org/2000/svg";
+
+  // Cores semânticas para o status das tarefas (paleta da marca).
+  var COR_STATUS = {
+    concluido: "var(--green-bright)",
+    andamento: "var(--blue)",
+    pendente: "var(--line)",
+    atrasada: "var(--orange)"
+  };
 
   /* ============================================================
      Injeção de CSS (uma única vez)
@@ -73,6 +87,12 @@
     return !!fim && fim.getTime() < hoje.getTime();
   }
 
+  // Data curta "13 nov" (sem ano) — usada nas listas compactas.
+  function dataCurta(fim) {
+    if (!fim) return "sem data";
+    return fim.getDate() + " " + MESES_ABREV[fim.getMonth()];
+  }
+
   /* ============================================================
      Helpers de criação de elementos (seguros)
      ============================================================ */
@@ -83,11 +103,27 @@
     return node;
   }
 
+  function svgEl(tag, attrs) {
+    var node = document.createElementNS(SVG_NS, tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        node.setAttribute(k, attrs[k]);
+      });
+    }
+    return node;
+  }
+
+  function clampPct(n) {
+    var v = Number(n);
+    if (!isFinite(v)) return 0;
+    return Math.max(0, Math.min(100, v));
+  }
+
   // Barra de progresso reutilizável. pct é 0–100; cor é o fill.
   function barraProgresso(pct, cor, grande) {
     var wrap = el("div", "vg-bar" + (grande ? " is-lg" : ""));
     wrap.setAttribute("role", "progressbar");
-    wrap.setAttribute("aria-valuenow", String(pct));
+    wrap.setAttribute("aria-valuenow", String(Math.round(clampPct(pct))));
     wrap.setAttribute("aria-valuemin", "0");
     wrap.setAttribute("aria-valuemax", "100");
     var fill = el("div", "vg-bar__fill");
@@ -97,21 +133,28 @@
     return wrap;
   }
 
-  function clampPct(n) {
-    var v = Number(n);
-    if (!isFinite(v)) return 0;
-    return Math.max(0, Math.min(100, v));
+  function badge(cor, texto) {
+    return el("span", "badge " + cor, texto);
   }
 
   /* ============================================================
      Agregações sobre os dados
      ============================================================ */
 
-  // Contagem de tarefas por status.
-  function contarStatus(tarefas) {
-    var c = { concluido: 0, andamento: 0, pendente: 0, total: tarefas.length };
+  // Contagem de tarefas por status (+ atrasadas e urgentes).
+  function contarStatus(tarefas, hoje) {
+    var c = {
+      concluido: 0,
+      andamento: 0,
+      pendente: 0,
+      atrasada: 0,
+      urgente: 0,
+      total: tarefas.length
+    };
     tarefas.forEach(function (t) {
       if (c[t.status] !== undefined) c[t.status] += 1;
+      if (t.urgente) c.urgente += 1;
+      if (hoje && estaAtrasada(t, hoje)) c.atrasada += 1;
     });
     return c;
   }
@@ -161,6 +204,33 @@
       });
   }
 
+  // Pipeline de contratações: contagem e valor somado por status.
+  function pipelineContratacoes(contratacoes) {
+    var base = {
+      a_contratar: { qtd: 0, valor: 0 },
+      negociando: { qtd: 0, valor: 0 },
+      fechado: { qtd: 0, valor: 0 }
+    };
+    (contratacoes.fornecedores || []).forEach(function (f) {
+      var s = base[f.status];
+      if (!s) return;
+      s.qtd += 1;
+      var v = Number(f.valor);
+      if (isFinite(v)) s.valor += v;
+    });
+    return base;
+  }
+
+  // Receita/despesa: total previsto e realizado de cada lado.
+  function resumoFinanceiro(financeiro) {
+    return {
+      receitaPrev: soma(financeiro.receitas || [], "previsto"),
+      receitaReal: soma(financeiro.receitas || [], "realizado"),
+      despesaPrev: soma(financeiro.despesas || [], "previsto"),
+      despesaReal: soma(financeiro.despesas || [], "realizado")
+    };
+  }
+
   // Próximas tarefas não concluídas com fim mais próximo.
   function proximosPrazos(cronograma, limite) {
     return (cronograma.tarefas || [])
@@ -193,6 +263,30 @@
     return passados.slice(-(limite - futuros.length)).concat(futuros);
   }
 
+  // Ações em aberto das reuniões (status !== concluido), por prazo.
+  function acoesPendentes(reunioes) {
+    var saida = [];
+    (reunioes.reunioes || []).forEach(function (r) {
+      (r.acoes || []).forEach(function (a) {
+        if (a.status === "concluido") return;
+        saida.push({
+          texto: a.texto,
+          responsavel: a.responsavel,
+          prazo: a.prazo,
+          reuniao: r.titulo
+        });
+      });
+    });
+    return saida.sort(function (a, b) {
+      var pa = parseISO(a.prazo);
+      var pb = parseISO(b.prazo);
+      if (!pa && !pb) return 0;
+      if (!pa) return 1;
+      if (!pb) return -1;
+      return pa.getTime() - pb.getTime();
+    });
+  }
+
   // Mapa rápido id -> disciplina (nome/cor) do cronograma.
   function mapaDisciplinas(cronograma) {
     var mapa = {};
@@ -203,13 +297,34 @@
   }
 
   /* ============================================================
+     Geometria do donut (gráfico de rosca em SVG)
+     ============================================================ */
+
+  // Calcula os arcos (start/end em fração 0–1) de cada fatia, na
+  // ordem dada. Fatias com valor 0 são ignoradas.
+  function arcosDonut(segmentos) {
+    var total = segmentos.reduce(function (acc, s) {
+      return acc + (s.valor > 0 ? s.valor : 0);
+    }, 0);
+    if (total <= 0) return [];
+    var acumulado = 0;
+    var out = [];
+    segmentos.forEach(function (s) {
+      if (s.valor <= 0) return;
+      var ini = acumulado / total;
+      acumulado += s.valor;
+      var fim = acumulado / total;
+      out.push({ label: s.label, cor: s.cor, ini: ini, fim: fim, valor: s.valor });
+    });
+    return out;
+  }
+
+  /* ============================================================
      Blocos de UI
      ============================================================ */
 
   // 1. Cabeçalho padrão (estilo Cronograma) com contagem regressiva.
-  // Mantém a contagem de dias até 13/11/2026 como o cartão "right".
   function buildHero(hoje) {
-    // Contagem regressiva (mínimo 0): dias de hoje até o início do evento.
     var inicio = parseISO(EVENTO_INICIO);
     var dias = inicio ? diffDias(hoje, inicio) : null;
 
@@ -225,7 +340,6 @@
       valor = "Hoje";
       sub = "é o grande dia!";
     } else {
-      // Evento já realizado: a contagem não fica negativa (mínimo 0).
       valor = "0";
       sub = "evento realizado";
     }
@@ -240,117 +354,244 @@
     });
   }
 
-  // Card KPI genérico (título + valor + dica/conteúdo extra opcional).
+  // Card KPI: rótulo + valor grande + sub-contexto opcional.
+  // opts = { sub, accent ('green'|'orange'), extra (DOM) }
   function kpiCard(label, valor, opts) {
     opts = opts || {};
-    var card = el("div", "card");
+    var card = el("div", "card vg-kpi");
     card.appendChild(el("p", "vg-kpi__label", label));
-    var v = el("div", "vg-kpi__value" + (opts.money ? " is-money" : ""), valor);
+    var v = el("div", "vg-kpi__value", valor);
+    if (opts.accent) v.classList.add("is-" + opts.accent);
     card.appendChild(v);
-    if (opts.hint) card.appendChild(el("div", "vg-kpi__hint", opts.hint));
+    if (opts.sub) card.appendChild(el("div", "vg-kpi__hint", opts.sub));
     if (opts.extra) card.appendChild(opts.extra);
     return card;
   }
 
-  // Linha de chips de status (concluído/andamento/pendente).
-  function chipsStatus(c) {
-    var box = el("div", "vg-kpi__chips");
-    box.appendChild(badge("green", c.concluido + " concluídas"));
-    box.appendChild(badge("blue", c.andamento + " em andamento"));
-    box.appendChild(badge("muted", c.pendente + " pendentes"));
-    return box;
-  }
-
-  function badge(cor, texto) {
-    return el("span", "badge " + cor, texto);
-  }
-
-  // 2. Grade de KPIs.
+  // 2. Faixa de KPIs (6 cartões gerenciais).
   function buildKPIs(data, hoje) {
     var cron = data.cronograma || {};
-    var fin = data.financeiro || {};
-    var contr = (data.contratacoes && data.contratacoes.fornecedores) || [];
     var tarefas = cron.tarefas || [];
+    var contr = data.contratacoes || {};
+    var fin = resumoFinanceiro(data.financeiro || {});
 
-    var status = contarStatus(tarefas);
+    var status = contarStatus(tarefas, hoje);
     var pct = pctConcluido(tarefas);
+
     var marcos = tarefas.filter(function (t) {
       return t.marco;
     });
-    var marcosPendentes = marcos.filter(function (t) {
-      return t.status !== "concluido";
+    var marcosFeitos = marcos.filter(function (t) {
+      return t.status === "concluido";
     }).length;
 
-    var receitaReal = soma(fin.receitas || [], "realizado");
-    var despesaReal = soma(fin.despesas || [], "realizado");
-    var saldo = receitaReal - despesaReal;
+    var saldo = fin.receitaReal - fin.despesaReal;
 
-    var contagemContr = { fechado: 0, negociando: 0, a_contratar: 0 };
-    contr.forEach(function (f) {
-      if (contagemContr[f.status] !== undefined) contagemContr[f.status] += 1;
-    });
+    var pipe = pipelineContratacoes(contr);
 
-    var grid = el("div", "grid cols-4");
+    var acoes = acoesPendentes(data.reunioes || {});
 
-    // KPI 1 — % concluído com barra
+    var inicio = parseISO(EVENTO_INICIO);
+    var dias = inicio ? Math.max(0, diffDias(hoje, inicio)) : null;
+
+    var grid = el("div", "grid cols-3 vg-kpis");
+
+    // KPI 1 — Avanço geral (% concluído) com barra.
+    var barraWrap = el("div", "vg-kpi__bar");
+    barraWrap.appendChild(barraProgresso(pct, "var(--green-bright)", true));
     grid.appendChild(
       kpiCard("Avanço geral", pct + "%", {
-        extra: (function () {
-          var box = el("div");
-          box.style.marginTop = "12px";
-          box.appendChild(barraProgresso(pct, "var(--green-bright)", true));
-          return box;
-        })(),
-        hint: status.total + " tarefas no total"
+        sub: status.concluido + " de " + status.total + " tarefas concluídas",
+        extra: barraWrap
       })
     );
 
-    // KPI 2 — tarefas por status
+    // KPI 2 — Marcos.
     grid.appendChild(
-      kpiCard("Tarefas", String(status.total), {
-        extra: chipsStatus(status)
+      kpiCard("Marcos", marcosFeitos + "/" + marcos.length, {
+        sub:
+          marcos.length - marcosFeitos === 0
+            ? "todos cumpridos"
+            : marcos.length - marcosFeitos + " ainda por cumprir"
       })
     );
 
-    // KPI 3 — marcos
-    grid.appendChild(
-      kpiCard("Marcos", String(marcos.length), {
-        hint: marcosPendentes + " ainda por cumprir"
-      })
-    );
-
-    // KPI 4 — saldo financeiro
+    // KPI 3 — Saldo financeiro realizado.
     grid.appendChild(
       kpiCard("Saldo financeiro", Gestao.fmtBRL(saldo), {
-        money: true,
-        hint:
+        accent: saldo >= 0 ? "green" : "orange",
+        sub:
           "Receita " +
-          Gestao.fmtBRL(receitaReal) +
-          " − despesa " +
-          Gestao.fmtBRL(despesaReal)
+          Gestao.fmtBRL(fin.receitaReal) +
+          " · despesa " +
+          Gestao.fmtBRL(fin.despesaReal)
       })
     );
 
-    // KPI 5 — contratos (ocupa linha cheia em telas largas via grid auto)
-    var chipsContr = el("div", "vg-kpi__chips");
-    chipsContr.appendChild(badge("green", contagemContr.fechado + " fechados"));
-    chipsContr.appendChild(badge("orange", contagemContr.negociando + " negociando"));
-    chipsContr.appendChild(badge("muted", contagemContr.a_contratar + " a contratar"));
+    // KPI 4 — Contratos fechados (qtd + valor).
     grid.appendChild(
-      kpiCard("Contratações", String(contr.length), {
-        extra: chipsContr
+      kpiCard("Contratos fechados", String(pipe.fechado.qtd), {
+        sub:
+          pipe.fechado.valor > 0
+            ? Gestao.fmtBRL(pipe.fechado.valor) + " contratados"
+            : pipe.a_contratar.qtd + " ainda a contratar"
+      })
+    );
+
+    // KPI 5 — Dias para o evento.
+    grid.appendChild(
+      kpiCard(
+        "Dias para o evento",
+        dias === null ? "—" : dias === 0 ? "Hoje" : String(dias),
+        { sub: "13 nov 2026 · Tecnopuc" }
+      )
+    );
+
+    // KPI 6 — Ações pendentes (de reuniões) + tarefas atrasadas.
+    grid.appendChild(
+      kpiCard("Ações pendentes", String(acoes.length), {
+        accent: status.atrasada > 0 ? "orange" : undefined,
+        sub:
+          status.atrasada > 0
+            ? status.atrasada + " tarefa(s) atrasada(s)"
+            : "nenhuma tarefa atrasada"
       })
     );
 
     return grid;
   }
 
-  // 3. Avanço por disciplina.
+  /* ------------------------------------------------------------
+     3a. Gráfico de rosca — status das tarefas
+     ------------------------------------------------------------ */
+  function buildGraficoStatus(data, hoje) {
+    var card = el("div", "card vg-chart");
+    card.appendChild(el("h3", "section-title", "Status das tarefas"));
+
+    var tarefas = (data.cronograma || {}).tarefas || [];
+    var c = contarStatus(tarefas, hoje);
+
+    if (!c.total) {
+      card.appendChild(el("div", "empty", "Sem tarefas cadastradas."));
+      return card;
+    }
+
+    // Segmentos: concluído / andamento / pendente (não atrasada) / atrasada.
+    var pendNaoAtrasada = Math.max(0, c.pendente + c.andamento - c.atrasada);
+    // Reparte: mantemos andamento e pendente, e destacamos atrasadas à parte.
+    var concl = c.concluido;
+    var andam = c.andamento;
+    var atrasada = c.atrasada;
+    var pendente = Math.max(0, c.pendente - atrasada);
+    // (atrasadas saem do bolo de andamento/pendente que estavam vencidas)
+    // Garante consistência: atrasada não pode passar de (andamento+pendente).
+    if (atrasada > andam + (c.pendente)) atrasada = andam + c.pendente;
+
+    var segmentos = [
+      { label: "Concluídas", valor: concl, cor: COR_STATUS.concluido },
+      { label: "Em andamento", valor: andam, cor: COR_STATUS.andamento },
+      { label: "Pendentes", valor: pendente, cor: COR_STATUS.pendente },
+      { label: "Atrasadas", valor: atrasada, cor: COR_STATUS.atrasada }
+    ];
+
+    var arcos = arcosDonut(segmentos);
+
+    var wrap = el("div", "vg-donut-wrap");
+
+    // --- SVG do donut ---
+    var size = 180;
+    var cx = size / 2;
+    var cy = size / 2;
+    var r = 70;
+    var stroke = 26;
+    var circ = 2 * Math.PI * r;
+
+    var svg = svgEl("svg", {
+      class: "vg-donut",
+      viewBox: "0 0 " + size + " " + size,
+      width: size,
+      height: size,
+      role: "img",
+      "aria-label":
+        "Distribuição de " +
+        c.total +
+        " tarefas por status: " +
+        concl +
+        " concluídas, " +
+        andam +
+        " em andamento, " +
+        pendente +
+        " pendentes, " +
+        atrasada +
+        " atrasadas."
+    });
+
+    // Trilho de fundo.
+    svg.appendChild(
+      svgEl("circle", {
+        cx: cx,
+        cy: cy,
+        r: r,
+        fill: "none",
+        stroke: "var(--line)",
+        "stroke-width": stroke
+      })
+    );
+
+    // Fatias (cada uma é um círculo com dash-offset).
+    arcos.forEach(function (a) {
+      var frac = a.fim - a.ini;
+      var seg = svgEl("circle", {
+        cx: cx,
+        cy: cy,
+        r: r,
+        fill: "none",
+        stroke: a.cor,
+        "stroke-width": stroke,
+        "stroke-dasharray": circ * frac + " " + circ * (1 - frac),
+        // gira p/ o início do arco; -90° p/ começar no topo.
+        "stroke-dashoffset": -circ * a.ini,
+        transform: "rotate(-90 " + cx + " " + cy + ")"
+      });
+      svg.appendChild(seg);
+    });
+
+    // Centro: total + rótulo.
+    var center = el("div", "vg-donut-center");
+    center.appendChild(el("span", "vg-donut-num", String(c.total)));
+    center.appendChild(el("span", "vg-donut-cap", "tarefas"));
+
+    var donutBox = el("div", "vg-donut-box");
+    donutBox.appendChild(svg);
+    donutBox.appendChild(center);
+    wrap.appendChild(donutBox);
+
+    // Legenda.
+    var legenda = el("div", "vg-legend");
+    segmentos.forEach(function (s) {
+      var item = el("div", "vg-legend__item");
+      var dot = el("span", "vg-legend__dot");
+      dot.style.background = s.cor;
+      item.appendChild(dot);
+      item.appendChild(el("span", "vg-legend__label", s.label));
+      item.appendChild(el("span", "vg-legend__val", String(s.valor)));
+      legenda.appendChild(item);
+    });
+    wrap.appendChild(legenda);
+
+    card.appendChild(wrap);
+    return card;
+  }
+
+  /* ------------------------------------------------------------
+     3b. Avanço por GT — barras horizontais (risco primeiro)
+     ------------------------------------------------------------ */
   function buildAvanco(data) {
-    var card = el("div", "card");
-    var title = el("h3", "section-title", "Avanço por disciplina");
-    var sub = el("span", "sub", "Ordenado por menor avanço (atenção primeiro)");
-    title.appendChild(sub);
+    var card = el("div", "card vg-chart");
+    var title = el("h3", "section-title", "Avanço por GT");
+    title.appendChild(
+      el("span", "sub", "Ordenado por menor avanço (atenção primeiro)")
+    );
     card.appendChild(title);
 
     var lista = avancoPorDisciplina(data.cronograma || {});
@@ -382,10 +623,138 @@
     return card;
   }
 
-  // 4. Próximos prazos.
+  /* ------------------------------------------------------------
+     3c. Financeiro — orçado × realizado (receita e despesa)
+     ------------------------------------------------------------ */
+  // Uma linha de barra comparativa (previsto vs realizado).
+  function barraComparativa(rotulo, previsto, realizado, corReal, maxVal) {
+    var bloco = el("div", "vg-fin-row");
+    var head = el("div", "vg-fin-row__head");
+    head.appendChild(el("span", "vg-fin-row__label", rotulo));
+    bloco.appendChild(head);
+
+    function linha(legenda, valor, cls) {
+      var row = el("div", "vg-fin-bar");
+      var track = el("div", "vg-fin-bar__track");
+      var fill = el("div", "vg-fin-bar__fill " + cls);
+      var pct = maxVal > 0 ? (valor / maxVal) * 100 : 0;
+      fill.style.width = clampPct(pct) + "%";
+      track.appendChild(fill);
+      row.appendChild(el("span", "vg-fin-bar__cap", legenda));
+      row.appendChild(track);
+      row.appendChild(el("span", "vg-fin-bar__val", Gestao.fmtBRL(valor)));
+      return row;
+    }
+
+    bloco.appendChild(linha("Previsto", previsto, "is-prev"));
+    bloco.appendChild(linha("Realizado", realizado, "is-real " + corReal));
+    return bloco;
+  }
+
+  function buildFinanceiro(data) {
+    var card = el("div", "card vg-chart");
+    var title = el("h3", "section-title", "Financeiro — orçado × realizado");
+    title.appendChild(el("span", "sub", "Receita e despesa do evento"));
+    card.appendChild(title);
+
+    var f = resumoFinanceiro(data.financeiro || {});
+    var maxVal = Math.max(f.receitaPrev, f.receitaReal, f.despesaPrev, f.despesaReal);
+
+    if (maxVal <= 0) {
+      card.appendChild(
+        el("div", "empty", "Sem valores financeiros lançados ainda.")
+      );
+      return card;
+    }
+
+    card.appendChild(
+      barraComparativa("Receita", f.receitaPrev, f.receitaReal, "is-green", maxVal)
+    );
+    card.appendChild(
+      barraComparativa("Despesa", f.despesaPrev, f.despesaReal, "is-orange", maxVal)
+    );
+
+    // Nota de leitura quando não há realizado (estado inicial dos dados).
+    if (f.receitaReal === 0 && f.despesaReal === 0) {
+      card.appendChild(
+        el(
+          "p",
+          "vg-fin-note muted-text",
+          "Ainda sem valores realizados — barras mostram apenas o previsto."
+        )
+      );
+    }
+
+    return card;
+  }
+
+  /* ------------------------------------------------------------
+     3d. Pipeline de contratações — colunas por status
+     ------------------------------------------------------------ */
+  function buildPipeline(data) {
+    var card = el("div", "card vg-chart");
+    var title = el("h3", "section-title", "Pipeline de contratações");
+    title.appendChild(el("span", "sub", "Itens por estágio e valor somado"));
+    card.appendChild(title);
+
+    var contr = data.contratacoes || {};
+    var total = (contr.fornecedores || []).length;
+    if (!total) {
+      card.appendChild(el("div", "empty", "Nenhum item de contratação."));
+      return card;
+    }
+
+    var pipe = pipelineContratacoes(contr);
+    var colunas = [
+      { key: "a_contratar", label: "A contratar", cls: "is-muted" },
+      { key: "negociando", label: "Negociando", cls: "is-orange" },
+      { key: "fechado", label: "Fechado", cls: "is-green" }
+    ];
+    var maxQtd = colunas.reduce(function (m, col) {
+      return Math.max(m, pipe[col.key].qtd);
+    }, 0);
+
+    var box = el("div", "vg-pipe");
+    colunas.forEach(function (col) {
+      var dados = pipe[col.key];
+      var coluna = el("div", "vg-pipe__col");
+
+      // valor (acima da barra)
+      coluna.appendChild(
+        el(
+          "span",
+          "vg-pipe__valor",
+          dados.valor > 0 ? Gestao.fmtBRL(dados.valor) : "—"
+        )
+      );
+
+      // barra vertical proporcional à quantidade
+      var bar = el("div", "vg-pipe__bar " + col.cls);
+      var h = maxQtd > 0 ? (dados.qtd / maxQtd) * 100 : 0;
+      // piso visual para colunas com 0 (fica baixinha mas visível)
+      bar.style.height = (dados.qtd > 0 ? Math.max(8, h) : 2) + "%";
+      var barWrap = el("div", "vg-pipe__barwrap");
+      barWrap.appendChild(bar);
+      coluna.appendChild(barWrap);
+
+      // quantidade (grande)
+      coluna.appendChild(el("span", "vg-pipe__qtd", String(dados.qtd)));
+      coluna.appendChild(el("span", "vg-pipe__label", col.label));
+      box.appendChild(coluna);
+    });
+
+    card.appendChild(box);
+    return card;
+  }
+
+  /* ------------------------------------------------------------
+     4a. Próximos prazos
+     ------------------------------------------------------------ */
   function buildPrazos(data, hoje) {
     var card = el("div", "card");
-    card.appendChild(el("h3", "section-title", "Próximos prazos"));
+    var title = el("h3", "section-title", "Próximos prazos");
+    title.appendChild(el("span", "sub", "Atrasados em destaque"));
+    card.appendChild(title);
 
     var prazos = proximosPrazos(data.cronograma || {}, MAX_PRAZOS);
     if (!prazos.length) {
@@ -416,10 +785,7 @@
       if (disc) {
         var dot = el("span", "vg-disc__dot");
         if (disc.cor) dot.style.background = disc.cor;
-        var discWrap = el("span");
-        discWrap.style.display = "inline-flex";
-        discWrap.style.alignItems = "center";
-        discWrap.style.gap = "4px";
+        var discWrap = el("span", "vg-prazo__disc");
         discWrap.appendChild(dot);
         discWrap.appendChild(document.createTextNode(disc.nome));
         sub.appendChild(discWrap);
@@ -428,7 +794,7 @@
       body.appendChild(sub);
       row.appendChild(body);
 
-      // Etiqueta de atraso / data formatada
+      // Etiqueta de atraso / andamento
       if (late) {
         row.appendChild(badge("orange", "Atrasada"));
       } else if (t.status === "andamento") {
@@ -442,10 +808,14 @@
     return card;
   }
 
-  // 5. Timeline de marcos.
+  /* ------------------------------------------------------------
+     4b. Timeline de marcos
+     ------------------------------------------------------------ */
   function buildMarcos(data, hoje) {
     var card = el("div", "card");
-    card.appendChild(el("h3", "section-title", "Marcos do projeto"));
+    var title = el("h3", "section-title", "Próximos marcos");
+    title.appendChild(el("span", "sub", "Entregas críticas do projeto"));
+    card.appendChild(title);
 
     var marcos = proximosMarcos(data.cronograma || {}, hoje, MAX_MARCOS);
     if (!marcos.length) {
@@ -458,8 +828,10 @@
 
     marcos.forEach(function (t) {
       var fim = parseISO(t.fim);
-      var li = el("li", "vg-marco");
-      li.appendChild(el("span", "vg-marco__node"));
+      var passado = fim && fim.getTime() < hoje.getTime();
+      var li = el("li", "vg-marco" + (passado ? " is-done" : ""));
+      var node = el("span", "vg-marco__node");
+      li.appendChild(node);
 
       var dataTxt = fim
         ? fim.getDate() + " " + MESES_ABREV[fim.getMonth()] + " " + fim.getFullYear()
@@ -471,9 +843,7 @@
       if (disc) li.appendChild(el("div", "vg-marco__sub", disc.nome));
 
       // Pinta o nó na cor da disciplina, se houver.
-      if (disc && disc.cor) {
-        li.querySelector(".vg-marco__node").style.background = disc.cor;
-      }
+      if (disc && disc.cor) node.style.background = disc.cor;
       ol.appendChild(li);
     });
 
@@ -481,25 +851,104 @@
     return card;
   }
 
-  // 6. Links rápidos para outras abas.
-  function buildLinks() {
-    var card = el("div", "card");
-    card.appendChild(el("h3", "section-title", "Ir para"));
+  /* ------------------------------------------------------------
+     5. Metas & KPIs — barras de progresso
+     ------------------------------------------------------------ */
+  function formatarValorMeta(valor, unidade) {
+    if (unidade === "R$") return Gestao.fmtBRL(valor);
+    var n = Number(valor);
+    if (!isFinite(n)) n = 0;
+    // inteiro quando possível, senão 1 casa
+    var num = Number.isInteger(n) ? String(n) : n.toFixed(1);
+    return unidade ? num + " " + unidade : num;
+  }
 
-    var box = el("div", "vg-links");
-    var destinos = [
-      { id: "tab-cronograma", label: "Cronograma" },
-      { id: "tab-financeiro", label: "Financeiro" },
-      { id: "tab-contratacoes", label: "Contratações" },
-      { id: "tab-disciplinas", label: "Disciplinas" }
-    ];
-    destinos.forEach(function (d) {
-      var btn = el("button", "btn", d.label);
-      btn.type = "button";
-      btn.addEventListener("click", function () {
-        if (Gestao.showTab) Gestao.showTab(d.id);
-      });
-      box.appendChild(btn);
+  function buildMetas(data) {
+    var card = el("div", "card");
+    var title = el("h3", "section-title", "Metas & KPIs");
+    title.appendChild(el("span", "sub", "Atual × alvo do evento"));
+    card.appendChild(title);
+
+    var metas = (data.metas || {}).metas || [];
+    if (!metas.length) {
+      card.appendChild(el("div", "empty", "Nenhuma meta definida."));
+      return card;
+    }
+
+    var box = el("div", "vg-metas");
+    metas.forEach(function (m) {
+      var alvo = Number(m.alvo) || 0;
+      var atual = Number(m.atual) || 0;
+      var pct = alvo > 0 ? Math.round((atual / alvo) * 100) : 0;
+
+      var bloco = el("div", "vg-meta");
+      var head = el("div", "vg-meta__head");
+      head.appendChild(el("span", "vg-meta__name", m.nome));
+      head.appendChild(el("span", "vg-meta__pct", clampPct(pct) + "%"));
+      bloco.appendChild(head);
+
+      bloco.appendChild(barraProgresso(pct, "var(--purple-2)"));
+
+      var foot = el("div", "vg-meta__foot");
+      foot.appendChild(
+        el(
+          "span",
+          null,
+          formatarValorMeta(atual, m.unidade) +
+            " de " +
+            formatarValorMeta(alvo, m.unidade)
+        )
+      );
+      bloco.appendChild(foot);
+      box.appendChild(bloco);
+    });
+
+    card.appendChild(box);
+    return card;
+  }
+
+  /* ------------------------------------------------------------
+     6. Ações pendentes das reuniões
+     ------------------------------------------------------------ */
+  function buildAcoes(data, hoje) {
+    var card = el("div", "card");
+    var acoes = acoesPendentes(data.reunioes || {});
+
+    var title = el("h3", "section-title", "Ações pendentes das reuniões");
+    title.appendChild(
+      el(
+        "span",
+        "sub",
+        acoes.length === 0
+          ? "tudo em dia"
+          : acoes.length + " em aberto · próximas por prazo"
+      )
+    );
+    card.appendChild(title);
+
+    if (!acoes.length) {
+      card.appendChild(el("div", "empty", "Nenhuma ação em aberto."));
+      return card;
+    }
+
+    var box = el("div", "vg-acoes");
+    acoes.slice(0, MAX_ACOES).forEach(function (a) {
+      var fim = parseISO(a.prazo);
+      var late = fim && fim.getTime() < hoje.getTime();
+      var row = el("div", "vg-acao" + (late ? " is-late" : ""));
+
+      var body = el("div", "vg-acao__body");
+      body.appendChild(el("div", "vg-acao__text", a.texto));
+      var sub = el("div", "vg-acao__sub");
+      if (a.responsavel) sub.appendChild(el("span", null, a.responsavel));
+      if (a.prazo) {
+        sub.appendChild(el("span", null, "prazo " + Gestao.fmtData(a.prazo)));
+      }
+      body.appendChild(sub);
+      row.appendChild(body);
+
+      if (late) row.appendChild(badge("orange", "Vencida"));
+      box.appendChild(row);
     });
 
     card.appendChild(box);
@@ -515,32 +964,38 @@
     data = data || {};
     var hoje = hojeLocal();
 
-    // Hero
-    mount.appendChild(buildHero(hoje));
+    var root = el("div", "vg-root");
 
-    // KPIs
-    mount.appendChild(buildKPIs(data, hoje));
+    // 1. Cabeçalho + contagem regressiva.
+    root.appendChild(buildHero(hoje));
 
-    // Espaço entre blocos
-    var spacer = el("div");
-    spacer.style.height = "20px";
-    mount.appendChild(spacer);
+    // 2. Faixa de KPIs.
+    root.appendChild(buildKPIs(data, hoje));
 
-    // Avanço + Prazos lado a lado (colapsam no mobile via .grid)
-    var meio = el("div", "grid cols-2");
-    meio.appendChild(buildAvanco(data));
-    meio.appendChild(buildPrazos(data, hoje));
-    mount.appendChild(meio);
+    // 3. Gráficos (2 colunas; viram 1 no mobile).
+    var graficos1 = el("div", "grid cols-2 vg-section");
+    graficos1.appendChild(buildGraficoStatus(data, hoje));
+    graficos1.appendChild(buildAvanco(data));
+    root.appendChild(graficos1);
 
-    var spacer2 = el("div");
-    spacer2.style.height = "20px";
-    mount.appendChild(spacer2);
+    var graficos2 = el("div", "grid cols-2 vg-section");
+    graficos2.appendChild(buildFinanceiro(data));
+    graficos2.appendChild(buildPipeline(data));
+    root.appendChild(graficos2);
 
-    // Marcos + Links
-    var fim = el("div", "grid cols-2");
-    fim.appendChild(buildMarcos(data, hoje));
-    fim.appendChild(buildLinks());
-    mount.appendChild(fim);
+    // 4. Próximos prazos + marcos.
+    var prazos = el("div", "grid cols-2 vg-section");
+    prazos.appendChild(buildPrazos(data, hoje));
+    prazos.appendChild(buildMarcos(data, hoje));
+    root.appendChild(prazos);
+
+    // 5 + 6. Metas + ações pendentes.
+    var rodape = el("div", "grid cols-2 vg-section");
+    rodape.appendChild(buildMetas(data));
+    rodape.appendChild(buildAcoes(data, hoje));
+    root.appendChild(rodape);
+
+    mount.appendChild(root);
   }
 
   /* ============================================================
@@ -560,9 +1015,14 @@
       pctConcluido: pctConcluido,
       soma: soma,
       avancoPorDisciplina: avancoPorDisciplina,
+      pipelineContratacoes: pipelineContratacoes,
+      resumoFinanceiro: resumoFinanceiro,
       proximosPrazos: proximosPrazos,
       proximosMarcos: proximosMarcos,
-      clampPct: clampPct
+      acoesPendentes: acoesPendentes,
+      arcosDonut: arcosDonut,
+      clampPct: clampPct,
+      formatarValorMeta: formatarValorMeta
     };
   }
 })();

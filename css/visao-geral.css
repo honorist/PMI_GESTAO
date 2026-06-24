@@ -1,96 +1,51 @@
 /* ============================================================
-   visao-geral.css — Estilos do dashboard "Visão Geral"
+   visao-geral.css — Estilos do dashboard gerencial "Visão Geral"
    ------------------------------------------------------------
    Carregado por js/visao-geral.js (injeção via <link> no <head>).
-   Complementa as classes utilitárias de app.css (.card, .grid,
-   .badge, etc.) — aqui ficam só os componentes próprios do
-   panorama do evento (hero, KPIs, barras de avanço, prazos).
-   Paleta herdada de tokens.css (--purple, --green, --orange…).
+   Complementa as utilitárias de app.css (.card, .grid, .badge…)
+   — aqui ficam os componentes próprios do painel: KPIs, gráficos
+   (rosca SVG, barras de avanço/financeiro, pipeline), prazos,
+   marcos, metas e ações. Paleta herdada de tokens.css.
    ============================================================ */
 
-/* ---- Hero / cabeçalho do evento ---- */
-.vg-hero {
+/* Espaço vertical entre as faixas/seções do dashboard. */
+.vg-section {
+  margin-top: 20px;
+}
+
+/* ============================================================
+   1. Faixa de KPIs
+   ============================================================ */
+.vg-kpis {
+  margin-top: 20px;
+}
+
+.vg-kpi {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  background: linear-gradient(135deg, var(--purple) 0%, var(--purple-dark) 100%);
-  color: #fff;
-  border-radius: var(--rad);
-  padding: 24px 28px;
-  box-shadow: var(--shadow);
-  margin-bottom: 20px;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
-.vg-hero__title {
-  margin: 0 0 6px;
-  font-size: 1.5rem;
-  color: #fff;
-}
-
-.vg-hero__meta {
-  margin: 0;
-  color: var(--cream);
-  font-size: .95rem;
-}
-
-.vg-hero__meta .vg-hero__sep {
-  color: var(--teal);
-  margin: 0 8px;
-}
-
-/* Contagem regressiva (bloco numérico à direita) */
-.vg-countdown {
-  text-align: center;
-  background: rgba(255, 255, 255, .1);
-  border: 1px solid rgba(255, 255, 255, .2);
-  border-radius: var(--rad-sm);
-  padding: 12px 22px;
-  min-width: 120px;
-}
-
-.vg-countdown__num {
-  display: block;
-  font-size: 2.4rem;
-  font-weight: 800;
-  line-height: 1;
-  color: var(--teal);
-}
-
-.vg-countdown__label {
-  display: block;
-  font-size: .78rem;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  color: var(--cream);
-  margin-top: 4px;
-}
-
-.vg-countdown__num.is-passed {
-  color: var(--orange);
-}
-
-/* ---- KPIs ---- */
 .vg-kpi__label {
-  font-size: .8rem;
+  font-size: .78rem;
   text-transform: uppercase;
   letter-spacing: .4px;
   color: var(--muted);
   font-weight: 700;
-  margin: 0 0 6px;
+  margin: 0 0 8px;
 }
 
 .vg-kpi__value {
-  font-size: 1.9rem;
-  font-weight: 800;
-  line-height: 1.1;
+  font-family: var(--font-title);
+  font-size: 2.1rem;
+  font-weight: 600;
+  line-height: 1.05;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
-.vg-kpi__value.is-money {
-  font-size: 1.5rem;
-}
+.vg-kpi__value.is-green { color: var(--green-bright); }
+.vg-kpi__value.is-orange { color: var(--orange); }
 
 .vg-kpi__hint {
   margin-top: 6px;
@@ -98,14 +53,13 @@
   color: var(--muted);
 }
 
-.vg-kpi__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
+.vg-kpi__bar {
+  margin-top: 12px;
 }
 
-/* ---- Barra de progresso (reutilizável) ---- */
+/* ============================================================
+   Barra de progresso (reutilizável: avanço, metas)
+   ============================================================ */
 .vg-bar {
   position: relative;
   height: 10px;
@@ -126,7 +80,102 @@
 
 .vg-bar.is-lg { height: 14px; }
 
-/* ---- Avanço por disciplina ---- */
+/* ============================================================
+   Cartões de gráfico
+   ============================================================ */
+.vg-chart {
+  display: flex;
+  flex-direction: column;
+}
+
+.vg-chart .section-title {
+  margin-bottom: 16px;
+}
+
+/* ---- 3a. Donut de status ---- */
+.vg-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.vg-donut-box {
+  position: relative;
+  flex: 0 0 auto;
+  width: 180px;
+  height: 180px;
+}
+
+.vg-donut {
+  display: block;
+}
+
+.vg-donut circle {
+  transition: stroke-dasharray .5s ease;
+}
+
+.vg-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.vg-donut-num {
+  font-family: var(--font-title);
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.vg-donut-cap {
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.vg-legend {
+  flex: 1 1 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 150px;
+}
+
+.vg-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .88rem;
+}
+
+.vg-legend__dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.vg-legend__label {
+  flex: 1 1 auto;
+  color: var(--ink);
+}
+
+.vg-legend__val {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* ---- 3b. Avanço por GT (barras horizontais) ---- */
 .vg-disc {
   display: flex;
   flex-direction: column;
@@ -150,6 +199,7 @@
   gap: 8px;
   font-weight: 600;
   font-size: .92rem;
+  min-width: 0;
 }
 
 .vg-disc__dot {
@@ -163,6 +213,7 @@
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: var(--ink);
+  flex: 0 0 auto;
 }
 
 .vg-disc__count {
@@ -171,7 +222,137 @@
   font-weight: 500;
 }
 
-/* ---- Próximos prazos (lista) ---- */
+/* ---- 3c. Financeiro orçado × realizado ---- */
+.vg-fin-row + .vg-fin-row {
+  margin-top: 18px;
+}
+
+.vg-fin-row__head {
+  margin-bottom: 8px;
+}
+
+.vg-fin-row__label {
+  font-weight: 700;
+  font-size: .92rem;
+  color: var(--ink);
+}
+
+.vg-fin-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vg-fin-bar + .vg-fin-bar {
+  margin-top: 6px;
+}
+
+.vg-fin-bar__cap {
+  flex: 0 0 70px;
+  font-size: .78rem;
+  color: var(--muted);
+}
+
+.vg-fin-bar__track {
+  flex: 1 1 auto;
+  height: 14px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.vg-fin-bar__fill {
+  height: 100%;
+  border-radius: 999px;
+  min-width: 2px;
+  transition: width .4s ease;
+  background: var(--muted);
+}
+
+/* previsto = tom neutro/translúcido; realizado = cor cheia */
+.vg-fin-bar__fill.is-prev { background: rgba(111, 97, 73, .35); }
+.vg-fin-bar__fill.is-real.is-green { background: var(--green-bright); }
+.vg-fin-bar__fill.is-real.is-orange { background: var(--orange); }
+
+.vg-fin-bar__val {
+  flex: 0 0 auto;
+  min-width: 90px;
+  text-align: right;
+  font-size: .82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.vg-fin-note {
+  margin: 14px 0 0;
+  font-size: .82rem;
+}
+
+/* ---- 3d. Pipeline de contratações (colunas) ---- */
+.vg-pipe {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  align-items: end;
+  margin-top: 8px;
+}
+
+.vg-pipe__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.vg-pipe__valor {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.vg-pipe__barwrap {
+  width: 100%;
+  height: 130px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.vg-pipe__bar {
+  width: 60%;
+  max-width: 64px;
+  border-radius: 8px 8px 0 0;
+  background: var(--line);
+  transition: height .4s ease;
+  min-height: 3px;
+}
+
+.vg-pipe__bar.is-green { background: var(--green-bright); }
+.vg-pipe__bar.is-orange { background: var(--orange); }
+.vg-pipe__bar.is-muted { background: #C9BFA9; }
+
+.vg-pipe__qtd {
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.vg-pipe__label {
+  font-size: .78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+/* ============================================================
+   4a. Próximos prazos (lista)
+   ============================================================ */
 .vg-prazos {
   display: flex;
   flex-direction: column;
@@ -190,7 +371,7 @@
 .vg-prazo__date {
   flex: 0 0 auto;
   text-align: center;
-  min-width: 56px;
+  min-width: 48px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -218,7 +399,6 @@
 .vg-prazo__name {
   font-weight: 600;
   font-size: .92rem;
-  /* trunca nomes longos sem quebrar o layout */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -233,6 +413,12 @@
   margin-top: 2px;
 }
 
+.vg-prazo__disc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .vg-prazo__sub .vg-disc__dot { width: 8px; height: 8px; }
 
 .vg-prazo.is-late .vg-prazo__day { color: var(--orange); }
@@ -244,7 +430,9 @@
   border-radius: var(--rad-sm);
 }
 
-/* ---- Timeline de marcos ---- */
+/* ============================================================
+   4b. Timeline de marcos
+   ============================================================ */
 .vg-marcos {
   list-style: none;
   margin: 0;
@@ -272,6 +460,11 @@
   box-shadow: 0 0 0 1px var(--line);
 }
 
+.vg-marco.is-done .vg-marco__node {
+  box-shadow: 0 0 0 1px var(--line);
+  opacity: .55;
+}
+
 .vg-marco__date {
   font-size: .8rem;
   font-weight: 700;
@@ -289,16 +482,97 @@
   color: var(--muted);
 }
 
-/* ---- Links rápidos ---- */
-.vg-links {
+/* ============================================================
+   5. Metas & KPIs
+   ============================================================ */
+.vg-metas {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* ---- Responsivo ---- */
+.vg-meta__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.vg-meta__name {
+  font-weight: 600;
+  font-size: .92rem;
+}
+
+.vg-meta__pct {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--purple-2);
+}
+
+.vg-meta__foot {
+  margin-top: 5px;
+  font-size: .8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   6. Ações pendentes das reuniões
+   ============================================================ */
+.vg-acoes {
+  display: flex;
+  flex-direction: column;
+}
+
+.vg-acao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.vg-acao:last-child { border-bottom: none; }
+
+.vg-acao__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.vg-acao__text {
+  font-weight: 600;
+  font-size: .9rem;
+}
+
+.vg-acao__sub {
+  font-size: .8rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 2px;
+}
+
+.vg-acao.is-late {
+  background: rgba(224, 97, 31, .06);
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: var(--rad-sm);
+}
+
+/* ============================================================
+   Responsivo
+   ============================================================ */
 @media (max-width: 720px) {
-  .vg-hero { padding: 20px; }
-  .vg-hero__title { font-size: 1.25rem; }
-  .vg-countdown { flex: 1 1 100%; }
+  .vg-kpi__value { font-size: 1.8rem; }
+
+  .vg-donut-wrap {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .vg-legend { width: 100%; }
 }
