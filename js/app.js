@@ -312,12 +312,29 @@
   // usuário (localStorage tem prioridade) e marca como carregado.
   Gestao.load = function load(decrypted) {
     var base = emptyData();
+    var seedV = null;
     if (decrypted && typeof decrypted === "object") {
       Object.keys(base).forEach(function (k) {
         if (decrypted[k] !== undefined) base[k] = decrypted[k];
       });
+      seedV = decrypted.__v != null ? String(decrypted.__v) : null;
     }
-    Gestao.data = applySavedState(base);
+
+    // Descarte automático de estado local antigo: se a versão publicada
+    // dos dados (__v) mudou, ignora o localStorage e usa os dados novos.
+    // Assim o usuário NÃO precisa limpar cache manualmente.
+    var storedV = null;
+    try { storedV = localStorage.getItem("gestao_seed_v"); } catch (e) {}
+    if (seedV && seedV !== storedV) {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem("gestao_seed_v", seedV);
+      } catch (e) {}
+      Gestao.data = base; // dados publicados vencem (sem override local)
+    } else {
+      Gestao.data = applySavedState(base);
+    }
+
     Gestao._loaded = true;
     setSaveStatus("idle", "salvo automaticamente");
     return Promise.resolve(Gestao.data);
