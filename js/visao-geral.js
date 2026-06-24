@@ -21,9 +21,6 @@
   "use strict";
 
   /* ---- Constantes de domínio ---- */
-  var EVENTO_NOME = "PMIRS Summit 2026";
-  var EVENTO_LOCAL = "Tecnopuc · Porto Alegre";
-  var EVENTO_DATA_LABEL = "13–14 nov 2026";
   // Data-âncora para a contagem regressiva (1º dia do evento, local).
   var EVENTO_INICIO = "2026-11-13";
   var MAX_PRAZOS = 8;
@@ -209,44 +206,38 @@
      Blocos de UI
      ============================================================ */
 
-  // 1. Hero com contagem regressiva.
+  // 1. Cabeçalho padrão (estilo Cronograma) com contagem regressiva.
+  // Mantém a contagem de dias até 13/11/2026 como o cartão "right".
   function buildHero(hoje) {
-    var hero = el("div", "vg-hero");
-
-    var left = el("div");
-    left.appendChild(el("h2", "vg-hero__title", EVENTO_NOME));
-    var meta = el("p", "vg-hero__meta");
-    meta.appendChild(document.createTextNode(EVENTO_DATA_LABEL));
-    meta.appendChild(el("span", "vg-hero__sep", "·"));
-    meta.appendChild(document.createTextNode(EVENTO_LOCAL));
-    left.appendChild(meta);
-    hero.appendChild(left);
-
+    // Contagem regressiva (mínimo 0): dias de hoje até o início do evento.
     var inicio = parseISO(EVENTO_INICIO);
     var dias = inicio ? diffDias(hoje, inicio) : null;
 
-    var cd = el("div", "vg-countdown");
-    var num = el("span", "vg-countdown__num");
-    var label = el("span", "vg-countdown__label");
+    var valor;
+    var sub;
     if (dias === null) {
-      num.textContent = "—";
-      label.textContent = "data do evento";
+      valor = "—";
+      sub = "data do evento";
     } else if (dias > 0) {
-      num.textContent = String(dias);
-      label.textContent = dias === 1 ? "dia para o evento" : "dias para o evento";
+      valor = String(dias);
+      sub = dias === 1 ? "dia p/ o evento" : "dias p/ o evento";
     } else if (dias === 0) {
-      num.textContent = "Hoje";
-      label.textContent = "é o grande dia!";
+      valor = "Hoje";
+      sub = "é o grande dia!";
     } else {
-      num.textContent = String(Math.abs(dias));
-      num.classList.add("is-passed");
-      label.textContent = "dias desde o evento";
+      // Evento já realizado: a contagem não fica negativa (mínimo 0).
+      valor = "0";
+      sub = "evento realizado";
     }
-    cd.appendChild(num);
-    cd.appendChild(label);
-    hero.appendChild(cd);
 
-    return hero;
+    var right = Gestao.headerStat({ value: valor, sub: sub, accent: true });
+
+    return Gestao.pageHeader({
+      eyebrow: "PAINEL GERAL · SUMMIT POA PMIRS 2026",
+      title: "Visão geral do evento",
+      subtitle: "13 e 14 de novembro · Tecnopuc · Porto Alegre",
+      right: right
+    });
   }
 
   // Card KPI genérico (título + valor + dica/conteúdo extra opcional).

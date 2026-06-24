@@ -152,6 +152,26 @@
   }
 
   /* ============================================================
+     Cabeçalho padrão da aba (logo + título + cartão de GTs)
+     ============================================================ */
+  function buildHeader(nGTs) {
+    var Gestao = window.Gestao;
+    var right = Gestao.headerStat({
+      label: "Grupos",
+      value: String(nGTs),
+      sub: nGTs === 1 ? "grupo de trabalho" : "grupos de trabalho",
+      accent: true
+    });
+
+    return Gestao.pageHeader({
+      eyebrow: "DISCIPLINAS · SUMMIT POA PMIRS 2026",
+      title: "Grupos de trabalho",
+      subtitle: "Acompanhe tarefas, EAP e contratações de cada GT",
+      right: right
+    });
+  }
+
+  /* ============================================================
      Sub-navegação (pílulas das disciplinas)
      ============================================================ */
   function buildNav(disciplinas, onSelect) {
@@ -490,6 +510,10 @@
     var disciplinas = (data.cronograma && data.cronograma.disciplinas) || [];
 
     mount.innerHTML = ""; // limpa placeholder
+
+    // Cabeçalho padrão (estilo Cronograma) — topo da aba, acima da
+    // sub-navegação de GTs. Cartão à direita: nº de grupos de trabalho.
+    mount.appendChild(buildHeader(disciplinas.length));
 
     if (!disciplinas.length) {
       mount.appendChild(el("div", "empty", "Nenhuma disciplina cadastrada."));

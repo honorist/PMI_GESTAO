@@ -646,6 +646,38 @@
   }
 
   /* ============================================================
+     Cabeçalho padrão da aba (logo + título + cartão de saldo)
+     ------------------------------------------------------------
+     O cartão à direita mostra o SALDO realizado (receita realizada −
+     despesa realizada). Texto do valor em verde se positivo, laranja
+     se negativo, sobre o fundo roxo (accent).
+     ============================================================ */
+  function buildHeader(fin) {
+    var Gestao = window.Gestao;
+    var t = computeTotals(fin);
+    var saldo = t.recReal - t.despReal;
+
+    var right = Gestao.headerStat({
+      label: "Saldo realizado",
+      value: Gestao.fmtBRL(saldo),
+      accent: true
+    });
+    // Realce de sinal no valor (verde positivo / laranja negativo).
+    var valueEl = right.querySelector(".head-stat__value");
+    if (valueEl) {
+      valueEl.style.color = saldo >= 0 ? "#7BE0A8" : "#F2A488";
+      valueEl.style.fontSize = "22px";
+    }
+
+    return Gestao.pageHeader({
+      eyebrow: "FINANCEIRO · SUMMIT POA PMIRS 2026",
+      title: "Receitas, despesas e saldo",
+      subtitle: "Controle orçamentário do evento",
+      right: right
+    });
+  }
+
+  /* ============================================================
      Render principal da aba
      ============================================================ */
   var _mount = null;
@@ -655,13 +687,10 @@
     var fin = getFin();
     clear(_mount);
 
-    var root = el("div", "stack");
+    // Cabeçalho padrão (estilo Cronograma) + cartão de saldo à direita.
+    _mount.appendChild(buildHeader(fin));
 
-    // Título da seção.
-    var titleWrap = el("h2", "section-title", "Financeiro");
-    var sub = el("span", "sub", "Receitas, despesas e saldo do evento");
-    titleWrap.appendChild(sub);
-    root.appendChild(titleWrap);
+    var root = el("div", "stack");
 
     root.appendChild(renderResumo(fin));
     root.appendChild(renderTabela(fin, "receita"));

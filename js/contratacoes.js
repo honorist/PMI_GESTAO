@@ -482,6 +482,34 @@
   }
 
   /* ============================================================
+     Cabeçalho padrão da aba (logo + título + cartão de contratos)
+     ------------------------------------------------------------
+     O cartão à direita mostra o nº total de contratos, com o nº de
+     fechados como sublinha de contexto.
+     ============================================================ */
+  function buildHeader(fornecedores) {
+    var Gestao = window.Gestao;
+    var total = fornecedores.length;
+    var nFechados = fornecedores.filter(function (f) {
+      return (isStatusValido(f.status) ? f.status : "a_contratar") === "fechado";
+    }).length;
+
+    var right = Gestao.headerStat({
+      label: "Contratos",
+      value: String(total),
+      sub: nFechados + (nFechados === 1 ? " fechado" : " fechados"),
+      accent: true
+    });
+
+    return Gestao.pageHeader({
+      eyebrow: "CONTRATAÇÕES · SUMMIT POA PMIRS 2026",
+      title: "Fornecedores e contratos",
+      subtitle: "Status das contratações por GT",
+      right: right
+    });
+  }
+
+  /* ============================================================
      Render principal
      ============================================================ */
   var _mount = null;
@@ -491,11 +519,10 @@
     var fornecedores = getFornecedores();
     clear(_mount);
 
-    var root = el("div", "stack");
+    // Cabeçalho padrão (estilo Cronograma) + cartão com nº de contratos.
+    _mount.appendChild(buildHeader(fornecedores));
 
-    var titleWrap = el("h2", "section-title", "Contratações");
-    titleWrap.appendChild(el("span", "sub", "Fornecedores e contratos por status"));
-    root.appendChild(titleWrap);
+    var root = el("div", "stack");
 
     // Cabeçalho com botão de adicionar.
     var bar = el("div", "spread");

@@ -140,27 +140,29 @@
   }
 
   /* ============================================================
-     Cabeçalho da aba
+     Cabeçalho padrão da aba (logo + título + botão "Expandir tudo")
+     ------------------------------------------------------------
+     Usa Gestao.pageHeader (estilo Cronograma). O botão de expandir/
+     recolher tudo (classe .eap-toggle-all, usada pelo render) vai como
+     o elemento "right". Subtítulo: {N} pacotes · {M} grupos.
      ============================================================ */
   function buildHeader(totalPacotes, totalDisc) {
-    var head = el("header", "eap-header");
-
-    var txt = el("div", "eap-head-txt");
-    txt.appendChild(el("h2", "eap-title", "EAP — Estrutura Analítica do Projeto"));
     var subTxt =
       totalPacotes +
       (totalPacotes === 1 ? " pacote de trabalho" : " pacotes de trabalho") +
       " · " +
       totalDisc +
       (totalDisc === 1 ? " grupo de trabalho" : " grupos de trabalho");
-    txt.appendChild(el("p", "eap-subtitle", subTxt));
-    head.appendChild(txt);
 
     var toggle = el("button", "btn sm eap-toggle-all", "Expandir tudo");
     toggle.type = "button";
-    head.appendChild(toggle);
 
-    return head;
+    return window.Gestao.pageHeader({
+      eyebrow: "EAP · SUMMIT POA PMIRS 2026",
+      title: "Estrutura Analítica do Projeto",
+      subtitle: subTxt,
+      right: toggle
+    });
   }
 
   /* ============================================================

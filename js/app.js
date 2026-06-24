@@ -76,6 +76,85 @@
   }
 
   /* ============================================================
+     Cabeçalho padrão de aba (Gestao.pageHeader / Gestao.headerStat)
+     ------------------------------------------------------------
+     Reproduz o estilo do cabeçalho da aba Cronograma (.cro-header):
+     logo + divisória vertical + eyebrow/título/subtítulo à esquerda
+     e um bloco de contexto opcional à direita. As classes ficam em
+     css/app.css (.page-head*). Tudo via createElement/textContent
+     (nunca innerHTML com dados) — seguro contra XSS.
+     ============================================================ */
+  var HEADER_LOGO_SRC = "assets/pmirs-horizontal-color.png";
+  var HEADER_LOGO_ALT = "PMI Rio Grande do Sul Chapter";
+
+  // Cria um elemento com classe/texto opcionais (helper local enxuto).
+  function mkEl(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  // Cabeçalho padrão. opts = { eyebrow, title, subtitle, right }
+  // - eyebrow/title/subtitle: strings (texto seguro via textContent).
+  // - right: elemento DOM opcional para o lado direito (cartão/realce).
+  // Retorna um <header class="page-head">.
+  function pageHeader(opts) {
+    opts = opts || {};
+
+    var logo = mkEl("img", "page-head__logo");
+    logo.src = HEADER_LOGO_SRC;
+    logo.alt = HEADER_LOGO_ALT;
+
+    var divider = mkEl("span", "page-head__divider");
+    divider.setAttribute("aria-hidden", "true");
+
+    var titleWrap = mkEl("div", "page-head__titlewrap");
+    if (opts.eyebrow) {
+      titleWrap.appendChild(mkEl("p", "page-head__eyebrow", opts.eyebrow));
+    }
+    titleWrap.appendChild(mkEl("h2", "page-head__title", opts.title || ""));
+    if (opts.subtitle) {
+      titleWrap.appendChild(mkEl("p", "page-head__sub", opts.subtitle));
+    }
+
+    var left = mkEl("div", "page-head__left");
+    left.appendChild(logo);
+    left.appendChild(divider);
+    left.appendChild(titleWrap);
+
+    var header = mkEl("header", "page-head");
+    header.setAttribute("aria-label", opts.title || "Cabeçalho da seção");
+    header.appendChild(left);
+
+    if (opts.right) {
+      var right = mkEl("div", "page-head__right");
+      right.appendChild(opts.right);
+      header.appendChild(right);
+    }
+
+    return header;
+  }
+
+  // Cartãozinho de destaque para o lado direito do cabeçalho.
+  // opts = { label, value, sub, accent }
+  // - accent true  -> fundo roxo (#36177B) com texto branco.
+  // - accent false -> bloco claro (creme) com texto escuro.
+  // Retorna um <div class="head-stat">.
+  function headerStat(opts) {
+    opts = opts || {};
+    var card = mkEl("div", "head-stat" + (opts.accent ? " is-accent" : ""));
+    if (opts.label) {
+      card.appendChild(mkEl("span", "head-stat__label", opts.label));
+    }
+    card.appendChild(mkEl("span", "head-stat__value", opts.value != null ? opts.value : ""));
+    if (opts.sub) {
+      card.appendChild(mkEl("span", "head-stat__sub", opts.sub));
+    }
+    return card;
+  }
+
+  /* ============================================================
      Estado interno
      ============================================================ */
   var Gestao = {
@@ -86,7 +165,9 @@
 
     fmtBRL: fmtBRL,
     fmtData: fmtData,
-    uid: uid
+    uid: uid,
+    pageHeader: pageHeader,
+    headerStat: headerStat
   };
 
   /* ---- Indicador "salvo" ---- */
