@@ -1,0 +1,461 @@
+/* ============================================================
+   relatorios.css — estilos do módulo Relatórios
+   ------------------------------------------------------------
+   Dois relatórios imprimíveis (Status e Financeiro) derivados,
+   só-leitura, dos dados já carregados. Complementa app.css.
+   Injetado por js/relatorios.js via <link id="relatorios-css">.
+
+   Foco em IMPRESSÃO: o bloco @media print no fim do arquivo
+   isola o relatório selecionado (esconde topbar/abas/controles
+   e demais .tab-panel), usa cores escuras sobre branco e evita
+   cortar tabelas/cartões entre páginas.
+   ============================================================ */
+
+/* ============================================================
+   Controles (seletor de relatório + botão imprimir)
+   — escondidos na impressão (regra em @media print).
+   ============================================================ */
+.rel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0 8px;
+}
+
+.rel-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.rel-switch__btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: .88rem;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+
+.rel-switch__btn:hover {
+  color: var(--ink);
+  background: rgba(54, 23, 123, .06);
+}
+
+.rel-switch__btn[aria-selected="true"] {
+  background: var(--purple);
+  color: #fff;
+}
+
+/* ============================================================
+   Documento do relatório (folha imprimível)
+   ============================================================ */
+.rel-doc {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  padding: 32px 36px;
+}
+
+/* Cabeçalho do documento: logo do evento + título */
+.rel-doc__head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 18px;
+  margin-bottom: 22px;
+  border-bottom: 2px solid var(--line);
+}
+
+.rel-doc__logo {
+  height: 46px;
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.rel-doc__headtext {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rel-doc__eyebrow {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--purple-2);
+  margin: 0;
+}
+
+.rel-doc__title {
+  font-family: var(--font-title);
+  font-size: 1.55rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.15;
+}
+
+.rel-doc__meta {
+  font-size: .85rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ============================================================
+   Seções do relatório
+   ============================================================ */
+.rel-section {
+  margin-top: 26px;
+  break-inside: avoid;
+}
+
+.rel-section:first-of-type {
+  margin-top: 0;
+}
+
+.rel-section__title {
+  font-family: var(--font-title);
+  font-size: 1.12rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* ============================================================
+   Resumo (cartões de KPI compactos)
+   ============================================================ */
+.rel-summary {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.rel-stat {
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  padding: 14px 16px;
+  background: var(--card-cream);
+  break-inside: avoid;
+}
+
+.rel-stat__label {
+  display: block;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.rel-stat__value {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.rel-stat__sub {
+  display: block;
+  font-size: .76rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* Realces semânticos de valor */
+.rel-stat.is-positivo .rel-stat__value { color: var(--green-bright); }
+.rel-stat.is-negativo .rel-stat__value { color: var(--orange); }
+.rel-stat.is-destaque {
+  background: rgba(54, 23, 123, .06);
+  border-color: rgba(54, 23, 123, .25);
+}
+.rel-stat.is-destaque .rel-stat__value { color: var(--purple); }
+
+/* ============================================================
+   Tabelas do relatório
+   ============================================================ */
+.rel-table-wrap { overflow-x: auto; }
+
+.rel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .86rem;
+}
+
+.rel-table thead th {
+  text-align: left;
+  font-weight: 700;
+  font-size: .74rem;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--line);
+  white-space: nowrap;
+}
+
+.rel-table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.rel-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rel-table tbody tr { break-inside: avoid; }
+
+/* Linha de cabeçalho de grupo (categoria) */
+.rel-group-row td {
+  background: #f6f4fa;
+  font-weight: 700;
+  color: var(--purple);
+  text-transform: uppercase;
+  font-size: .72rem;
+  letter-spacing: .3px;
+}
+
+/* Subtotal de grupo */
+.rel-subtotal-row td {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: .82rem;
+}
+
+/* Total geral */
+.rel-total-row td {
+  font-weight: 800;
+  border-top: 2px solid var(--line);
+  background: #faf8fe;
+}
+
+/* Destaque de prazo atrasado */
+.rel-late {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+.rel-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  background: rgba(224, 97, 31, .14);
+  color: var(--orange);
+  margin-left: 6px;
+}
+
+/* ============================================================
+   Barras orçado × realizado
+   ============================================================ */
+.rel-bar-row {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  break-inside: avoid;
+}
+
+.rel-bar-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rel-bar-caption {
+  font-size: .78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rel-bar {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.rel-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.rel-bar.t-receita > span { background: var(--green-bright); }
+.rel-bar.t-despesa > span { background: var(--orange); }
+
+/* ============================================================
+   GT — barra de avanço por disciplina
+   ============================================================ */
+.rel-gt-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  min-width: 120px;
+}
+
+.rel-gt-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green);
+}
+
+/* Estado vazio dentro de uma seção */
+.rel-empty {
+  color: var(--muted);
+  font-size: .9rem;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* ============================================================
+   Rodapé do documento
+   ============================================================ */
+.rel-doc__foot {
+  margin-top: 30px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: .76rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .rel-doc { padding: 22px 18px; }
+}
+
+/* ============================================================
+   IMPRESSÃO — isola SOMENTE o relatório selecionado.
+   ------------------------------------------------------------
+   Esconde a topbar do app, a navegação por abas e os controles
+   do módulo; as outras .tab-panel já ficam com [hidden]. Cores
+   escuras sobre branco e quebras de página confortáveis.
+   ============================================================ */
+@media print {
+  /* Esconde cromo do app e controles do módulo */
+  .topbar,
+  .tabs,
+  .rel-controls,
+  #app-banner {
+    display: none !important;
+  }
+
+  /* Garante que painéis ocultos não vazem na impressão */
+  .tab-panel[hidden] {
+    display: none !important;
+  }
+
+  /* Margens da folha */
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  /* Remove molduras do app ao redor do relatório */
+  .app,
+  .container,
+  #tab-relatorios {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+  }
+
+  /* O documento ocupa a folha sem moldura/sombra */
+  .rel-doc {
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Esconde o relatório que NÃO está selecionado */
+  .rel-doc[hidden] {
+    display: none !important;
+  }
+
+  /* Cores legíveis e fundos preservados nas células de destaque */
+  .rel-doc,
+  .rel-doc * {
+    color: #1a1a1a !important;
+  }
+
+  .rel-late,
+  .rel-tag,
+  .rel-stat.is-negativo .rel-stat__value {
+    color: #b14310 !important;
+  }
+
+  .rel-stat.is-positivo .rel-stat__value {
+    color: #1a7a52 !important;
+  }
+
+  .rel-stat.is-destaque .rel-stat__value,
+  .rel-group-row td {
+    color: #36177B !important;
+  }
+
+  /* Preserva fundos de barras e realces na impressão */
+  .rel-bar,
+  .rel-bar > span,
+  .rel-gt-bar,
+  .rel-gt-bar > span,
+  .rel-stat,
+  .rel-group-row td,
+  .rel-total-row td {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Quebras de página: não cortar tabelas/cartões/seções */
+  .rel-section,
+  .rel-stat,
+  .rel-bar-row,
+  .rel-table tbody tr,
+  .rel-doc__head {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .rel-section__title {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+}

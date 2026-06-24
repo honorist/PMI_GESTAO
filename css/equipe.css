@@ -1,0 +1,275 @@
+/* ============================================================
+   equipe.css — estilos do módulo Equipe
+   ------------------------------------------------------------
+   Complementa app.css / tokens.css. Cobre o agrupamento por GT
+   (cabeçalho colorido), os cards de membro e o formulário (modal).
+   Injetado por js/equipe.js via <link> no <head>.
+   ============================================================ */
+
+/* --- Organograma (hierarquia: Presidente → GP → demais) --- */
+.eqp-org-scroll { overflow-x: auto; padding: 6px 2px 4px; }
+.eqp-org {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100%;
+}
+.eqp-org__level {
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+/* descida vertical até o próximo nível */
+.eqp-org__level--drop { padding-bottom: 26px; }
+.eqp-org__level--drop::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 2px;
+  height: 26px;
+  background: var(--line);
+  transform: translateX(-50%);
+}
+/* linha de subordinados com barramento horizontal */
+.eqp-org__row {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  position: relative;
+  padding-top: 26px;
+  flex-wrap: nowrap;
+}
+.eqp-org__row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12.5%;
+  right: 12.5%;
+  height: 2px;
+  background: var(--line);
+}
+.eqp-org__row.is-single::before { display: none; }
+.eqp-org__col {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 240px;
+}
+/* descida do barramento até cada subordinado */
+.eqp-org__col::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 26px;
+  background: var(--line);
+  transform: translateX(-50%);
+}
+.eqp-org .eqp-card { width: 240px; }
+.eqp-org__level .eqp-card { width: 260px; }
+
+/* --- Grupo (GT) --- */
+.eqp-grupo {
+  margin-top: 6px;
+}
+.eqp-grupo + .eqp-grupo {
+  margin-top: 22px;
+}
+
+.eqp-grupo__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 10px 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  /* faixa colorida à esquerda; a cor da disciplina é aplicada inline */
+  border-left: 4px solid var(--line);
+  border-top-left-radius: var(--rad-sm);
+}
+
+.eqp-grupo__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--muted);
+}
+
+.eqp-grupo__title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.eqp-grupo__count {
+  margin-left: auto;
+  font-size: .78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --- Grade de membros --- */
+.eqp-grid {
+  align-items: start;
+}
+
+/* --- Card de membro --- */
+.eqp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.eqp-card__nome {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.eqp-card__nome.is-vazio {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.eqp-card__papel {
+  font-size: .9rem;
+  color: var(--ink);
+}
+
+.eqp-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+/* --- Contatos --- */
+.eqp-card__contatos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.eqp-contato {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: .85rem;
+}
+
+.eqp-contato__rot {
+  flex: none;
+  width: 72px;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+}
+
+.eqp-contato__link {
+  color: var(--purple-2);
+  word-break: break-word;
+}
+.eqp-contato__link:hover {
+  text-decoration: underline;
+}
+
+.eqp-contato__vazio {
+  color: var(--muted);
+}
+
+/* --- Ações do card --- */
+.eqp-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* ============================================================
+   Formulário (modal)
+   ============================================================ */
+.eqp-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+}
+.eqp-form .eqp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.eqp-form .eqp-field.full {
+  grid-column: 1 / -1;
+}
+.eqp-form label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.eqp-form input,
+.eqp-form select,
+.eqp-form textarea {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  background: var(--card);
+  color: var(--ink);
+  width: 100%;
+  font-family: inherit;
+}
+.eqp-form input::placeholder,
+.eqp-form textarea::placeholder {
+  color: #9a8f78; /* placeholder com contraste suficiente sobre branco */
+}
+.eqp-form input:focus,
+.eqp-form select:focus,
+.eqp-form textarea:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+  border-color: var(--purple-2);
+}
+.eqp-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* --- Modal --- */
+.eqp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 17, 69, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+.eqp-modal {
+  background: var(--card);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+/* --- Responsivo --- */
+@media (max-width: 860px) {
+  .eqp-form { grid-template-columns: 1fr; }
+}

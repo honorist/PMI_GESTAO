@@ -1,0 +1,545 @@
+/* ============================================================
+   reunioes.css — estilos do módulo Reuniões
+   ------------------------------------------------------------
+   Complementa app.css/tokens.css. Cobre o painel de "Ações
+   pendentes", os cards de reunião expansíveis, o detalhe
+   (pauta/decisões/ações/ata) e o formulário (modal) com linhas
+   dinâmicas. Injetado por js/reunioes.js via <link id="reunioes-css">.
+   ============================================================ */
+
+/* --- Cores semânticas reutilizadas --- */
+:root {
+  --reu-atraso: #E0611F;       /* laranja: ações atrasadas */
+  --reu-atraso-bg: rgba(224, 97, 31, .08);
+}
+
+/* ============================================================
+   Barra superior (texto + botão "+ Nova reunião")
+   ============================================================ */
+.reu-bar .muted-text {
+  font-size: .85rem;
+}
+
+/* ============================================================
+   Painel "Ações pendentes" (destaque principal)
+   ============================================================ */
+.reu-painel {
+  border-top: 4px solid var(--purple);
+}
+
+.reu-painel-head {
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.reu-painel .section-title {
+  margin: 0;
+}
+
+.reu-painel-sub {
+  margin: 4px 0 0;
+  font-size: .85rem;
+}
+
+/* Tabela rola horizontalmente em telas estreitas sem quebrar o card. */
+.reu-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.reu-acoes-table,
+.reu-acoes-mini {
+  min-width: 640px;
+}
+
+.reu-acoes-mini {
+  min-width: 520px;
+}
+
+/* Linha de ação atrasada: realce laranja. */
+.reu-acoes-table tbody tr.is-atrasada,
+.reu-acoes-mini tbody tr.is-atrasada {
+  background: var(--reu-atraso-bg);
+}
+
+.reu-acoes-table tbody tr.is-atrasada:hover,
+.reu-acoes-mini tbody tr.is-atrasada:hover {
+  background: rgba(224, 97, 31, .14);
+}
+
+.reu-col-check {
+  width: 36px;
+  text-align: center;
+}
+
+.reu-check {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--green-bright);
+}
+
+.reu-col-texto {
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 220px;
+}
+
+.reu-col-prazo {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.reu-col-origem {
+  color: var(--muted);
+  font-size: .85rem;
+  max-width: 220px;
+}
+
+.reu-tag-atraso {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: #fff;
+  background: var(--reu-atraso);
+  vertical-align: middle;
+}
+
+/* Badge-botão de status (clique cicla pendente -> andamento -> concluído). */
+.reu-status-toggle {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter .15s ease, transform .05s ease;
+}
+
+.reu-status-toggle:hover {
+  filter: brightness(.95);
+}
+
+.reu-status-toggle:active {
+  transform: translateY(1px);
+}
+
+/* ============================================================
+   Lista de reuniões (cards expansíveis)
+   ============================================================ */
+.reu-lista {
+  gap: 12px;
+}
+
+.reu-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Cabeçalho clicável do card (botão de largura total). */
+.reu-card-head {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s ease;
+}
+
+.reu-card-head:hover {
+  background: #faf8fe;
+}
+
+.reu-card.is-open .reu-card-head {
+  background: #f6f4fa;
+  border-bottom: 1px solid var(--line);
+}
+
+.reu-card-headmain {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.reu-card-data {
+  font-size: .76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--blue);
+  font-variant-numeric: tabular-nums;
+}
+
+.reu-card-titulo {
+  font-family: var(--font-title);
+  font-size: 1.12rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 2px;
+}
+
+.reu-card-titulo.is-vazio {
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Contagens (participantes / decisões / ações). */
+.reu-card-counts {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 0 0 auto;
+}
+
+.reu-count {
+  font-size: .82rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.reu-count strong {
+  color: var(--ink);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.reu-count-pend {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--reu-atraso);
+  background: var(--reu-atraso-bg);
+}
+
+.reu-card-caret {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 1rem;
+  transition: transform .18s ease;
+}
+
+.reu-card.is-open .reu-card-caret {
+  transform: rotate(180deg);
+}
+
+/* ============================================================
+   Detalhe da reunião
+   ============================================================ */
+.reu-card-detail[hidden] {
+  display: none;
+}
+
+.reu-detail-wrap {
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.reu-detail-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reu-detail-title {
+  margin: 0;
+  font-family: var(--font);
+  font-size: .76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--muted);
+}
+
+.reu-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reu-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reu-list li {
+  color: var(--ink);
+  font-size: .92rem;
+  line-height: 1.45;
+}
+
+/* Decisões: texto + responsável em pílula. */
+.reu-decisoes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.reu-dec-texto {
+  color: var(--ink);
+}
+
+.reu-dec-resp {
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--purple-2);
+  background: rgba(54, 23, 123, .1);
+  padding: 1px 9px;
+  border-radius: 999px;
+}
+
+.reu-ata {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--ink);
+  font-size: .92rem;
+  line-height: 1.55;
+  background: var(--card-cream);
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  padding: 12px 14px;
+}
+
+.reu-empty-hint {
+  margin: 0;
+  font-size: .85rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.reu-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+/* ============================================================
+   Formulário (modal)
+   ============================================================ */
+.reu-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 17, 69, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.reu-modal {
+  background: var(--card);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.reu-form {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.reu-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reu-field.full {
+  grid-column: 1 / -1;
+}
+
+.reu-form label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Campos com bom contraste: fundo branco + borda visível (não branco/branco). */
+.reu-form input,
+.reu-form select,
+.reu-form textarea,
+.reu-row-input {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  background: var(--card);
+  color: var(--ink);
+  width: 100%;
+  font-family: inherit;
+  font-size: .9rem;
+}
+
+.reu-form textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.5;
+}
+
+.reu-form input:focus,
+.reu-form select:focus,
+.reu-form textarea:focus,
+.reu-row-input:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+  border-color: var(--purple-2);
+}
+
+/* --- Editores de linhas dinâmicas (pauta/decisões/ações) --- */
+.reu-editor {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  padding: 12px 14px;
+  background: var(--card-cream);
+}
+
+.reu-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.reu-editor-title {
+  margin: 0;
+  font-family: var(--font);
+  font-size: .8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--muted);
+}
+
+.reu-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Conjunto de campos de uma linha (decisão/ação). */
+.reu-row-fields {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.reu-row-fields .reu-row-input {
+  flex: 0 0 auto;
+}
+
+.reu-row-fields .reu-row-input.grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.reu-row > .reu-row-input {
+  flex: 1 1 auto;
+}
+
+.reu-row-date {
+  max-width: 160px;
+}
+
+.reu-row-status {
+  max-width: 160px;
+}
+
+/* Botão remover linha. */
+.reu-row-del {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.reu-row-del:hover {
+  background: var(--reu-atraso-bg);
+  color: var(--reu-atraso);
+  border-color: rgba(224, 97, 31, .4);
+}
+
+.reu-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* ============================================================
+   Responsivo
+   ============================================================ */
+@media (max-width: 860px) {
+  .reu-form {
+    grid-template-columns: 1fr;
+  }
+
+  .reu-row-fields {
+    flex-wrap: wrap;
+  }
+
+  .reu-row-fields .reu-row-input,
+  .reu-row-date,
+  .reu-row-status {
+    max-width: none;
+    flex: 1 1 140px;
+  }
+}
+
+@media (max-width: 720px) {
+  .reu-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .reu-card-counts {
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .reu-card-caret {
+    align-self: flex-end;
+    margin-top: -28px;
+  }
+}
