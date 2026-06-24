@@ -1,23 +1,33 @@
 /* ============================================================
    eap.js — Módulo "EAP" (Estrutura Analítica do Projeto)
    ------------------------------------------------------------
-   Desenha a EAP como um ORGANOGRAMA top-down (árvore de 3 níveis):
+   Desenha a EAP como um ORGANOGRAMA CLÁSSICO top-down — IRMÃO
+   VISUAL do organograma da aba "Equipe": caixas brancas com
+   borda superior colorida, ligadas por linhas/barramento.
 
-     Nível 0  →  raiz: "Summit POA PMIRS 2026" (caixa roxa)
-     Nível 1  →  cada disciplina / GT (caixa colorida + contagem)
-     Nível 2  →  pacotes de trabalho da disciplina (caixas brancas)
+     Nível 0  →  raiz: "Summit POA PMIRS 2026" (caixa roxa de topo)
+     Nível 1  →  fileira dos GTs (disciplinas): barramento horizontal
+                 + uma caixa por GT (borda na cor do GT + contagem)
+     Nível 2  →  pacotes de trabalho de cada GT, empilhados sob a
+                 caixa do GT e ligados por espinha/cotovelo.
 
-   Conectores desenhados em CSS (pseudo-elementos): barramento
-   horizontal sob a raiz, descidas verticais até cada disciplina e
-   espinha vertical + ramos horizontais até cada pacote.
+   Estrutura idêntica à da Equipe (mesmas regras CSS reaproveitadas
+   em eap.css, prefixo .eap-*):
+     .eap-oc-scroll > .eap-oc
+       .eap-oc__lvl(.eap-oc__lvl--drop)  ← raiz + descida vertical
+       .eap-oc__row                       ← barramento horizontal
+         .eap-oc__col                     ← coluna (largura fixa) de cada GT
+           .eap-onode                     ← caixa branca (borda colorida)
+           .eap-stack                     ← pilha de pacotes (Nível 2)
 
    Cores: usa a `cor` de cada disciplina vinda de
    Gestao.data.cronograma.disciplinas, casada por id e, como
    fallback, por nome normalizado (sem acentos/conectores). Sem cor
    conhecida → roxo da marca (#36177B).
 
-   Somente leitura. Disciplina colapsável (clique no nó) — começa
-   expandida. Container com scroll horizontal para caber os 8 GTs.
+   Somente leitura. GT colapsável (clique na caixa do GT) — começa
+   expandido. Container com scroll horizontal para caber os 9 GTs.
+   Botão "Expandir tudo" no cabeçalho recolhe/expande todos os GTs.
 
    Segurança: todo valor de dado vai por textContent / createElement;
    innerHTML só é usado para limpar o mount.
@@ -154,7 +164,8 @@
       totalDisc +
       (totalDisc === 1 ? " grupo de trabalho" : " grupos de trabalho");
 
-    var toggle = el("button", "btn sm eap-toggle-all", "Expandir tudo");
+    // GTs começam expandidos; o botão inicia em "Recolher tudo".
+    var toggle = el("button", "btn sm eap-toggle-all", "Recolher tudo");
     toggle.type = "button";
 
     return window.Gestao.pageHeader({
@@ -166,22 +177,56 @@
   }
 
   /* ============================================================
-     Nível 0 — nó raiz
+     Nível 0 — caixa raiz (estilo da caixa de topo da Equipe)
      ============================================================ */
-  function buildRoot() {
-    var wrap = el("div", "eap-root-wrap");
-    var node = el("div", "eap-node eap-node--root");
-    node.appendChild(el("span", "eap-node__kicker", "Projeto"));
-    node.appendChild(el("span", "eap-node__title", ROOT_LABEL));
-    wrap.appendChild(node);
-    return wrap;
+  function buildRootNode() {
+    var box = el("div", "eap-onode eap-onode--root");
+    box.style.borderTopColor = FALLBACK_COLOR;
+    box.appendChild(el("div", "eap-onode__kicker", "Projeto"));
+    box.appendChild(el("div", "eap-onode__nome", ROOT_LABEL));
+    return box;
   }
 
   /* ============================================================
-     Nível 2 — caixa de um pacote de trabalho
+     Nível 1 — caixa de um GT (disciplina): branca, borda colorida,
+     nome em destaque + contagem de pacotes. Colapsável (botão).
      ============================================================ */
-  function buildPacote(pac) {
+  function buildDiscNode(disc, pacotes, cor) {
+    var box = el("button", "eap-onode eap-onode--disc");
+    box.type = "button";
+    box.style.borderTopColor = cor;
+
+    var pkgPanelId = "eap-pkgs-" + (disc.id || normalizar(disc.nome) || "x");
+    box.setAttribute("aria-expanded", "true");
+    box.setAttribute("aria-controls", pkgPanelId);
+
+    box.appendChild(el("div", "eap-onode__nome", disc.nome || "(sem nome)"));
+
+    var count = pacotes.length;
+    var badge = el(
+      "span",
+      "badge eap-onode__count",
+      count + (count === 1 ? " pacote" : " pacotes")
+    );
+    // Badge herda a cor do GT (texto colorido + fundo translúcido inline).
+    badge.style.color = cor;
+    box.appendChild(badge);
+
+    // Seta de colapso (decorativa).
+    var caret = el("span", "eap-onode__caret");
+    caret.setAttribute("aria-hidden", "true");
+    caret.textContent = "▾"; // ▾
+    box.appendChild(caret);
+
+    return { node: box, panelId: pkgPanelId };
+  }
+
+  /* ============================================================
+     Nível 2 — caixa de um pacote de trabalho (branca, borda colorida)
+     ============================================================ */
+  function buildPacote(pac, cor) {
     var box = el("div", "eap-pkg");
+    box.style.borderLeftColor = cor;
 
     var top = el("div", "eap-pkg__top");
     if (pac.id) top.appendChild(el("span", "eap-pkg__code", pac.id));
@@ -195,60 +240,41 @@
   }
 
   /* ============================================================
-     Nível 1 + 2 — coluna de uma disciplina (nó + pilha de pacotes)
+     Coluna de um GT: caixa do GT (Nível 1) + pilha de pacotes (N2).
+     Espelha a .eqp-oc__col da Equipe (largura fixa, descida do
+     barramento até a caixa via ::before do CSS).
      ============================================================ */
   function buildColuna(disc, pacotes, cor) {
-    var col = el("div", "eap-col is-collapsed");
+    var col = el("div", "eap-oc__col");
 
-    // --- Nó da disciplina (botão colapsável) ---
-    var node = el("button", "eap-node eap-node--disc");
-    node.type = "button";
-    node.style.setProperty("--disc-cor", cor);
+    var inner = el("div", "eap-col is-expanded");
 
-    var pkgPanelId = "eap-pkgs-" + (disc.id || normalizar(disc.nome) || "x");
-    node.setAttribute("aria-expanded", "false");
-    node.setAttribute("aria-controls", pkgPanelId);
+    var built = buildDiscNode(disc, pacotes, cor);
+    var node = built.node;
+    inner.appendChild(node);
 
-    var titleRow = el("span", "eap-node__row");
-    titleRow.appendChild(el("span", "eap-node__title", disc.nome || "(sem nome)"));
-    var count = pacotes.length;
-    var badge = el(
-      "span",
-      "badge eap-node__badge",
-      count + (count === 1 ? " pacote" : " pacotes")
-    );
-    titleRow.appendChild(badge);
-    node.appendChild(titleRow);
-
-    // Seta de colapso (decorativa).
-    var caret = el("span", "eap-node__caret");
-    caret.setAttribute("aria-hidden", "true");
-    caret.textContent = "▾";
-    node.appendChild(caret);
-
-    col.appendChild(node);
-
-    // --- Pilha de pacotes (Nível 2) ---
+    // Pilha de pacotes (Nível 2).
     var stack = el("div", "eap-stack");
-    stack.id = pkgPanelId;
-
+    stack.id = built.panelId;
     if (!pacotes.length) {
       stack.appendChild(el("div", "eap-stack__empty", "Sem pacotes cadastrados."));
     } else {
       pacotes.forEach(function (p) {
-        stack.appendChild(buildPacote(p));
+        stack.appendChild(buildPacote(p, cor));
       });
     }
-    col.appendChild(stack);
+    inner.appendChild(stack);
 
-    // Colapsar/expandir ao clicar no nó.
+    // Colapsar/expandir ao clicar na caixa do GT.
     node.addEventListener("click", function () {
       var expanded = node.getAttribute("aria-expanded") === "true";
       var next = !expanded;
       node.setAttribute("aria-expanded", next ? "true" : "false");
-      col.classList.toggle("is-collapsed", !next);
+      inner.classList.toggle("is-expanded", next);
+      inner.classList.toggle("is-collapsed", !next);
     });
 
+    col.appendChild(inner);
     return col;
   }
 
@@ -276,27 +302,32 @@
     var idx = buildColorIndex(data.cronograma);
     var mapaPacotes = pacotesPorDisciplina(eap);
 
-    // Container rolável que abriga o organograma.
-    var scroller = el("div", "eap-scroller");
+    // Container rolável que abriga o organograma (mesmo padrão da Equipe).
+    var scroller = el("div", "eap-oc-scroll");
     scroller.setAttribute("role", "group");
     scroller.setAttribute("aria-label", "Organograma da EAP");
 
-    var tree = el("div", "eap-tree");
+    var oc = el("div", "eap-oc");
 
-    // Nível 0
-    tree.appendChild(buildRoot());
+    // Nível 0 — raiz, com descida vertical até o barramento.
+    var temAbaixo = disciplinas.length > 0;
+    var l0 = el("div", "eap-oc__lvl" + (temAbaixo ? " eap-oc__lvl--drop" : ""));
+    l0.appendChild(buildRootNode());
+    oc.appendChild(l0);
 
-    // Linha das disciplinas (Nível 1 + 2)
-    var row = el("div", "eap-branches");
-    if (disciplinas.length === 1) row.classList.add("is-single");
+    // Nível 1 + 2 — fileira dos GTs com barramento horizontal.
+    var row = el(
+      "div",
+      "eap-oc__row" + (disciplinas.length === 1 ? " is-single" : "")
+    );
     disciplinas.forEach(function (disc) {
       var pacotes = mapaPacotes[disc.id] || [];
       var cor = corDaDisciplina(disc, idx);
       row.appendChild(buildColuna(disc, pacotes, cor));
     });
-    tree.appendChild(row);
+    oc.appendChild(row);
 
-    scroller.appendChild(tree);
+    scroller.appendChild(oc);
     mount.appendChild(scroller);
 
     // Botão "Expandir/Recolher tudo".
@@ -309,7 +340,8 @@
         });
         Array.prototype.forEach.call(cols, function (c) {
           c.classList.toggle("is-collapsed", !anyCollapsed);
-          var n = c.querySelector(".eap-node--disc");
+          c.classList.toggle("is-expanded", anyCollapsed);
+          var n = c.querySelector(".eap-onode--disc");
           if (n) n.setAttribute("aria-expanded", anyCollapsed ? "true" : "false");
         });
         toggle.textContent = anyCollapsed ? "Recolher tudo" : "Expandir tudo";

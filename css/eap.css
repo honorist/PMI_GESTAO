@@ -1,64 +1,43 @@
 /* ============================================================
-   eap.css — Estilos do módulo "EAP" (organograma)
+   eap.css — Estilos do módulo "EAP" (organograma clássico)
    ------------------------------------------------------------
    Carregado por js/eap.js (injeção via <link> no <head>).
-   Complementa app.css. Desenha a EAP como organograma top-down
-   de 3 níveis com conectores em CSS (pseudo-elementos).
+   Complementa app.css. Desenha a EAP no MESMO formato visual da
+   aba "Equipe": organograma top-down com caixas brancas de borda
+   superior colorida, ligadas por barramento horizontal + descidas
+   verticais (conectores em CSS via pseudo-elementos).
 
-   Identidade: roxo da marca (#36177B), fundo creme claro,
-   títulos em 'Fraunces', texto em 'Manrope' (Google Fonts).
+     Nível 0  →  raiz roxa "Summit POA PMIRS 2026"
+     Nível 1  →  fileira dos GTs (barramento + caixas coloridas)
+     Nível 2  →  pacotes empilhados sob cada GT (espinha + cotovelos)
+
+   Identidade: roxo da marca (#36177B), títulos em 'Fraunces',
+   texto em 'Manrope'. Tokens globais: --purple, --line, --card,
+   --muted, --ink, --rad-sm.
    ============================================================ */
 
 /* ---- Tokens locais do módulo ---- */
-.eap-header,
-.eap-scroller {
+.eap-oc-scroll {
   --eap-purple: #36177b;
-  --eap-cream: #faf6ee;       /* fundo creme claro do organograma */
-  --eap-line: #cdbfe6;        /* cor dos conectores */
-  --eap-line-w: 2px;          /* espessura dos conectores */
-  --eap-gap: 34px;            /* espaço horizontal entre disciplinas */
-  --eap-col-w: 280px;         /* largura de cada coluna de disciplina */
-  --eap-drop: 26px;           /* altura da "descida" da raiz aos GTs */
+  --eap-cream: #faf6ee;          /* fundo creme claro do organograma */
+  --eap-col-w: 230px;            /* largura de cada coluna de GT */
+  --eap-gap: 16px;               /* espaço horizontal entre GTs */
+  --eap-drop: 24px;              /* altura das "descidas" verticais */
   --eap-font-title: 'Fraunces', Georgia, 'Times New Roman', serif;
   --eap-font-body: 'Manrope', 'Hanken Grotesk', system-ui, sans-serif;
-}
-
-/* ============================================================
-   Cabeçalho da aba
-   ============================================================ */
-.eap-header {
-  margin-bottom: 18px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
 }
 
 .eap-toggle-all {
   flex: 0 0 auto;
 }
 
-.eap-title {
-  font-family: var(--eap-font-title);
-  font-weight: 600;
-  font-size: 1.7rem;
-  line-height: 1.15;
-  color: var(--eap-purple);
-  margin: 0 0 4px;
-}
-
-.eap-subtitle {
-  font-family: var(--eap-font-body);
-  font-size: .92rem;
-  color: var(--muted);
-  margin: 0;
-}
-
 /* ============================================================
    Container rolável (scroll-x) + moldura creme
+   ------------------------------------------------------------
+   Centraliza o organograma quando cabe e rola na horizontal
+   quando os 9 GTs não couberem (mesmo comportamento da Equipe).
    ============================================================ */
-.eap-scroller {
+.eap-oc-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--eap-cream);
@@ -69,250 +48,234 @@
   font-family: var(--eap-font-body);
 }
 
-/* A árvore cresce até caber o conteúdo; em telas estreitas, rola. */
-.eap-tree {
-  display: inline-flex;
+/* A árvore cresce até caber o conteúdo; centraliza quando há folga. */
+.eap-oc {
+  display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 100%;
+  width: max-content;   /* tão largo quanto a fileira dos GTs */
+  min-width: 100%;      /* centraliza quando cabe; rola quando não cabe */
+  margin: 0 auto;
 }
 
 /* ============================================================
-   Nó genérico (caixa)
+   Níveis centralizados com descida vertical (Nível 0 → raiz)
    ============================================================ */
-.eap-node {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border-radius: var(--rad-sm);
-  text-align: left;
-  font-family: var(--eap-font-body);
-}
-
-.eap-node__title {
-  font-family: var(--eap-font-title);
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-/* ---- Nível 0: raiz roxa ---- */
-.eap-root-wrap {
-  position: relative;
-  align-self: stretch;       /* ocupa toda a largura da árvore */
+.eap-oc__lvl {
   display: flex;
   justify-content: center;
-  /* espaço para o conector vertical que desce ao barramento */
-  padding-bottom: var(--eap-drop);
+  position: relative;
 }
-
-.eap-node--root {
-  align-items: center;
-  text-align: center;
-  background: var(--eap-purple);
-  color: #fff;
-  padding: 16px 30px;
-  box-shadow: 0 12px 30px rgba(54, 23, 123, .28);
-  min-width: 260px;
-}
-
-.eap-node--root .eap-node__kicker {
-  font-family: var(--eap-font-body);
-  font-size: .68rem;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, .72);
-}
-
-.eap-node--root .eap-node__title {
-  font-size: 1.25rem;
-  color: #fff;
-}
-
-/* Conector vertical descendo da raiz para o barramento. */
-.eap-root-wrap::after {
+.eap-oc__lvl--drop { padding-bottom: var(--eap-drop); }
+.eap-oc__lvl--drop::after {
   content: "";
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: var(--eap-line-w);
+  width: 2px;
   height: var(--eap-drop);
-  background: var(--eap-line);
+  background: var(--line);
   transform: translateX(-50%);
 }
 
 /* ============================================================
-   Nível 1 — linha de disciplinas (ramos)
+   Fileira dos GTs (Nível 1) com barramento horizontal
+   ------------------------------------------------------------
+   O barramento termina no centro da primeira e da última coluna,
+   por isso recua metade da largura da coluna em cada lado.
    ============================================================ */
-.eap-branches {
+.eap-oc__row {
   display: flex;
-  align-items: flex-start;
   justify-content: center;
+  align-items: flex-start;
   gap: var(--eap-gap);
   position: relative;
 }
-
-/* Barramento horizontal ligando todas as colunas. Termina no centro
-   da primeira e da última coluna — por isso recua metade da largura
-   da coluna em cada lado (--eap-col-w / 2). */
-.eap-branches::before {
+.eap-oc__row::before {
   content: "";
   position: absolute;
   top: 0;
-  left: calc(var(--eap-col-w) / 2);
+  left: calc(var(--eap-col-w) / 2);   /* metade da largura da coluna */
   right: calc(var(--eap-col-w) / 2);
-  height: var(--eap-line-w);
-  background: var(--eap-line);
+  height: 2px;
+  background: var(--line);
 }
-
-/* Com uma única disciplina o barramento horizontal não é necessário. */
-.eap-branches.is-single::before {
-  display: none;
-}
+/* Com um único GT o barramento horizontal não é necessário. */
+.eap-oc__row.is-single::before { display: none; }
 
 /* ============================================================
-   Coluna: nó da disciplina (Nível 1) + pilha de pacotes (Nível 2)
+   Coluna de cada GT (largura fixa) com descida do barramento
    ============================================================ */
-.eap-col {
+.eap-oc__col {
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
   width: var(--eap-col-w);
-  /* espaço acima para a descida vertical do barramento ao nó */
   padding-top: var(--eap-drop);
 }
-
-/* Descida vertical do barramento até o nó da disciplina. */
-.eap-col::before {
+.eap-oc__col::before {
   content: "";
   position: absolute;
   top: 0;
   left: 50%;
-  width: var(--eap-line-w);
+  width: 2px;
   height: var(--eap-drop);
-  background: var(--eap-line);
+  background: var(--line);
   transform: translateX(-50%);
 }
 
-/* ---- Nó da disciplina (colorido + colapsável) ---- */
-.eap-node--disc {
-  --disc-cor: var(--eap-purple);
+/* Wrapper interno (caixa do GT + pilha de pacotes). */
+.eap-col {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ============================================================
+   Caixa (nó) — branca, borda superior colorida (igual à Equipe)
+   ============================================================ */
+.eap-onode {
+  position: relative;
+  width: 100%;
+  background: var(--card, #fff);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--purple, #36177b);
+  border-radius: 10px;
+  padding: 9px 10px 8px;
+  box-shadow: 0 3px 10px rgba(26, 17, 69, .08);
+  text-align: center;
+}
+
+.eap-onode__kicker {
+  font-family: var(--eap-font-body);
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.eap-onode__nome {
+  font-family: var(--eap-font-title);
+  font-weight: 700;
+  font-size: .9rem;
+  color: var(--ink);
+  line-height: 1.18;
+}
+
+.eap-onode__count {
+  display: inline-block;
+  margin-top: 5px;
+  font-size: .62rem;
+  padding: 1px 8px;
+  background: var(--card-cream, #faf6ee);
+  border: 1px solid var(--line);
+}
+
+/* ---- Nível 0: caixa raiz roxa ---- */
+.eap-onode--root {
+  background: var(--eap-purple);
+  border-color: var(--eap-purple);
+  box-shadow: 0 12px 30px rgba(54, 23, 123, .28);
+  min-width: 260px;
+  padding: 14px 26px;
+}
+.eap-onode--root .eap-onode__kicker { color: rgba(255, 255, 255, .72); }
+.eap-onode--root .eap-onode__nome {
+  font-size: 1.15rem;
+  color: #fff;
+}
+
+/* ---- Nível 1: caixa do GT (botão colapsável) ---- */
+.eap-onode--disc {
   appearance: none;
   cursor: pointer;
-  width: 100%;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-top: 4px solid var(--disc-cor);
-  padding: 12px 14px;
-  box-shadow: 0 6px 16px rgba(26, 17, 69, .08);
+  font: inherit;
+  padding-bottom: 20px;   /* espaço para a seta de colapso */
   transition: box-shadow .15s ease, transform .05s ease;
 }
-
-.eap-node--disc:hover {
-  box-shadow: 0 10px 22px rgba(26, 17, 69, .14);
-}
-
-.eap-node--disc:active {
-  transform: translateY(1px);
-}
-
-.eap-node__row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.eap-node--disc .eap-node__title {
-  font-size: 1rem;
-  color: var(--ink);
-}
-
-/* Badge de contagem herda a cor da disciplina. */
-.eap-node__badge {
-  flex: 0 0 auto;
-  margin-top: 2px;
-  background: color-mix(in srgb, var(--disc-cor) 14%, transparent);
-  color: var(--disc-cor);
-}
-
-/* Fallback para navegadores sem color-mix(). */
-@supports not (background: color-mix(in srgb, red 10%, white)) {
-  .eap-node__badge {
-    background: var(--line);
-    color: var(--muted);
-  }
-}
+.eap-onode--disc:hover { box-shadow: 0 10px 22px rgba(26, 17, 69, .14); }
+.eap-onode--disc:active { transform: translateY(1px); }
 
 /* Seta de colapso. */
-.eap-node__caret {
+.eap-onode__caret {
   position: absolute;
-  right: 10px;
-  bottom: 8px;
+  right: 9px;
+  bottom: 6px;
   font-size: .8rem;
   line-height: 1;
   color: var(--muted);
   transition: transform .18s ease;
 }
-
-.eap-col.is-collapsed .eap-node__caret {
-  transform: rotate(-90deg);
-}
+.eap-col.is-collapsed .eap-onode__caret { transform: rotate(-90deg); }
 
 /* ============================================================
-   Nível 2 — pilha de pacotes
+   Nível 2 — pilha de pacotes sob a caixa do GT
+   ------------------------------------------------------------
+   Espinha vertical sai da caixa do GT; cada pacote recebe um
+   ramo horizontal (cotovelo) — mesma lógica de conectores da
+   Equipe, agora vertical para a lista de pacotes.
    ============================================================ */
 .eap-stack {
   position: relative;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  /* espaço para a espinha vertical que sai do nó da disciplina */
-  padding-top: var(--eap-drop);
+  gap: 10px;
+  padding-top: var(--eap-drop);   /* descida da caixa do GT à espinha */
   margin-top: 0;
 }
 
-/* Espinha vertical descendo do nó da disciplina pela pilha. */
-.eap-stack::before {
+/* Descida vertical curta: caixa do GT → topo da espinha. */
+.eap-stack::after {
   content: "";
   position: absolute;
   top: 0;
-  left: 18px;
-  width: var(--eap-line-w);
-  /* vai até o centro do último pacote (recuado embaixo) */
-  bottom: 22px;
-  background: var(--eap-line);
+  left: 50%;
+  width: 2px;
+  height: var(--eap-drop);
+  background: var(--line);
+  transform: translateX(-50%);
 }
 
-/* Colapsado: esconde a pilha e a espinha. */
-.eap-col.is-collapsed .eap-stack {
-  display: none;
+/* Espinha vertical descendo pela pilha de pacotes. */
+.eap-stack::before {
+  content: "";
+  position: absolute;
+  top: var(--eap-drop);
+  left: 16px;
+  width: 2px;
+  bottom: 20px;            /* termina no centro do último pacote */
+  background: var(--line);
 }
 
-/* ---- Caixa de pacote (branca) ---- */
+/* Colapsado: esconde a pilha e seus conectores. */
+.eap-col.is-collapsed .eap-stack { display: none; }
+
+/* ---- Caixa de pacote (branca, borda colorida à esquerda) ---- */
 .eap-pkg {
   position: relative;
-  background: #fff;
+  background: var(--card, #fff);
   border: 1px solid var(--line);
+  border-left: 3px solid var(--purple, #36177b);
   border-radius: var(--rad-sm);
-  padding: 9px 12px 9px 16px;
-  margin-left: 18px;          /* afasta da espinha vertical */
+  padding: 8px 11px 8px 12px;
+  margin-left: 16px;          /* afasta da espinha vertical */
   box-shadow: 0 3px 8px rgba(26, 17, 69, .05);
+  text-align: left;
 }
 
-/* Ramo horizontal da espinha até cada pacote. */
+/* Ramo horizontal (cotovelo) da espinha até cada pacote. */
 .eap-pkg::before {
   content: "";
   position: absolute;
-  top: 18px;
-  left: -18px;
-  width: 18px;
-  height: var(--eap-line-w);
-  background: var(--eap-line);
+  top: 16px;
+  left: -16px;
+  width: 16px;
+  height: 2px;
+  background: var(--line);
 }
 
 .eap-pkg__top {
@@ -323,22 +286,22 @@
 }
 
 .eap-pkg__code {
-  font-size: .7rem;
+  font-size: .68rem;
   font-weight: 700;
-  color: var(--purple-2);
+  color: var(--purple-2, #5a3aa6);
   font-variant-numeric: tabular-nums;
   flex: 0 0 auto;
 }
 
 .eap-pkg__name {
   font-weight: 600;
-  font-size: .86rem;
+  font-size: .82rem;
   color: var(--ink);
   line-height: 1.25;
 }
 
 .eap-pkg__desc {
-  font-size: .76rem;
+  font-size: .72rem;
   color: var(--muted);
   margin-top: 3px;
   line-height: 1.3;
@@ -347,42 +310,40 @@
 /* ---- Pilha vazia ---- */
 .eap-stack__empty {
   position: relative;
-  margin-left: 18px;
-  padding: 8px 12px;
-  font-size: .8rem;
+  margin-left: 16px;
+  padding: 8px 11px;
+  font-size: .76rem;
   color: var(--muted);
-  background: #fff;
+  background: var(--card, #fff);
   border: 1px dashed var(--line);
   border-radius: var(--rad-sm);
+  text-align: left;
 }
-
 .eap-stack__empty::before {
   content: "";
   position: absolute;
   top: 50%;
-  left: -18px;
-  width: 18px;
-  height: var(--eap-line-w);
-  background: var(--eap-line);
+  left: -16px;
+  width: 16px;
+  height: 2px;
+  background: var(--line);
 }
 
 /* ============================================================
    Responsivo
    ============================================================ */
 @media (max-width: 720px) {
-  .eap-header,
-  .eap-scroller {
-    --eap-col-w: 200px;
-    --eap-gap: 18px;
+  .eap-oc-scroll {
+    --eap-col-w: 190px;
+    --eap-gap: 12px;
   }
-  .eap-title { font-size: 1.4rem; }
-  .eap-scroller { padding: 20px 16px 24px; }
+  .eap-oc-scroll { padding: 20px 16px 24px; }
 }
 
 /* Respeita quem prefere menos movimento. */
 @media (prefers-reduced-motion: reduce) {
-  .eap-node--disc,
-  .eap-node__caret {
+  .eap-onode--disc,
+  .eap-onode__caret {
     transition: none;
   }
 }
