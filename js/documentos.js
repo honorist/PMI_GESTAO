@@ -170,6 +170,14 @@
       );
     }
 
+    // Anexo (arquivo) — link de download a partir do dataUrl salvo.
+    if (d.anexo && d.anexo.dataUrl) {
+      var anexoLink = el("a", "doc-card__anexo", "📎 " + (d.anexo.nome || "Baixar anexo"));
+      anexoLink.href = d.anexo.dataUrl;
+      anexoLink.download = d.anexo.nome || "anexo";
+      card.appendChild(anexoLink);
+    }
+
     // Ações: editar / excluir.
     var actions = el("div", "doc-card__actions");
     var edit = el("button", "btn btn-ghost sm", "Editar");
@@ -310,9 +318,47 @@
     form.appendChild(field("Título", inTitulo, true));
 
     var inUrl = makeInput("url", existing ? existing.url || "" : "");
-    inUrl.placeholder = "https://…";
-    inUrl.required = true;
+    inUrl.placeholder = "https://… (opcional se anexar arquivo)";
     form.appendChild(field("URL (http/https)", inUrl, true));
+
+    // Anexo (arquivo) — guardado como dataUrl no localStorage (máx. 1,5 MB).
+    var anexoAtual = existing && existing.anexo ? existing.anexo : null;
+    var inArquivo = makeInput("file");
+    var arquivoField = field("Anexo (arquivo)", inArquivo, true);
+    var anexoInfo = el("div", "doc-anexo-info");
+    function pintaAnexo() {
+      clear(anexoInfo);
+      if (anexoAtual && anexoAtual.nome) {
+        anexoInfo.appendChild(el("span", "muted-text", "Anexado: " + anexoAtual.nome + "  "));
+        var rm = el("button", "btn btn-ghost sm", "remover");
+        rm.type = "button";
+        rm.addEventListener("click", function () {
+          anexoAtual = null;
+          inArquivo.value = "";
+          pintaAnexo();
+        });
+        anexoInfo.appendChild(rm);
+      }
+    }
+    inArquivo.addEventListener("change", function () {
+      var f = inArquivo.files && inArquivo.files[0];
+      if (!f) return;
+      if (f.size > 1.5 * 1024 * 1024) {
+        erro.textContent = "Arquivo muito grande (máx. 1,5 MB para anexar no navegador).";
+        inArquivo.value = "";
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function () {
+        anexoAtual = { nome: f.name, dataUrl: String(reader.result) };
+        erro.textContent = "";
+        pintaAnexo();
+      };
+      reader.readAsDataURL(f);
+    });
+    arquivoField.appendChild(anexoInfo);
+    form.appendChild(arquivoField);
+    pintaAnexo();
 
     var inCategoria = makeInput("text", existing ? existing.categoria || "" : "");
     inCategoria.placeholder = "Ex.: Divulgação";
@@ -348,9 +394,13 @@
         inTitulo.focus();
         return;
       }
-      if (!isUrlValida(url)) {
+      if (url && !isUrlValida(url)) {
         erro.textContent = "URL inválida. Use um endereço http:// ou https://.";
         inUrl.focus();
+        return;
+      }
+      if (!url && !anexoAtual) {
+        erro.textContent = "Informe uma URL ou anexe um arquivo.";
         return;
       }
       erro.textContent = "";
@@ -359,7 +409,8 @@
         titulo: titulo,
         url: url,
         categoria: inCategoria.value.trim(),
-        descricao: taDesc.value.trim()
+        descricao: taDesc.value.trim(),
+        anexo: anexoAtual
       };
       upsertDocumento(id, values);
       closeForm();

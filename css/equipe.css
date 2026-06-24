@@ -31,25 +31,19 @@
   background: var(--line);
   transform: translateX(-50%);
 }
-/* linha de subordinados com barramento horizontal */
+/* linha de subordinados: quebra em várias linhas (todos visíveis,
+   sem corte horizontal). Conector único desce da Germânia (via
+   .eqp-org__level--drop::after). */
 .eqp-org__row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 20px;
+  gap: 16px;
   position: relative;
-  padding-top: 26px;
-  flex-wrap: nowrap;
+  padding-top: 8px;
+  width: 100%;
+  max-width: 1180px;
 }
-.eqp-org__row::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 12.5%;
-  right: 12.5%;
-  height: 2px;
-  background: var(--line);
-}
-.eqp-org__row.is-single::before { display: none; }
 .eqp-org__col {
   position: relative;
   display: flex;
@@ -57,19 +51,8 @@
   flex: 0 0 auto;
   width: 240px;
 }
-/* descida do barramento até cada subordinado */
-.eqp-org__col::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 2px;
-  height: 26px;
-  background: var(--line);
-  transform: translateX(-50%);
-}
 .eqp-org .eqp-card { width: 240px; }
-.eqp-org__level .eqp-card { width: 260px; }
+.eqp-org__level .eqp-card { width: 270px; }
 
 /* --- Grupo (GT) --- */
 .eqp-grupo {

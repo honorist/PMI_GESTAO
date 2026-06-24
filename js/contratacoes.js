@@ -231,6 +231,14 @@
       card.appendChild(el("div", "ctr-card-obs", String(f.observacao)));
     }
 
+    // Proposta anexada — link de download a partir do dataUrl salvo.
+    if (f.proposta && f.proposta.dataUrl) {
+      var prop = el("a", "ctr-card-anexo", "📎 " + (f.proposta.nome || "Proposta"));
+      prop.href = f.proposta.dataUrl;
+      prop.download = f.proposta.nome || "proposta";
+      card.appendChild(prop);
+    }
+
     // Rodapé: select de status + ações.
     var foot = el("div", "ctr-card-foot");
     foot.appendChild(buildStatusSelect(f));
@@ -449,6 +457,44 @@
     taObs.placeholder = "Observações";
     form.appendChild(field("Observação", taObs, true));
 
+    // Proposta (arquivo) — guardada como dataUrl no localStorage (máx. 1,5 MB).
+    var propAtual = existing && existing.proposta ? existing.proposta : null;
+    var inProp = makeInput("file");
+    var propField = field("Proposta (arquivo)", inProp, true);
+    var propInfo = el("div", "ctr-anexo-info");
+    function pintaProp() {
+      while (propInfo.firstChild) propInfo.removeChild(propInfo.firstChild);
+      if (propAtual && propAtual.nome) {
+        propInfo.appendChild(el("span", "muted-text", "Anexada: " + propAtual.nome + "  "));
+        var rm = el("button", "btn btn-ghost sm", "remover");
+        rm.type = "button";
+        rm.addEventListener("click", function () {
+          propAtual = null;
+          inProp.value = "";
+          pintaProp();
+        });
+        propInfo.appendChild(rm);
+      }
+    }
+    inProp.addEventListener("change", function () {
+      var f = inProp.files && inProp.files[0];
+      if (!f) return;
+      if (f.size > 1.5 * 1024 * 1024) {
+        window.alert("Arquivo muito grande (máx. 1,5 MB para anexar no navegador).");
+        inProp.value = "";
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function () {
+        propAtual = { nome: f.name, dataUrl: String(reader.result) };
+        pintaProp();
+      };
+      reader.readAsDataURL(f);
+    });
+    propField.appendChild(propInfo);
+    form.appendChild(propField);
+    pintaProp();
+
     var actions = el("div", "ctr-form-actions");
     var cancel = el("button", "btn", "Cancelar");
     cancel.type = "button";
@@ -468,7 +514,8 @@
         valor: parseBRL(inValor.value),
         status: isStatusValido(selStatus.value) ? selStatus.value : "a_contratar",
         contato: inContato.value.trim(),
-        observacao: taObs.value.trim()
+        observacao: taObs.value.trim(),
+        proposta: propAtual
       };
       upsertFornecedor(id, values);
       closeForm();
