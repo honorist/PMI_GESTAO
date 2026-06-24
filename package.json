@@ -1,0 +1,17 @@
+{
+  "name": "pmi-gestao",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App de gestão PMIRS Summit 2026 — servidor Node+Postgres (server/) servindo o frontend estático na raiz.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
