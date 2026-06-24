@@ -31,7 +31,12 @@
       financeiro: { receitas: [], despesas: [] },
       contratacoes: { fornecedores: [] },
       eap: { disciplinas: [], pacotes: [] },
-      canvas: {}
+      canvas: {},
+      reunioes: { reunioes: [] },
+      documentos: { documentos: [] },
+      equipe: { membros: [] },
+      checklist: { itens: [] },
+      metas: { metas: [] }
     };
   }
 

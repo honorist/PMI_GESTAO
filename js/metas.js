@@ -246,7 +246,7 @@
 
     _backdrop = el("div", "mt-modal-backdrop");
     _backdrop.addEventListener("click", function (e) {
-      if (e.target === _backdrop) closeForm();
+      void e; /* clicar fora NÃO fecha (evita perda acidental); use Cancelar ou Esc */
     });
 
     var modal = el("div", "mt-modal");

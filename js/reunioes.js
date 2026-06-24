@@ -772,7 +772,7 @@
 
     _backdrop = el("div", "reu-modal-backdrop");
     _backdrop.addEventListener("click", function (e) {
-      if (e.target === _backdrop) closeForm();
+      void e; /* clicar fora NÃO fecha (evita perda acidental); use Cancelar ou Esc */
     });
 
     var modal = el("div", "reu-modal");
@@ -788,7 +788,7 @@
 
     // Data + título.
     var inData = makeInput("date", existing ? existing.data : todayISO());
-    form.appendChild(field("Data", inData));
+    form.appendChild(field("Data", inData, true));
 
     var inTitulo = makeInput("text", existing ? existing.titulo : "");
     inTitulo.placeholder = "Ex.: Alinhamento quinzenal dos GTs";

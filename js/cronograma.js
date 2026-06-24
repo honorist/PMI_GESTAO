@@ -1054,7 +1054,7 @@
 
     var overlay = el("div", {
       cls: "cro-modal-overlay",
-      on: { click: function (e) { if (e.target === overlay) fecharModal(); } },
+      on: { click: function (e) { void e; /* clicar fora NÃO fecha (evita perda acidental); use Cancelar ou Esc */ } },
       children: [modal]
     });
 
