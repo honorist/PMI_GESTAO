@@ -24,6 +24,11 @@
   var DEFAULT_TAB = "tab-visao";
   var VAULT_URL = "data/vault.enc"; // dados cifrados (AES-GCM)
 
+  // --- Modo backend (servidor Node + Postgres) ---
+  var PING_URL = "/api/ping"; // detecção de modo em runtime
+  var SAVE_DEBOUNCE_MS = 600; // espera antes de PUT no servidor
+  var SYNC_INTERVAL_MS = 5000; // polling leve de sincronização
+
   // Estrutura vazia padrão (usada se um arquivo faltar ou falhar)
   function emptyData() {
     return {
@@ -168,12 +173,23 @@
     _activeTab: null,
     _loaded: false,
 
+    // --- Modo de operação ---
+    // mode: 'vault' (estático, fallback) | 'backend' (servidor Node)
+    mode: "vault",
+    role: null,          // 'master' | 'viewer' (só no modo backend)
+    readonly: false,     // true quando role !== 'master'
+
     fmtBRL: fmtBRL,
     fmtData: fmtData,
     uid: uid,
     pageHeader: pageHeader,
     headerStat: headerStat
   };
+
+  // Estado interno do modo backend.
+  var _lastUpdatedAt = null; // marca temporal do último estado conhecido
+  var _backendSaveTimer = null; // debounce do PUT
+  var _syncTimer = null; // intervalo do polling
 
   /* ---- Indicador "salvo" ---- */
   var _saveTimer = null;
@@ -309,8 +325,22 @@
 
   /* ============================================================
      Persistência
+     ------------------------------------------------------------
+     save() decide o destino conforme o modo:
+     - vault   -> localStorage (comportamento estático original).
+     - backend -> PUT /api/estado (só se role === 'master';
+                  viewer é no-op). Sempre cacheia em localStorage
+                  como espelho offline opcional.
      ============================================================ */
   Gestao.save = function save() {
+    if (Gestao.mode === "backend") {
+      return saveBackend();
+    }
+    return saveVault();
+  };
+
+  // Persistência local (modo vault — comportamento original intacto).
+  function saveVault() {
     setSaveStatus("saving", "salvando…");
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(Gestao.data));
@@ -325,7 +355,52 @@
       setSaveStatus("idle", "salvo automaticamente");
     }, 400);
     return true;
-  };
+  }
+
+  // Persistência no servidor (modo backend). Viewer não salva.
+  function saveBackend() {
+    if (Gestao.role !== "master") {
+      return false; // somente leitura — no-op silencioso
+    }
+    // Espelho offline opcional (não é a fonte da verdade).
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(Gestao.data));
+    } catch (e) {
+      /* cache opcional: ignora falha */
+    }
+
+    setSaveStatus("saving", "salvando…");
+    if (_backendSaveTimer) clearTimeout(_backendSaveTimer);
+    _backendSaveTimer = setTimeout(function () {
+      // Snapshot do que será enviado (evita corrida com edições novas).
+      var payload = JSON.stringify({ data: Gestao.data });
+      fetch("/api/estado", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: payload
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("http " + res.status);
+          return res.json();
+        })
+        .then(function (out) {
+          // Atualiza a marca temporal para o polling não "ressincronizar"
+          // por cima da própria escrita do master.
+          if (out && out.updated_at) _lastUpdatedAt = out.updated_at;
+          setSaveStatus("idle", "salvo");
+          if (_saveTimer) clearTimeout(_saveTimer);
+          _saveTimer = setTimeout(function () {
+            setSaveStatus("idle", "salvo automaticamente");
+          }, 1500);
+        })
+        .catch(function (err) {
+          console.error("Falha ao salvar no servidor:", err);
+          setSaveStatus("error", "erro ao salvar");
+        });
+    }, SAVE_DEBOUNCE_MS);
+    return true;
+  }
 
   /* ============================================================
      Registro de abas + navegação
@@ -350,6 +425,9 @@
     if (!fn) return; // módulo ainda não registrou — mantém placeholder
     try {
       fn(mount, Gestao.data);
+      // Modo backend + viewer: esconde controles de edição (heurística),
+      // sem precisar tocar em cada módulo.
+      if (Gestao.readonly) aplicarReadonly(mount);
     } catch (e) {
       console.error("Erro ao renderizar aba " + id + ":", e);
       mount.innerHTML =
@@ -358,6 +436,47 @@
         "</div>";
     }
   }
+
+  /* ============================================================
+     Modo somente-leitura (viewer) — esconde controles de edição
+     ------------------------------------------------------------
+     Heurística aplicada DEPOIS do render do módulo, dentro do
+     mount da aba. Esconde:
+     - todo button.btn-primary;
+     - botões cujo texto bata com (+|editar|excluir|remover|
+       salvar|nova|novo) no início;
+     - barras/toolbars de "+ ..." (heurística por classe).
+     Esconder (não remover) preserva o layout e é reversível.
+     ============================================================ */
+  var READONLY_TEXTO = /^\s*(\+|editar|excluir|remover|salvar|nova|novo)\b/i;
+
+  function esconder(node) {
+    if (node && node.style) node.style.display = "none";
+  }
+
+  function aplicarReadonly(mount) {
+    if (!mount) return;
+
+    // 1) Botões primários (adicionar/salvar) — sempre escondidos.
+    mount.querySelectorAll("button.btn-primary").forEach(esconder);
+
+    // 2) Botões por texto (Editar/Excluir/Remover/Salvar/Nova/Novo/+...).
+    mount.querySelectorAll("button").forEach(function (b) {
+      var txt = (b.textContent || "").trim();
+      if (READONLY_TEXTO.test(txt)) esconder(b);
+    });
+
+    // 3) Toolbars de adicionar (heurística por classe contendo "toolbar").
+    //    Esconde apenas se a barra contiver algum controle de ação.
+    mount.querySelectorAll('[class*="toolbar"]').forEach(function (bar) {
+      var temAcao = bar.querySelector(
+        "button.btn-primary, input, select, textarea"
+      );
+      if (temAcao) esconder(bar);
+    });
+  }
+
+  Gestao.aplicarReadonly = aplicarReadonly;
 
   Gestao.showTab = function showTab(id) {
     Gestao._activeTab = id;
@@ -413,8 +532,13 @@
   };
 
   // Lê um File, valida JSON, substitui this.data, salva e re-renderiza.
+  // No modo backend, importar é privilégio do master.
   Gestao.importJSON = function importJSON(file) {
     return new Promise(function (resolve, reject) {
+      if (Gestao.readonly) {
+        reject(new Error("Sem permissão para importar (somente leitura)."));
+        return;
+      }
       if (!file) {
         reject(new Error("Nenhum arquivo selecionado."));
         return;
@@ -482,11 +606,16 @@
       });
     }
 
-    // Importar (abre o seletor de arquivo)
+    // Importar (abre o seletor de arquivo) — só master/vault.
     var btnImport = document.getElementById("btn-import");
     var fileInput = document.getElementById("import-file");
+    // Viewer (backend somente leitura): esconde o botão Importar.
+    if (btnImport && Gestao.readonly) {
+      btnImport.style.display = "none";
+    }
     if (btnImport && fileInput) {
       btnImport.addEventListener("click", function () {
+        if (Gestao.readonly) return; // guarda extra
         fileInput.click();
       });
       fileInput.addEventListener("change", function () {
@@ -509,7 +638,7 @@
   /* ============================================================
      Tela de senha (gate) — decifra o vault antes de liberar o app
      ============================================================ */
-  function buildGate() {
+  function buildGate(opts) {
     var overlay = document.createElement("div");
     overlay.id = "gate-overlay";
     overlay.setAttribute("role", "dialog");
@@ -527,10 +656,12 @@
 
     var h = document.createElement("h1");
     h.className = "gate-title";
-    h.textContent = "Summit 2026 · Gestão";
+    h.textContent = (opts && opts.title) || "Summit 2026 · Gestão";
     var p = document.createElement("p");
     p.className = "gate-sub";
-    p.textContent = "Área restrita. Informe a senha para acessar as informações.";
+    p.textContent =
+      (opts && opts.subtitle) ||
+      "Área restrita. Informe a senha para acessar as informações.";
 
     var form = document.createElement("form");
     form.className = "gate-form";
@@ -617,15 +748,223 @@
   }
 
   /* ============================================================
+     Modo backend — login, carga e sincronização
+     ============================================================ */
+
+  // Detecta se há servidor: GET /api/ping com {backend:true}.
+  // Resolve true (modo backend) ou false (modo vault/estático).
+  // Qualquer erro de rede (ex.: GitHub Pages, file://) => false.
+  function detectarBackend() {
+    if (typeof fetch !== "function") return Promise.resolve(false);
+    return fetch(PING_URL, { cache: "no-store", credentials: "same-origin" })
+      .then(function (res) {
+        if (!res.ok) return false;
+        return res
+          .json()
+          .then(function (j) {
+            return !!(j && j.backend === true);
+          })
+          .catch(function () {
+            return false;
+          });
+      })
+      .catch(function () {
+        return false; // sem servidor -> fallback vault
+      });
+  }
+
+  // Carrega o estado do servidor para Gestao.data (fonte da verdade).
+  function carregarEstadoBackend() {
+    return fetch("/api/estado", {
+      cache: "no-store",
+      credentials: "same-origin"
+    })
+      .then(function (res) {
+        if (res.status === 401) throw new Error("nao_autenticado");
+        if (!res.ok) throw new Error("http " + res.status);
+        return res.json();
+      })
+      .then(function (out) {
+        var base = emptyData();
+        if (out && out.data && typeof out.data === "object") {
+          Object.keys(base).forEach(function (k) {
+            if (out.data[k] !== undefined) base[k] = out.data[k];
+          });
+          // Mantém chaves extras vindas do servidor.
+          Object.keys(out.data).forEach(function (k) {
+            if (base[k] === undefined) base[k] = out.data[k];
+          });
+        }
+        Gestao.data = base;
+        _lastUpdatedAt = (out && out.updated_at) || null;
+        Gestao._loaded = true;
+        setSaveStatus("idle", "salvo automaticamente");
+        return Gestao.data;
+      });
+  }
+
+  // True se algum modal/backdrop estiver aberto (pausa o polling para
+  // não sobrescrever enquanto o master edita).
+  function modalAberto() {
+    return !!document.querySelector(
+      '.modal, .modal-backdrop, [role="dialog"], .backdrop, .is-open'
+    );
+  }
+
+  // Polling leve: a cada SYNC_INTERVAL_MS, busca o estado; se mudou e
+  // nenhum modal estiver aberto, atualiza e re-renderiza a aba ativa.
+  function iniciarSync() {
+    if (_syncTimer) clearInterval(_syncTimer);
+    _syncTimer = setInterval(function () {
+      // Pausa enquanto há modal aberto OU enquanto há gravação pendente.
+      if (modalAberto() || _backendSaveTimer) return;
+      fetch("/api/estado", { cache: "no-store", credentials: "same-origin" })
+        .then(function (res) {
+          if (!res.ok) return null;
+          return res.json();
+        })
+        .then(function (out) {
+          if (!out || !out.updated_at) return;
+          if (out.updated_at === _lastUpdatedAt) return; // sem mudança
+          _lastUpdatedAt = out.updated_at;
+          var base = emptyData();
+          if (out.data && typeof out.data === "object") {
+            Object.keys(base).forEach(function (k) {
+              if (out.data[k] !== undefined) base[k] = out.data[k];
+            });
+            Object.keys(out.data).forEach(function (k) {
+              if (base[k] === undefined) base[k] = out.data[k];
+            });
+          }
+          Gestao.data = base;
+          rerenderActive();
+        })
+        .catch(function () {
+          /* falha de rede no polling é silenciosa */
+        });
+    }, SYNC_INTERVAL_MS);
+  }
+
+  // Aplica a role no estado do app e ajusta UI dependente.
+  function aplicarRole(role) {
+    Gestao.role = role;
+    Gestao.readonly = role !== "master";
+    if (Gestao.readonly) {
+      document.body.classList.add("is-viewer");
+      var btnImport = document.getElementById("btn-import");
+      if (btnImport) btnImport.style.display = "none";
+    } else {
+      document.body.classList.remove("is-viewer");
+    }
+  }
+
+  // Sobe o app no modo backend: já carrega, renderiza e inicia o sync.
+  function entrarBackend(role) {
+    aplicarRole(role);
+    carregarEstadoBackend()
+      .then(function () {
+        Gestao.showTab(DEFAULT_TAB);
+        iniciarSync();
+      })
+      .catch(function (err) {
+        console.error("Falha ao carregar estado do servidor:", err);
+        // Se a sessão caiu, volta ao login.
+        if (err && err.message === "nao_autenticado") {
+          startBackendLogin();
+        } else {
+          setSaveStatus("error", "erro ao carregar");
+        }
+      });
+  }
+
+  // Tela de login do modo backend (reusa o visual do gate).
+  function startBackendLogin() {
+    var g = buildGate({
+      subtitle:
+        "Área restrita. Informe a senha para acessar as informações."
+    });
+    document.body.appendChild(g.overlay);
+    setTimeout(function () {
+      g.input.focus();
+    }, 50);
+
+    g.form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var senha = g.input.value;
+      if (!senha) return;
+      g.btn.disabled = true;
+      g.msg.textContent = "Verificando…";
+      g.msg.style.color = "#6B6480";
+
+      fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ senha: senha })
+      })
+        .then(function (res) {
+          if (res.status === 401) throw new Error("senha");
+          if (!res.ok) throw new Error("rede");
+          return res.json();
+        })
+        .then(function (out) {
+          // Sucesso: remove o login e libera o app conforme a role.
+          g.overlay.parentNode &&
+            g.overlay.parentNode.removeChild(g.overlay);
+          entrarBackend((out && out.role) || "viewer");
+        })
+        .catch(function (err) {
+          g.btn.disabled = false;
+          g.msg.style.color = "#E0611F";
+          if (err && err.message === "senha") {
+            g.msg.textContent = "Senha incorreta. Tente novamente.";
+            g.input.select();
+          } else {
+            g.msg.textContent =
+              "Não foi possível conectar ao servidor. Tente novamente.";
+          }
+        });
+    });
+  }
+
+  /* ============================================================
      Bootstrap
+     ------------------------------------------------------------
+     Decide o modo em runtime:
+     - /api/ping responde  -> MODO BACKEND (login + Postgres).
+     - /api/ping falha      -> MODO VAULT (estático, fallback).
      ============================================================ */
   function boot() {
     wireUI();
     setSaveStatus("saving", "bloqueado");
-    // Mostra a tela de senha; só libera o app após decifrar o vault.
-    startGate(function (decrypted) {
-      Gestao.load(decrypted).then(function () {
-        Gestao.showTab(DEFAULT_TAB);
+
+    detectarBackend().then(function (temBackend) {
+      if (temBackend) {
+        Gestao.mode = "backend";
+        // Se já houver sessão válida, pula o login.
+        fetch("/api/me", { cache: "no-store", credentials: "same-origin" })
+          .then(function (res) {
+            return res.ok ? res.json() : null;
+          })
+          .then(function (out) {
+            if (out && out.role) {
+              entrarBackend(out.role);
+            } else {
+              startBackendLogin();
+            }
+          })
+          .catch(function () {
+            startBackendLogin();
+          });
+        return;
+      }
+
+      // MODO VAULT (comportamento estático original — intacto).
+      Gestao.mode = "vault";
+      startGate(function (decrypted) {
+        Gestao.load(decrypted).then(function () {
+          Gestao.showTab(DEFAULT_TAB);
+        });
       });
     });
   }

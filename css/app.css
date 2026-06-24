@@ -661,3 +661,17 @@
   .page-head__divider { display: none; }
   .page-head__left { gap: 12px; }
 }
+
+/* ============================================================
+   Modo somente-leitura (viewer, backend)
+   ------------------------------------------------------------
+   Reforço de CSS para o nível VISUALIZADOR. O JS (aplicarReadonly)
+   já esconde os controles de edição; estas regras são um "cinto e
+   suspensório" caso algum controle escape da heurística. Discreto
+   e só ativo quando o backend marca document.body.is-viewer.
+   ============================================================ */
+body.is-viewer .btn-primary,
+body.is-viewer .btn-danger {
+  display: none !important;
+}
+
