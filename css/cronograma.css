@@ -718,9 +718,9 @@
   z-index: 9000;
   background: rgba(26, 17, 64, 0.45);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 20px;
+  padding: 32px 20px 40px;
   overflow-y: auto;
 }
 

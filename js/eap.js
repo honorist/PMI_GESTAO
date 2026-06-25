@@ -149,6 +149,26 @@
     return ((eap && eap.pacotes) || []).length;
   }
 
+  // Deriva mapa de pacotes a partir das tarefas do cronograma.
+  // Cada tarefa vira um pacote de trabalho: código → id, nome, responsavel+obs → descricao.
+  function pacotesDeCronograma(tarefas) {
+    var mapa = {};
+    (tarefas || []).forEach(function (t) {
+      var k = t.disciplinaId || "__sem__";
+      if (!mapa[k]) mapa[k] = [];
+      var descParts = [];
+      if (t.responsavel) descParts.push(t.responsavel);
+      if (t.obs) descParts.push(t.obs);
+      mapa[k].push({
+        id: t.codigo || null,
+        disciplinaId: t.disciplinaId,
+        nome: t.nome,
+        descricao: descParts.length ? descParts.join(" · ") : null
+      });
+    });
+    return mapa;
+  }
+
   /* ============================================================
      Cabeçalho padrão da aba (logo + título + botão "Expandir tudo")
      ------------------------------------------------------------
@@ -284,23 +304,27 @@
   function render(mount, data) {
     ensureStyles();
     data = data || {};
-    var eap = data.eap || {};
-    var disciplinas = (eap && eap.disciplinas) || [];
+
+    // A EAP deriva diretamente do cronograma: disciplinas e tarefas
+    // são a fonte de verdade; não existe estado separado em data.eap.
+    var crono = data.cronograma || {};
+    var disciplinas = (crono.disciplinas) || [];
+    var tarefas = (crono.tarefas) || [];
 
     mount.innerHTML = ""; // limpa placeholder
 
-    var totalPacotes = contarPacotes(eap);
+    var totalPacotes = tarefas.length;
     mount.appendChild(buildHeader(totalPacotes, disciplinas.length));
 
     if (!disciplinas.length) {
       mount.appendChild(
-        el("div", "empty", "Nenhuma disciplina cadastrada na EAP.")
+        el("div", "empty", "Nenhuma disciplina cadastrada no cronograma.")
       );
       return;
     }
 
-    var idx = buildColorIndex(data.cronograma);
-    var mapaPacotes = pacotesPorDisciplina(eap);
+    var idx = buildColorIndex(crono);
+    var mapaPacotes = pacotesDeCronograma(tarefas);
 
     // Container rolável que abriga o organograma (mesmo padrão da Equipe).
     var scroller = el("div", "eap-oc-scroll");
