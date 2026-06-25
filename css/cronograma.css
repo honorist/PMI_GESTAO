@@ -4,8 +4,9 @@
    Escopo prefixado .cro-* e .cro-root para não afetar outros módulos.
    ============================================================ */
 
-/* ---- Variáveis locais do módulo (paleta do design) ---- */
-.cro-root {
+/* ---- Variáveis do módulo em :root para ficarem disponíveis
+        no modal (injetado em document.body, fora de .cro-root) ---- */
+:root {
   --cro-cream: #F6F4EF;
   --cro-ink: #242016;
   --cro-purple: #36177B;
@@ -26,7 +27,6 @@
   --cro-line: #E7E0D2;
   --cro-group-bg: #F1ECFB;
 
-  /* Larguras das colunas fixas do Gantt */
   --cro-col-cod: 42px;
   --cro-col-tarefa: 348px;
   --cro-col-resp: 152px;
@@ -35,7 +35,9 @@
 
   --cro-font-title: "Fraunces", Georgia, "Times New Roman", serif;
   --cro-font-text: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
 
+.cro-root {
   display: block;
   font-family: var(--cro-font-text);
   color: var(--cro-ink);
