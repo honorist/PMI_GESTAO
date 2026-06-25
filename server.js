@@ -25,12 +25,9 @@ const { Pool } = require("pg");
    Constantes e configuração
    ============================================================ */
 
-// Raiz do frontend estático. Por padrão é a pasta-pai de /server
-// (layout do repo). Pode ser sobrescrita por STATIC_DIR (ex.: "."
-// num bundle achatado de deploy, onde server.js fica junto do front).
-const ROOT = process.env.STATIC_DIR
-  ? path.resolve(__dirname, process.env.STATIC_DIR)
-  : path.resolve(__dirname, "..");
+// Raiz do frontend estático. No bundle achatado (server.js na raiz,
+// junto do front) o default é ".". Pode ser sobrescrito por STATIC_DIR.
+const ROOT = path.resolve(__dirname, process.env.STATIC_DIR || ".");
 const DATA_DIR = path.join(ROOT, "data");
 
 // Nome do cookie de sessão e tempo de vida (7 dias).
