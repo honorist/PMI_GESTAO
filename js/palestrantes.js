@@ -255,7 +255,7 @@
       return;
     }
 
-    var isMaster = window.Gestao && window.Gestao.role && window.Gestao.role() === "master";
+    var isMaster = window.Gestao && window.Gestao.role === "master";
 
     function onEdit(sessId, vals) {
       palcos.forEach(function (palco) {
