@@ -41,7 +41,8 @@
       documentos: { documentos: [] },
       equipe: { membros: [] },
       checklist: { itens: [] },
-      palestrantes: { palcos: [] }
+      palestrantes: { palcos: [] },
+      prospeccao: { candidatos: [] }
     };
   }
 
