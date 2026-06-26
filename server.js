@@ -76,7 +76,7 @@ const SEED_SOURCES = {
   documentos: "documentos.json",
   equipe: "equipe.json",
   checklist: "checklist.json",
-  metas: "metas.json"
+  palestrantes: "palestrantes.json"
 };
 
 /* ============================================================

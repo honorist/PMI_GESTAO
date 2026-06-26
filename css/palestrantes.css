@@ -1,0 +1,256 @@
+/* ============================================================
+   palestrantes.css — Aba Palestrantes (gestão dos palcos)
+   Prefixo .spk-* para evitar colisão com outros módulos.
+   ============================================================ */
+
+/* ---- Layout ---- */
+.spk-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+@media (max-width: 860px) {
+  .spk-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Card de palco ---- */
+.spk-card {
+  background: #fff;
+  border: 1px solid #E8E2D9;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.spk-card__head {
+  background: #36177B;
+  color: #fff;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.spk-card__title {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.spk-card__badge {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ---- Linhas de sessão ---- */
+.spk-sess {
+  border-bottom: 1px solid #F0EBE3;
+  padding: 14px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.spk-sess:last-child { border-bottom: none; }
+
+.spk-sess--keynote { background: #FAF8FF; }
+.spk-sess--especial { background: #FFFBF5; }
+
+.spk-sess__time {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9A8E76;
+  white-space: nowrap;
+  min-width: 100px;
+  padding-top: 2px;
+}
+
+.spk-sess__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.spk-sess__titulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: #242016;
+  margin-bottom: 4px;
+}
+
+.spk-sess--keynote .spk-sess__titulo {
+  color: #36177B;
+}
+
+.spk-sess__speaker {
+  font-size: 13px;
+  color: #6F6149;
+}
+
+.spk-sess__speaker.is-empty {
+  color: #BDB3A3;
+  font-style: italic;
+}
+
+.spk-sess__empresa {
+  font-size: 12px;
+  color: #9A8E76;
+  margin-top: 2px;
+}
+
+.spk-sess__tema {
+  font-size: 12px;
+  color: #6F6149;
+  margin-top: 3px;
+  font-style: italic;
+}
+
+.spk-sess__actions {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.spk-sess:hover .spk-sess__actions { opacity: 1; }
+
+/* ---- Tipo badge ---- */
+.spk-tipo {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.spk-tipo--keynote { background: #EDE8FB; color: #36177B; }
+.spk-tipo--especial { background: #FEF3E2; color: #B06A00; }
+.spk-tipo--sessao { background: #EEF7F0; color: #2E6B38; }
+
+/* ---- Resumo do progresso ---- */
+.spk-progress {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 16px 20px;
+  background: #F6F4EF;
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+
+.spk-progress__item {
+  text-align: center;
+}
+
+.spk-progress__val {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: "Fraunces", Georgia, serif;
+  color: #36177B;
+  line-height: 1;
+}
+
+.spk-progress__lbl {
+  font-size: 12px;
+  color: #6F6149;
+  margin-top: 2px;
+}
+
+/* ---- Modal de edição ---- */
+.spk-modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9100;
+  background: rgba(26,17,64,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.spk-modal {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 24px 64px rgba(36,32,22,0.18);
+  overflow: hidden;
+}
+
+.spk-modal__head {
+  background: #36177B;
+  color: #fff;
+  padding: 18px 24px;
+}
+
+.spk-modal__head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: "Fraunces", Georgia, serif;
+}
+
+.spk-modal__head p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.spk-modal__body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.spk-modal__field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6F6149;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.spk-modal__field input,
+.spk-modal__field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #D4C8AF;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #242016;
+  background: #FAFAF8;
+  transition: border-color 0.15s;
+  resize: vertical;
+}
+
+.spk-modal__field input:focus,
+.spk-modal__field textarea:focus {
+  outline: none;
+  border-color: #36177B;
+  background: #fff;
+}
+
+.spk-modal__foot {
+  padding: 16px 24px;
+  border-top: 1px solid #F0EBE3;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

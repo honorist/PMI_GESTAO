@@ -41,7 +41,7 @@
       documentos: { documentos: [] },
       equipe: { membros: [] },
       checklist: { itens: [] },
-      metas: { metas: [] }
+      palestrantes: { palcos: [] }
     };
   }
 
@@ -490,6 +490,15 @@
         "button.btn-primary, input, select, textarea"
       );
       if (temAcao) esconder(bar);
+    });
+
+    // 4) Campos de edição (select/input/textarea) — desabilita no modo
+    //    usuário. Cobre casos sem botão, como o <select> de status do
+    //    kanban de Contratações (mover item entre colunas).
+    mount.querySelectorAll("select, input, textarea").forEach(function (el) {
+      el.disabled = true;
+      el.setAttribute("aria-disabled", "true");
+      el.style.pointerEvents = "none";
     });
   }
 

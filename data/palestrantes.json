@@ -1,0 +1,28 @@
+{
+  "palcos": [
+    {
+      "id": "principal",
+      "nome": "Palco Principal",
+      "sessoes": [
+        { "id": "kn1", "horario": "08h30 - 09h30", "titulo": "Keynote 1", "tipo": "keynote", "palestrante": "", "empresa": "", "tema": "" },
+        { "id": "a1",  "horario": "10h00 - 11h00", "titulo": "Sessão paralela A1", "tipo": "sessao", "palestrante": "", "empresa": "", "tema": "" },
+        { "id": "a2",  "horario": "11h00 - 12h00", "titulo": "Sessão paralela A2", "tipo": "sessao", "palestrante": "", "empresa": "", "tema": "" },
+        { "id": "kn2", "horario": "13h30 - 14h30", "titulo": "Keynote 2", "tipo": "keynote", "palestrante": "", "empresa": "", "tema": "" },
+        { "id": "a3",  "horario": "14h30 - 15h30", "titulo": "Sessão paralela A3", "tipo": "sessao", "palestrante": "", "empresa": "", "tema": "" },
+        { "id": "a4",  "horario": "16h00 - 17h00", "titulo": "Sessão paralela A4", "tipo": "sessao", "palestrante": "", "empresa": "", "tema": "" },
+        { "id": "kn3", "horario": "17h00 - 18h00", "titulo": "Keynote 3", "tipo": "keynote", "palestrante": "Gino Terentim", "empresa": "PMI", "tema": "" }
+      ]
+    },
+    {
+      "id": "secundario",
+      "nome": "Palco Secundário",
+      "sessoes": [
+        { "id": "b1",   "horario": "10h00 - 11h00", "titulo": "Melhores do Ano – Projeto", "tipo": "especial", "palestrante": "", "empresa": "", "tema": "" },
+        { "id": "b2",   "horario": "11h00 - 12h00", "titulo": "Sessão paralela B2", "tipo": "sessao", "palestrante": "", "empresa": "", "tema": "" },
+        { "id": "b3",   "horario": "14h30 - 15h30", "titulo": "Melhores do Ano – PMO", "tipo": "especial", "palestrante": "", "empresa": "", "tema": "" },
+        { "id": "b4",   "horario": "16h00 - 17h00", "titulo": "Sessão paralela B4", "tipo": "sessao", "palestrante": "", "empresa": "", "tema": "" },
+        { "id": "prem", "horario": "17h00 - 18h00", "titulo": "Premiação", "tipo": "especial", "palestrante": "", "empresa": "", "tema": "" }
+      ]
+    }
+  ]
+}
