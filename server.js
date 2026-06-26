@@ -483,6 +483,18 @@ app.post("/api/votacao/votar", async (req, res) => {
   }
 });
 
+// Zera todos os votos (somente master).
+app.delete("/api/votacao/zerar", exigeMaster, async (_req, res) => {
+  if (!pool) return res.status(503).json({ error: "sem_banco" });
+  try {
+    await pool.query("delete from votos");
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("[DELETE /api/votacao/zerar]", e.message);
+    return res.status(500).json({ error: "erro_interno" });
+  }
+});
+
 // Resultado da votação: contagem por categoria e candidato.
 app.get("/api/votacao/resultado", async (_req, res) => {
   if (!pool) return res.status(503).json({ error: "sem_banco" });

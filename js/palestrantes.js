@@ -323,18 +323,37 @@
   var _resultadoTimer = null;
 
   function buildResultadoPanel(mount) {
+    var isMaster = window.Gestao && window.Gestao.role === "master";
     var painel = el("div", "spk-votacao-painel");
 
+    /* Cabeçalho */
     var head = el("div", "spk-votacao-head");
     head.appendChild(el("h2", "spk-votacao-titulo", "Resultado da Votação"));
+
+    var acoes = el("div", "spk-votacao-acoes");
+
     var linkEl = document.createElement("a");
     linkEl.href = "/votacao.html";
     linkEl.target = "_blank";
     linkEl.className = "btn sm";
-    linkEl.textContent = "Abrir página de votação ↗";
-    head.appendChild(linkEl);
+    linkEl.textContent = "Abrir votação ↗";
+    acoes.appendChild(linkEl);
+
+    if (isMaster) {
+      var btnZerar = el("button", "btn sm spk-btn-zerar", "Zerar votos");
+      btnZerar.type = "button";
+      acoes.appendChild(btnZerar);
+    }
+
+    head.appendChild(acoes);
     painel.appendChild(head);
 
+    /* Faixa de confirmação (oculta inicialmente) */
+    var faixaConfirm = el("div", "spk-votacao-confirm");
+    faixaConfirm.hidden = true;
+    painel.appendChild(faixaConfirm);
+
+    /* Corpo com resultados */
     var corpo = el("div", "spk-votacao-corpo");
     painel.appendChild(corpo);
 
@@ -343,6 +362,74 @@
 
     if (_resultadoTimer) clearInterval(_resultadoTimer);
     _resultadoTimer = setInterval(function () { carregarResultado(corpo); }, 10000);
+
+    /* ---- Dupla confirmação inline ---- */
+    if (!isMaster) return;
+
+    var etapa = 0; // 0 = idle, 1 = 1ª confirm, 2 = 2ª confirm
+
+    function mostrarEtapa1() {
+      etapa = 1;
+      limparEl(faixaConfirm);
+      faixaConfirm.hidden = false;
+
+      faixaConfirm.appendChild(el("span", "spk-confirm-msg", "Apagar todos os votos?"));
+
+      var btnCanc = el("button", "btn sm", "Cancelar");
+      btnCanc.type = "button";
+      btnCanc.addEventListener("click", cancelar);
+      faixaConfirm.appendChild(btnCanc);
+
+      var btnOk = el("button", "btn sm spk-btn-danger", "Confirmar");
+      btnOk.type = "button";
+      btnOk.addEventListener("click", mostrarEtapa2);
+      faixaConfirm.appendChild(btnOk);
+    }
+
+    function mostrarEtapa2() {
+      etapa = 2;
+      limparEl(faixaConfirm);
+
+      faixaConfirm.appendChild(el("span", "spk-confirm-msg spk-confirm-msg--alerta",
+        "Ação irreversível — todos os votos serão apagados!"));
+
+      var btnCanc = el("button", "btn sm", "Cancelar");
+      btnCanc.type = "button";
+      btnCanc.addEventListener("click", cancelar);
+      faixaConfirm.appendChild(btnCanc);
+
+      var btnFinal = el("button", "btn sm spk-btn-danger", "Zerar mesmo assim");
+      btnFinal.type = "button";
+      btnFinal.addEventListener("click", executarZerar);
+      faixaConfirm.appendChild(btnFinal);
+    }
+
+    function cancelar() {
+      etapa = 0;
+      faixaConfirm.hidden = true;
+      limparEl(faixaConfirm);
+    }
+
+    function executarZerar() {
+      var btnFinal = faixaConfirm.querySelector(".spk-btn-danger");
+      if (btnFinal) { btnFinal.disabled = true; btnFinal.textContent = "Zerando…"; }
+
+      fetch("/api/votacao/zerar", { method: "DELETE" })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.error) throw new Error(data.error);
+          cancelar();
+          carregarResultado(corpo);
+        })
+        .catch(function () {
+          cancelar();
+          alert("Erro ao zerar votação. Tente novamente.");
+        });
+    }
+
+    btnZerar.addEventListener("click", function () {
+      if (etapa === 0) mostrarEtapa1();
+    });
   }
 
   function carregarResultado(corpo) {
