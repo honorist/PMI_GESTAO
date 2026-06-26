@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Votação · PMIRS Summit 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple: #36177B;
+      --purple-dark: #260f5a;
+      --purple-light: #EDE8FB;
+      --teal: #1DA0A4;
+      --cream: #F6F4EF;
+      --ink: #1A1140;
+      --muted: #9A8E76;
+      --border: #D4C8AF;
+      --green: #2E6B38;
+      --green-bg: #EEF7F0;
+      --red: #B83713;
+    }
+
+    body {
+      font-family: "Manrope", system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* ---- Header ---- */
+    .vt-header {
+      background: var(--purple-dark);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+
+    .vt-header img {
+      height: 48px;
+      object-fit: contain;
+    }
+
+    .vt-header__divider {
+      width: 1px;
+      height: 40px;
+      background: rgba(255,255,255,0.25);
+    }
+
+    /* ---- Container ---- */
+    .vt-wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    /* ---- Telas ---- */
+    .vt-tela { display: none; }
+    .vt-tela.ativa { display: block; }
+
+    /* ---- Eyebrow / título ---- */
+    .vt-eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 8px;
+    }
+
+    .vt-titulo {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: clamp(26px, 5vw, 38px);
+      font-weight: 700;
+      color: var(--purple);
+      line-height: 1.15;
+      margin-bottom: 10px;
+    }
+
+    .vt-desc {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 520px;
+      margin-bottom: 32px;
+    }
+
+    /* ---- Formulário de código ---- */
+    .vt-form {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      max-width: 440px;
+    }
+
+    .vt-form label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .vt-form input[type="text"] {
+      width: 100%;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 18px;
+      font-family: "Manrope", sans-serif;
+      font-weight: 700;
+      letter-spacing: .05em;
+      color: var(--ink);
+      background: var(--cream);
+      text-transform: uppercase;
+      transition: border-color .15s;
+      margin-bottom: 16px;
+    }
+
+    .vt-form input[type="text"]:focus {
+      outline: none;
+      border-color: var(--purple);
+      background: #fff;
+    }
+
+    .vt-form input[type="text"]::placeholder {
+      color: var(--border);
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    /* ---- Botões ---- */
+    .btn-vt {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      transition: opacity .15s, transform .1s;
+    }
+
+    .btn-vt:active { transform: scale(.97); }
+    .btn-vt:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-vt--primary {
+      background: var(--purple);
+      color: #fff;
+      width: 100%;
+    }
+
+    .btn-vt--primary:hover:not(:disabled) { background: var(--purple-dark); }
+
+    .btn-vt--votar {
+      background: var(--purple);
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 14px;
+      border-radius: 8px;
+    }
+
+    .btn-vt--votar:hover:not(:disabled) { background: var(--purple-dark); }
+
+    /* ---- Alerta de erro ---- */
+    .vt-alerta {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: var(--red);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .vt-alerta.visivel { display: block; }
+
+    /* ---- Categorias de votação ---- */
+    .vt-cats {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      margin-top: 8px;
+    }
+
+    .vt-cat {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .vt-cat__head {
+      background: var(--purple);
+      color: #fff;
+      padding: 16px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .vt-cat__titulo {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .vt-cat__status {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .vt-cat__status--pendente {
+      background: rgba(255,255,255,.2);
+      color: #fff;
+    }
+
+    .vt-cat__status--votado {
+      background: var(--green-bg);
+      color: var(--green);
+    }
+
+    .vt-cand {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--cream);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .vt-cand:last-child { border-bottom: none; }
+
+    .vt-cand__info { flex: 1; min-width: 0; }
+
+    .vt-cand__titulo {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    .vt-cand__palestrante {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .vt-cand--selecionado {
+      background: var(--purple-light);
+    }
+
+    .vt-cand--selecionado .vt-cand__titulo { color: var(--purple); }
+
+    .vt-check {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .vt-cand--selecionado .vt-check {
+      background: var(--purple);
+      border-color: var(--purple);
+    }
+
+    .vt-check-icon {
+      display: none;
+      color: #fff;
+      font-size: 13px;
+    }
+
+    .vt-cand--selecionado .vt-check-icon { display: block; }
+
+    .vt-cat--votado .btn-vt--votar { display: none; }
+
+    .vt-votado-badge {
+      display: none;
+      background: var(--green-bg);
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 16px;
+      border-radius: 8px;
+      margin: 0 22px 16px;
+      text-align: center;
+    }
+
+    .vt-cat--votado .vt-votado-badge { display: block; }
+
+    .vt-cat__footer {
+      padding: 12px 22px 18px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* ---- Progresso geral ---- */
+    .vt-progress {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 22px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .vt-progress__bar-wrap {
+      flex: 1;
+      height: 8px;
+      background: var(--cream);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .vt-progress__bar {
+      height: 100%;
+      background: var(--purple);
+      border-radius: 4px;
+      transition: width .4s;
+    }
+
+    .vt-progress__txt {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--purple);
+      white-space: nowrap;
+    }
+
+    /* ---- Tela de confirmação ---- */
+    .vt-confirmacao {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .vt-confirmacao__icon {
+      width: 72px;
+      height: 72px;
+      background: var(--green-bg);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin: 0 auto 24px;
+    }
+
+    .vt-confirmacao__titulo {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--purple);
+      margin-bottom: 12px;
+    }
+
+    .vt-confirmacao__desc {
+      font-size: 16px;
+      color: var(--muted);
+      max-width: 420px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ---- Loading spinner ---- */
+    .vt-loading {
+      text-align: center;
+      padding: 48px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<header class="vt-header">
+  <img src="assets/logo-summit.png" alt="PMIRS Summit 2026" />
+  <div class="vt-header__divider"></div>
+  <img src="assets/pmirs-horizontal-color.png" alt="PMI Rio Grande do Sul" />
+</header>
+
+<div class="vt-wrap">
+
+  <!-- TELA 1: Código de inscrição -->
+  <div class="vt-tela ativa" id="tela-codigo">
+    <p class="vt-eyebrow">Votação Popular · Summit 2026</p>
+    <h1 class="vt-titulo">Vote nos<br>Melhores do Ano</h1>
+    <p class="vt-desc">
+      Digite seu código de inscrição para acessar a votação.
+      Você pode votar uma vez em cada categoria.
+    </p>
+
+    <div class="vt-form">
+      <div class="vt-alerta" id="alerta-codigo"></div>
+      <label for="inp-codigo">Código de inscrição</label>
+      <input type="text" id="inp-codigo" placeholder="Ex.: SUMMIT-1234" autocomplete="off" spellcheck="false" />
+      <button class="btn-vt btn-vt--primary" id="btn-entrar">Acessar votação</button>
+    </div>
+  </div>
+
+  <!-- TELA 2: Votação -->
+  <div class="vt-tela" id="tela-votar">
+    <p class="vt-eyebrow">Votação Popular · Summit 2026</p>
+    <h1 class="vt-titulo">Escolha seus<br>favoritos</h1>
+    <p class="vt-desc" id="desc-codigo"></p>
+
+    <div class="vt-progress">
+      <div class="vt-progress__bar-wrap">
+        <div class="vt-progress__bar" id="barra-progresso" style="width:0%"></div>
+      </div>
+      <span class="vt-progress__txt" id="txt-progresso">0 de 2 votos</span>
+    </div>
+
+    <div class="vt-loading" id="loading-cands">Carregando candidatos…</div>
+    <div class="vt-cats" id="cats-wrap" style="display:none"></div>
+  </div>
+
+  <!-- TELA 3: Confirmação -->
+  <div class="vt-tela" id="tela-ok">
+    <div class="vt-confirmacao">
+      <div class="vt-confirmacao__icon">&#10003;</div>
+      <h2 class="vt-confirmacao__titulo">Obrigado pelo voto!</h2>
+      <p class="vt-confirmacao__desc">
+        Seus votos foram registrados com sucesso.<br>
+        O resultado será divulgado durante a premiação.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var codigo = "";
+  var jaVotou = [];
+  var votos = {};
+  var categorias = {};
+
+  function byId(id) { return document.getElementById(id); }
+
+  function mostrarTela(id) {
+    document.querySelectorAll(".vt-tela").forEach(function (t) { t.classList.remove("ativa"); });
+    byId(id).classList.add("ativa");
+  }
+
+  function atualizarProgresso() {
+    var total = Object.keys(categorias).length;
+    var feitos = jaVotou.length;
+    var pct = total > 0 ? Math.round(feitos / total * 100) : 0;
+    byId("barra-progresso").style.width = pct + "%";
+    byId("txt-progresso").textContent = feitos + " de " + total + " votos";
+    if (feitos >= total && total > 0) {
+      setTimeout(function () { mostrarTela("tela-ok"); }, 900);
+    }
+  }
+
+  /* ---- TELA 1 ---- */
+  byId("btn-entrar").addEventListener("click", function () {
+    var val = byId("inp-codigo").value.trim().toUpperCase();
+    if (!val) { mostrarAlerta("Digite seu código de inscrição."); return; }
+
+    byId("btn-entrar").disabled = true;
+    byId("btn-entrar").textContent = "Verificando…";
+
+    fetch("/api/votacao/situacao?codigo=" + encodeURIComponent(val))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) throw new Error(data.error);
+        codigo = data.codigo;
+        jaVotou = data.ja_votou || [];
+        byId("btn-entrar").disabled = false;
+        byId("btn-entrar").textContent = "Acessar votação";
+        esconderAlerta();
+        byId("desc-codigo").textContent = "Código: " + codigo;
+        mostrarTela("tela-votar");
+        carregarCandidatos();
+      })
+      .catch(function () {
+        byId("btn-entrar").disabled = false;
+        byId("btn-entrar").textContent = "Acessar votação";
+        mostrarAlerta("Não foi possível verificar o código. Tente novamente.");
+      });
+  });
+
+  byId("inp-codigo").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") byId("btn-entrar").click();
+  });
+
+  function mostrarAlerta(msg) {
+    var el = byId("alerta-codigo");
+    el.textContent = msg;
+    el.classList.add("visivel");
+  }
+
+  function esconderAlerta() {
+    byId("alerta-codigo").classList.remove("visivel");
+  }
+
+  /* ---- TELA 2 ---- */
+  function carregarCandidatos() {
+    fetch("/api/votacao/candidatos")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        categorias = data;
+        byId("loading-cands").style.display = "none";
+        byId("cats-wrap").style.display = "flex";
+        renderCategorias();
+        atualizarProgresso();
+      })
+      .catch(function () {
+        byId("loading-cands").textContent = "Erro ao carregar candidatos. Recarregue a página.";
+      });
+  }
+
+  function renderCategorias() {
+    var wrap = byId("cats-wrap");
+    while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
+    Object.keys(categorias).forEach(function (catId) {
+      var jaVotouNessa = jaVotou.indexOf(catId) !== -1;
+      wrap.appendChild(buildCard(catId, categorias[catId], jaVotouNessa));
+    });
+  }
+
+  function buildCard(catId, cat, jaVotouNessa) {
+    var card = document.createElement("div");
+    card.className = "vt-cat" + (jaVotouNessa ? " vt-cat--votado" : "");
+    card.id = "cat-" + catId;
+
+    var head = document.createElement("div");
+    head.className = "vt-cat__head";
+    var titulo = document.createElement("span");
+    titulo.className = "vt-cat__titulo";
+    titulo.textContent = cat.label;
+    head.appendChild(titulo);
+    var status = document.createElement("span");
+    status.className = "vt-cat__status " + (jaVotouNessa ? "vt-cat__status--votado" : "vt-cat__status--pendente");
+    status.textContent = jaVotouNessa ? "✓ Votado" : "Pendente";
+    head.appendChild(status);
+    card.appendChild(head);
+
+    var badge = document.createElement("div");
+    badge.className = "vt-votado-badge";
+    badge.textContent = "Seu voto foi registrado nesta categoria.";
+    card.appendChild(badge);
+
+    (cat.candidatos || []).forEach(function (cand) {
+      var row = document.createElement("div");
+      row.className = "vt-cand";
+      row.id = "cand-" + catId + "-" + cand.id;
+
+      var check = document.createElement("div");
+      check.className = "vt-check";
+      var checkIcon = document.createElement("span");
+      checkIcon.className = "vt-check-icon";
+      checkIcon.textContent = "✓";
+      check.appendChild(checkIcon);
+      row.appendChild(check);
+
+      var info = document.createElement("div");
+      info.className = "vt-cand__info";
+      var titEl = document.createElement("div");
+      titEl.className = "vt-cand__titulo";
+      titEl.textContent = cand.titulo;
+      info.appendChild(titEl);
+      if (cand.palestrante) {
+        var palEl = document.createElement("div");
+        palEl.className = "vt-cand__palestrante";
+        palEl.textContent = cand.palestrante + (cand.empresa ? " \xB7 " + cand.empresa : "");
+        info.appendChild(palEl);
+      }
+      row.appendChild(info);
+
+      if (!jaVotouNessa) {
+        var btn = document.createElement("button");
+        btn.className = "btn-vt btn-vt--votar";
+        btn.textContent = "Votar";
+        btn.setAttribute("data-cat", catId);
+        btn.setAttribute("data-cand", cand.id);
+        (function (c, ci) {
+          btn.addEventListener("click", function () { registrarVoto(c, ci); });
+        }(catId, cand.id));
+        row.appendChild(btn);
+      }
+
+      card.appendChild(row);
+    });
+
+    return card;
+  }
+
+  function registrarVoto(catId, candId) {
+    var card = byId("cat-" + catId);
+    card.querySelectorAll(".btn-vt--votar").forEach(function (b) { b.disabled = true; });
+    card.querySelectorAll(".vt-cand").forEach(function (r) { r.classList.remove("vt-cand--selecionado"); });
+    var rowEl = byId("cand-" + catId + "-" + candId);
+    if (rowEl) rowEl.classList.add("vt-cand--selecionado");
+
+    fetch("/api/votacao/votar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codigo: codigo, categoria: catId, candidato_id: candId })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error && data.error !== "ja_votou") throw new Error(data.error);
+        votos[catId] = candId;
+        if (jaVotou.indexOf(catId) === -1) jaVotou.push(catId);
+        marcarVotado(catId);
+        atualizarProgresso();
+      })
+      .catch(function () {
+        card.querySelectorAll(".btn-vt--votar").forEach(function (b) { b.disabled = false; });
+        if (rowEl) rowEl.classList.remove("vt-cand--selecionado");
+        alert("Erro ao registrar voto. Tente novamente.");
+      });
+  }
+
+  function marcarVotado(catId) {
+    var card = byId("cat-" + catId);
+    if (!card) return;
+    card.classList.add("vt-cat--votado");
+    var statusEl = card.querySelector(".vt-cat__status");
+    if (statusEl) {
+      statusEl.textContent = "✓ Votado";
+      statusEl.className = "vt-cat__status vt-cat__status--votado";
+    }
+  }
+
+})();
+</script>
+</body>
+</html>

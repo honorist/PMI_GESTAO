@@ -315,6 +315,85 @@
       grid.appendChild(buildCard(palco, isMaster, onEdit));
     });
     mount.appendChild(grid);
+
+    buildResultadoPanel(mount);
+  }
+
+  /* ---- Painel de resultado da votação ---- */
+  var _resultadoTimer = null;
+
+  function buildResultadoPanel(mount) {
+    var painel = el("div", "spk-votacao-painel");
+
+    var head = el("div", "spk-votacao-head");
+    head.appendChild(el("h2", "spk-votacao-titulo", "Resultado da Votação"));
+    var linkEl = document.createElement("a");
+    linkEl.href = "/votacao.html";
+    linkEl.target = "_blank";
+    linkEl.className = "btn sm";
+    linkEl.textContent = "Abrir página de votação ↗";
+    head.appendChild(linkEl);
+    painel.appendChild(head);
+
+    var corpo = el("div", "spk-votacao-corpo");
+    painel.appendChild(corpo);
+
+    mount.appendChild(painel);
+    carregarResultado(corpo);
+
+    if (_resultadoTimer) clearInterval(_resultadoTimer);
+    _resultadoTimer = setInterval(function () { carregarResultado(corpo); }, 10000);
+  }
+
+  function carregarResultado(corpo) {
+    fetch("/api/votacao/resultado")
+      .then(function (r) { return r.json(); })
+      .then(function (resultado) { renderResultado(corpo, resultado); })
+      .catch(function () { /* próximo tick vai tentar de novo */ });
+  }
+
+  var CATS_LABELS = {
+    "melhor-projeto": "Melhor Projeto",
+    "melhor-pmo":     "Melhor PMO"
+  };
+
+  function limparEl(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function renderResultado(corpo, resultado) {
+    limparEl(corpo);
+    var algumVoto = false;
+
+    Object.keys(CATS_LABELS).forEach(function (catId) {
+      var secao = el("div", "spk-votacao-cat");
+      secao.appendChild(el("h3", "spk-votacao-cat-titulo", CATS_LABELS[catId]));
+
+      var candidatos = resultado[catId] || [];
+      if (!candidatos.length) {
+        secao.appendChild(el("p", "spk-votacao-empty", "Nenhum voto ainda."));
+      } else {
+        algumVoto = true;
+        var maxVotos = candidatos[0].votos;
+        candidatos.forEach(function (c) {
+          var pct = maxVotos > 0 ? Math.round(c.votos / maxVotos * 100) : 0;
+          var linha = el("div", "spk-votacao-linha");
+          linha.appendChild(el("span", "spk-votacao-cand", c.candidato_id));
+          var barWrap = el("div", "spk-votacao-bar-wrap");
+          var bar = el("div", "spk-votacao-bar");
+          bar.style.width = pct + "%";
+          barWrap.appendChild(bar);
+          linha.appendChild(barWrap);
+          linha.appendChild(el("span", "spk-votacao-cnt", c.votos + " voto" + (c.votos !== 1 ? "s" : "")));
+          secao.appendChild(linha);
+        });
+      }
+      corpo.appendChild(secao);
+    });
+
+    if (!algumVoto) {
+      corpo.insertBefore(el("p", "spk-votacao-empty", "Aguardando votos…"), corpo.firstChild);
+    }
   }
 
   /* ---- Registro ---- */
