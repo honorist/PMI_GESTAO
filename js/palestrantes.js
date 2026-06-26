@@ -19,6 +19,32 @@
     "family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&" +
     "family=Manrope:wght@400;500;600;700&display=swap";
 
+  /* ---- Dados padrão dos palcos (usados quando o banco não tem ainda) ---- */
+  var PALCOS_DEFAULT = [
+    {
+      id: "principal", nome: "Palco Principal",
+      sessoes: [
+        { id: "kn1", horario: "08h30 - 09h30", titulo: "Keynote 1",            tipo: "keynote",  palestrante: "",               empresa: "", tema: "" },
+        { id: "a1",  horario: "10h00 - 11h00", titulo: "Sessão paralela A1",   tipo: "sessao",   palestrante: "",               empresa: "", tema: "" },
+        { id: "a2",  horario: "11h00 - 12h00", titulo: "Sessão paralela A2",   tipo: "sessao",   palestrante: "",               empresa: "", tema: "" },
+        { id: "kn2", horario: "13h30 - 14h30", titulo: "Keynote 2",            tipo: "keynote",  palestrante: "",               empresa: "", tema: "" },
+        { id: "a3",  horario: "14h30 - 15h30", titulo: "Sessão paralela A3",   tipo: "sessao",   palestrante: "",               empresa: "", tema: "" },
+        { id: "a4",  horario: "16h00 - 17h00", titulo: "Sessão paralela A4",   tipo: "sessao",   palestrante: "",               empresa: "", tema: "" },
+        { id: "kn3", horario: "17h00 - 18h00", titulo: "Keynote 3",            tipo: "keynote",  palestrante: "Gino Terentim",  empresa: "PMI", tema: "" }
+      ]
+    },
+    {
+      id: "secundario", nome: "Palco Secundário",
+      sessoes: [
+        { id: "b1",   horario: "10h00 - 11h00", titulo: "Melhores do Ano – Projeto", tipo: "especial", palestrante: "", empresa: "", tema: "" },
+        { id: "b2",   horario: "11h00 - 12h00", titulo: "Sessão paralela B2",        tipo: "sessao",   palestrante: "", empresa: "", tema: "" },
+        { id: "b3",   horario: "14h30 - 15h30", titulo: "Melhores do Ano – PMO",     tipo: "especial", palestrante: "", empresa: "", tema: "" },
+        { id: "b4",   horario: "16h00 - 17h00", titulo: "Sessão paralela B4",        tipo: "sessao",   palestrante: "", empresa: "", tema: "" },
+        { id: "prem", horario: "17h00 - 18h00", titulo: "Premiação",                 tipo: "especial", palestrante: "", empresa: "", tema: "" }
+      ]
+    }
+  ];
+
   /* ---- Injeção de estilos (uma vez) ---- */
   function ensureStyles() {
     if (!document.getElementById("spk-fonts")) {
@@ -194,7 +220,15 @@
     data = data || {};
 
     var plData = data.palestrantes || {};
-    var palcos = plData.palcos || [];
+    var palcos = (plData.palcos && plData.palcos.length) ? plData.palcos : null;
+
+    /* Banco existente sem palestrantes: auto-inicializa e salva */
+    if (!palcos) {
+      palcos = JSON.parse(JSON.stringify(PALCOS_DEFAULT));
+      plData.palcos = palcos;
+      data.palestrantes = plData;
+      if (window.Gestao && window.Gestao.save) window.Gestao.save();
+    }
     var t = totais(palcos);
 
     mount.appendChild(window.Gestao.pageHeader({
