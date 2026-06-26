@@ -36,14 +36,47 @@
     {
       id: "secundario", nome: "Palco Secundário",
       sessoes: [
-        { id: "b1",   horario: "10h00 - 11h00", titulo: "Melhores do Ano – Projeto", tipo: "especial", palestrante: "", empresa: "", tema: "" },
-        { id: "b2",   horario: "11h00 - 12h00", titulo: "Sessão paralela B2",        tipo: "sessao",   palestrante: "", empresa: "", tema: "" },
-        { id: "b3",   horario: "14h30 - 15h30", titulo: "Melhores do Ano – PMO",     tipo: "especial", palestrante: "", empresa: "", tema: "" },
-        { id: "b4",   horario: "16h00 - 17h00", titulo: "Sessão paralela B4",        tipo: "sessao",   palestrante: "", empresa: "", tema: "" },
-        { id: "prem", horario: "17h00 - 18h00", titulo: "Premiação",                 tipo: "especial", palestrante: "", empresa: "", tema: "" }
+        { id: "proj1", horario: "10h00 - 10h20", titulo: "Melhores do Ano – Projeto · Apresentação 1", tipo: "especial", palestrante: "", empresa: "", tema: "" },
+        { id: "proj2", horario: "10h20 - 10h40", titulo: "Melhores do Ano – Projeto · Apresentação 2", tipo: "especial", palestrante: "", empresa: "", tema: "" },
+        { id: "proj3", horario: "10h40 - 11h00", titulo: "Melhores do Ano – Projeto · Apresentação 3", tipo: "especial", palestrante: "", empresa: "", tema: "" },
+        { id: "b2",    horario: "11h00 - 12h00", titulo: "Sessão paralela B2",                          tipo: "sessao",   palestrante: "", empresa: "", tema: "" },
+        { id: "pmo1",  horario: "14h30 - 14h50", titulo: "Melhores do Ano – PMO · Apresentação 1",     tipo: "especial", palestrante: "", empresa: "", tema: "" },
+        { id: "pmo2",  horario: "14h50 - 15h10", titulo: "Melhores do Ano – PMO · Apresentação 2",     tipo: "especial", palestrante: "", empresa: "", tema: "" },
+        { id: "pmo3",  horario: "15h10 - 15h30", titulo: "Melhores do Ano – PMO · Apresentação 3",     tipo: "especial", palestrante: "", empresa: "", tema: "" },
+        { id: "b4",    horario: "16h00 - 17h00", titulo: "Sessão paralela B4",                          tipo: "sessao",   palestrante: "", empresa: "", tema: "" },
+        { id: "prem",  horario: "17h00 - 18h00", titulo: "Premiação",                                   tipo: "especial", palestrante: "", empresa: "", tema: "" }
       ]
     }
   ];
+
+  /* ---- Migração: expande b1/b3 legados para 3 slots de 20 min ---- */
+  function migrarMelhoresDoAno(palcos) {
+    var mudou = false;
+    for (var i = 0; i < palcos.length; i++) {
+      var palco = palcos[i];
+      if (palco.id !== "secundario") continue;
+      var antigas = palco.sessoes || [];
+      var novas = [];
+      for (var j = 0; j < antigas.length; j++) {
+        var s = antigas[j];
+        if (s.id === "b1") {
+          novas.push({ id:"proj1", horario:"10h00 - 10h20", titulo:"Melhores do Ano – Projeto · Apresentação 1", tipo:"especial", palestrante:"", empresa:"", tema:"" });
+          novas.push({ id:"proj2", horario:"10h20 - 10h40", titulo:"Melhores do Ano – Projeto · Apresentação 2", tipo:"especial", palestrante:"", empresa:"", tema:"" });
+          novas.push({ id:"proj3", horario:"10h40 - 11h00", titulo:"Melhores do Ano – Projeto · Apresentação 3", tipo:"especial", palestrante:"", empresa:"", tema:"" });
+          mudou = true;
+        } else if (s.id === "b3") {
+          novas.push({ id:"pmo1", horario:"14h30 - 14h50", titulo:"Melhores do Ano – PMO · Apresentação 1", tipo:"especial", palestrante:"", empresa:"", tema:"" });
+          novas.push({ id:"pmo2", horario:"14h50 - 15h10", titulo:"Melhores do Ano – PMO · Apresentação 2", tipo:"especial", palestrante:"", empresa:"", tema:"" });
+          novas.push({ id:"pmo3", horario:"15h10 - 15h30", titulo:"Melhores do Ano – PMO · Apresentação 3", tipo:"especial", palestrante:"", empresa:"", tema:"" });
+          mudou = true;
+        } else {
+          novas.push(s);
+        }
+      }
+      palco.sessoes = novas;
+    }
+    return mudou;
+  }
 
   /* ---- Injeção de estilos (uma vez) ---- */
   function ensureStyles() {
@@ -228,7 +261,12 @@
       plData.palcos = palcos;
       data.palestrantes = plData;
       if (window.Gestao && window.Gestao.save) window.Gestao.save();
+    } else if (migrarMelhoresDoAno(palcos)) {
+      /* Banco com sessões legadas b1/b3: migra para slots de 20 min e salva */
+      data.palestrantes = plData;
+      if (window.Gestao && window.Gestao.save) window.Gestao.save();
     }
+
     var t = totais(palcos);
 
     mount.appendChild(window.Gestao.pageHeader({
