@@ -297,17 +297,44 @@
     return (abr[m] || p[1]) + "/" + p[0];
   }
 
-  function addDesembolso(fId, mes, valor) {
+  function maskBRL(input) {
+    input.type = "text";
+    input.inputMode = "numeric";
+    input.addEventListener("input", function () {
+      var digits = input.value.replace(/\D/g, "");
+      if (!digits) { input.value = ""; return; }
+      var num = parseInt(digits, 10) / 100;
+      input.value = num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    });
+  }
+
+  function parseBRLInput(input) {
+    return parseFloat(input.value.replace(/\./g, "").replace(",", ".")) || 0;
+  }
+
+  function advanceMes(mesStr) {
+    if (!mesStr) {
+      var n = new Date();
+      return n.getFullYear() + "-" + String(n.getMonth() + 2 > 12 ? 1 : n.getMonth() + 2).padStart(2, "0");
+    }
+    var p = mesStr.split("-");
+    var y = parseInt(p[0], 10), m = parseInt(p[1], 10) + 1;
+    if (m > 12) { m = 1; y++; }
+    return y + "-" + String(m).padStart(2, "0");
+  }
+
+  function addDesembolso(fId, mes, previsto, realizado) {
     var list = getFornecedores();
     for (var i = 0; i < list.length; i++) {
       if (list[i].id !== fId) continue;
       var arr = Array.isArray(list[i].desembolsos) ? list[i].desembolsos.slice() : [];
+      var entry = { mes: mes, previsto: previsto, realizado: toNumber(realizado) };
       var found = false;
       for (var j = 0; j < arr.length; j++) {
-        if (arr[j].mes === mes) { arr[j] = { mes: mes, valor: valor }; found = true; break; }
+        if (arr[j].mes === mes) { arr[j] = entry; found = true; break; }
       }
       if (!found) {
-        arr.push({ mes: mes, valor: valor });
+        arr.push(entry);
         arr.sort(function (a, b) { return a.mes < b.mes ? -1 : 1; });
       }
       list[i] = Object.assign({}, list[i], { desembolsos: arr });
@@ -333,16 +360,31 @@
   function buildDesembolsoPanel(f) {
     var Gestao = window.Gestao;
     var desembolsos = Array.isArray(f.desembolsos) ? f.desembolsos : [];
-    var totalD = desembolsos.reduce(function (s, d) { return s + toNumber(d.valor); }, 0);
+    // compat: entradas antigas podem ter campo "valor" em vez de "previsto"
+    var totalPrev = desembolsos.reduce(function (s, d) {
+      return s + toNumber(d.previsto !== undefined ? d.previsto : d.valor);
+    }, 0);
+    var totalReal = desembolsos.reduce(function (s, d) { return s + toNumber(d.realizado); }, 0);
     var valorC = toNumber(f.valor);
-
     var panel = el("div", "ctr-desemp-panel");
 
     if (desembolsos.length) {
       var table = document.createElement("table");
       table.className = "ctr-desemp-table";
+      var thead = document.createElement("thead");
+      var headRow = document.createElement("tr");
+      ["Mes","Previsto","Realizado",""].forEach(function (h) {
+        var th = el("th", null, h);
+        th.style.cssText = "font-size:.7rem;color:var(--muted);font-weight:600;padding:1px 4px;text-align:left;";
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
       desembolsos.forEach(function (d) {
         var tr = document.createElement("tr");
+        var prev = toNumber(d.previsto !== undefined ? d.previsto : d.valor);
+        var real = toNumber(d.realizado);
         var delBtn = el("button", "btn btn-ghost sm", "x");
         delBtn.type = "button";
         delBtn.style.padding = "0 5px";
@@ -350,49 +392,51 @@
         var tdDel = document.createElement("td");
         tdDel.appendChild(delBtn);
         tr.appendChild(el("td", null, fmtMes(d.mes)));
-        tr.appendChild(el("td", "ctr-desemp-val", Gestao.fmtBRL(d.valor)));
+        tr.appendChild(el("td", "ctr-desemp-val", Gestao.fmtBRL(prev)));
+        tr.appendChild(el("td", "ctr-desemp-val", real > 0 ? Gestao.fmtBRL(real) : "-"));
         tr.appendChild(tdDel);
         table.appendChild(tr);
       });
       panel.appendChild(table);
 
-      var diff = valorC - totalD;
+      var diff = valorC - totalPrev;
       var ok = Math.abs(diff) < 1;
-      var msg = ok
-        ? "OK " + Gestao.fmtBRL(totalD) + " / " + Gestao.fmtBRL(valorC)
-        : (diff > 0 ? "faltam " + Gestao.fmtBRL(diff) : "excede " + Gestao.fmtBRL(-diff));
-      var totalEl = el("div", null, msg);
-      totalEl.style.cssText = "font-size:.75rem;font-weight:600;color:" + (ok ? "var(--green,#1F9D6B)" : "#d97706") + ";margin-bottom:4px;";
+      var status = ok ? "OK" : (diff > 0 ? "faltam " + Gestao.fmtBRL(diff) : "excede " + Gestao.fmtBRL(-diff));
+      var totalEl = el("div", null, status + "  Prev: " + Gestao.fmtBRL(totalPrev) + "  Real: " + Gestao.fmtBRL(totalReal));
+      totalEl.style.cssText = "font-size:.72rem;font-weight:600;color:" + (ok ? "var(--green,#1F9D6B)" : "#d97706") + ";margin:.4rem 0;";
       panel.appendChild(totalEl);
     }
 
+    // Linha de adição — mês padrão = ultimo cadastrado + 1
+    var lastMes = desembolsos.length ? desembolsos[desembolsos.length - 1].mes : null;
     var addRow = el("div", "ctr-desemp-add");
     var mesInput = document.createElement("input");
     mesInput.type = "month";
     mesInput.className = "ctr-desemp-mes";
-    var now = new Date();
-    var ny = now.getFullYear(), nm = now.getMonth() + 2;
-    if (nm > 12) { nm = 1; ny++; }
-    mesInput.value = ny + "-" + String(nm).padStart(2, "0");
+    mesInput.value = advanceMes(lastMes);
 
-    var valInput = document.createElement("input");
-    valInput.type = "number";
-    valInput.className = "ctr-desemp-valor";
-    valInput.placeholder = "Valor";
-    valInput.min = "0";
-    valInput.step = "0.01";
+    var prevInput = document.createElement("input");
+    prevInput.className = "ctr-desemp-valor";
+    prevInput.placeholder = "Previsto";
+    maskBRL(prevInput);
+
+    var realInput = document.createElement("input");
+    realInput.className = "ctr-desemp-valor";
+    realInput.placeholder = "Realizado";
+    maskBRL(realInput);
 
     var addBtn = el("button", "btn btn-primary sm", "+");
     addBtn.type = "button";
     addBtn.addEventListener("click", function () {
       var mes = mesInput.value;
-      var val = toNumber(valInput.value);
-      if (!mes || val <= 0) return;
-      addDesembolso(f.id, mes, val);
+      var prev = parseBRLInput(prevInput);
+      if (!mes || prev <= 0) return;
+      addDesembolso(f.id, mes, prev, parseBRLInput(realInput));
     });
 
     addRow.appendChild(mesInput);
-    addRow.appendChild(valInput);
+    addRow.appendChild(prevInput);
+    addRow.appendChild(realInput);
     addRow.appendChild(addBtn);
     panel.appendChild(addRow);
     return panel;
