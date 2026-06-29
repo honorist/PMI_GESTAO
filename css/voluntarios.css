@@ -1,0 +1,262 @@
+/* ============================================================
+   voluntarios.css — estilos do módulo Voluntários
+   ------------------------------------------------------------
+   Complementa app.css / tokens.css. Cobre o agrupamento por dia
+   (cabeçalho colorido por dia), os cards de voluntário e o modal.
+   Injetado por js/voluntarios.js via <link> no <head>.
+   ============================================================ */
+
+/* ============================================================
+   Seção por dia
+   ============================================================ */
+.vol-dia {
+  margin-top: 6px;
+}
+.vol-dia + .vol-dia {
+  margin-top: 24px;
+}
+
+.vol-dia__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border-radius: var(--rad-sm);
+  border-left: 5px solid transparent;
+}
+
+/* Dia 13 — azul */
+.vol-dia--13 {
+  background: #eef4fd;
+  border-left-color: #2563eb;
+}
+.vol-dia--13 .vol-dia__title { color: #1d4ed8; }
+
+/* Dia 14 — verde */
+.vol-dia--14 {
+  background: #edfaf3;
+  border-left-color: #16a34a;
+}
+.vol-dia--14 .vol-dia__title { color: #15803d; }
+
+/* Ambos os dias — roxo */
+.vol-dia--ambos {
+  background: #f3f0fd;
+  border-left-color: var(--purple, #36177B);
+}
+.vol-dia--ambos .vol-dia__title { color: var(--purple, #36177B); }
+
+/* Dia não definido — cinza */
+.vol-dia--outro {
+  background: var(--card-cream, #f8f5ef);
+  border-left-color: var(--muted, #9a8f78);
+}
+.vol-dia--outro .vol-dia__title { color: var(--muted, #9a8f78); }
+
+.vol-dia__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.vol-dia__count {
+  margin-left: auto;
+  font-size: .78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Grade de cards
+   ============================================================ */
+.vol-grid {
+  align-items: start;
+}
+
+/* ============================================================
+   Card de voluntário
+   ============================================================ */
+.vol-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vol-card__nome {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.vol-card__nome.is-vazio {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.vol-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 2px 0;
+}
+
+/* Badge da função */
+.vol-badge-funcao {
+  background: #f0edf9;
+  color: var(--purple, #36177B);
+  border: 1px solid #d9d0f3;
+  font-size: .72rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+
+/* Badge do dia */
+.vol-badge-dia {
+  font-size: .67rem;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-weight: 600;
+}
+.vol-badge-dia--13    { background: #dbeafe; color: #1e40af; }
+.vol-badge-dia--14    { background: #dcfce7; color: #166534; }
+.vol-badge-dia--ambos { background: #ede9fe; color: #6b21a8; }
+
+/* ============================================================
+   Contatos
+   ============================================================ */
+.vol-card__contatos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.vol-contato {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: .85rem;
+}
+
+.vol-contato__rot {
+  flex: none;
+  width: 72px;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+}
+
+.vol-link {
+  color: var(--purple-2, #5b21b6);
+  word-break: break-word;
+}
+.vol-link:hover {
+  text-decoration: underline;
+}
+
+.vol-contato__vazio {
+  color: var(--muted);
+}
+
+/* ============================================================
+   Ações do card
+   ============================================================ */
+.vol-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* ============================================================
+   Formulário (modal)
+   ============================================================ */
+.vol-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+}
+.vol-form .vol-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vol-form .vol-field.full {
+  grid-column: 1 / -1;
+}
+.vol-form label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.vol-form input,
+.vol-form select,
+.vol-form textarea {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  background: var(--card);
+  color: var(--ink);
+  width: 100%;
+  font-family: inherit;
+  font-size: .9rem;
+}
+.vol-form input::placeholder {
+  color: #9a8f78;
+}
+.vol-form input:focus,
+.vol-form select:focus,
+.vol-form textarea:focus {
+  outline: 2px solid var(--teal, #0d9488);
+  outline-offset: 1px;
+  border-color: var(--purple-2, #5b21b6);
+}
+.vol-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ============================================================
+   Modal
+   ============================================================ */
+.vol-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 17, 69, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+.vol-modal {
+  background: var(--card);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+/* ============================================================
+   Responsivo
+   ============================================================ */
+@media (max-width: 860px) {
+  .vol-form { grid-template-columns: 1fr; }
+}
+@media (max-width: 580px) {
+  .vol-dia__head { flex-wrap: wrap; }
+}
