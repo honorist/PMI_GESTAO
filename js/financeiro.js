@@ -750,7 +750,12 @@
     if (!fin.inscricoes) {
       fin.inscricoes = JSON.parse(JSON.stringify(DEFAULT_INSCRICOES));
       data.financeiro = fin;
-      if (window.Gestao) window.Gestao.data = data;
+      if (window.Gestao) {
+        window.Gestao.data = data;
+        // Persiste o seed para que Relatorios/Visao Geral leiam a mesma
+        // base mesmo sem ter aberto a aba Financeiro antes.
+        if (window.Gestao.save) window.Gestao.save();
+      }
     } else {
       reconcilePatrocinioCotas(fin.inscricoes);
     }

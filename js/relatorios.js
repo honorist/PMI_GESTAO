@@ -169,7 +169,8 @@
     var f = getData().financeiro || {};
     return {
       receitas: Array.isArray(f.receitas) ? f.receitas : [],
-      despesas: Array.isArray(f.despesas) ? f.despesas : []
+      despesas: Array.isArray(f.despesas) ? f.despesas : [],
+      inscricoes: f.inscricoes || null
     };
   }
 
