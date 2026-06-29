@@ -126,9 +126,7 @@
 
   function somaDesembolsos(f) {
     var arr = Array.isArray(f.desembolsos) ? f.desembolsos : [];
-    return arr.length > 0
-      ? arr.reduce(function (s, d) { return s + toNumber(d.valor); }, 0)
-      : toNumber(f.valor);
+    return arr.reduce(function (s, d) { return s + toNumber(d.valor); }, 0);
   }
 
   function contratosComoItens() {
