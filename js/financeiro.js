@@ -804,6 +804,57 @@
     return lista.filter(function (p) { return p.status === "confirmado" && p.cota === cmp; }).length;
   }
 
+  /* ============================================================
+     Despesas previstas - baseline Summit 2025 (fechamentos Gol)
+     Migracao client-side aplicada uma unica vez por blob (flag).
+     Mantem despesas atuais de "Gol Comunicacao e Eventos",
+     guarda backup do restante em fin._despesasBackup.
+     ============================================================ */
+  var DESPESAS_SUMMIT2025 = [
+    { categoria: "Palestrantes", descricao: "Aereos nacionais - Ivan Costa, Douglas da Costa, Edivandro Conforto, Marcelo Antonelli, Gart Capote", previsto: 6880.55, realizado: 0, data: null, fornecedor: "Guadalupe Travel" },
+    { categoria: "Social Media", descricao: "Video do evento - captacao 26/9 e 27/9 + reels e stories", previsto: 1500.00, realizado: 0, data: null, fornecedor: "Carolina Borges" },
+    { categoria: "Alimentacao", descricao: "Coffee breaks palestras - 460 (230 manha + 230 tarde), OPCAO 1", previsto: 9200.00, realizado: 0, data: null, fornecedor: "50 Eventos" },
+    { categoria: "Alimentacao", descricao: "Coffee breaks workshops - 80 (40 manha + 40 tarde), especial", previsto: 1440.00, realizado: 0, data: null, fornecedor: "50 Eventos" },
+    { categoria: "Alimentacao", descricao: "Almocos palestrantes/staff - 44 buffet livre + 1 bebida", previsto: 1452.00, realizado: 0, data: null, fornecedor: "50 Eventos" },
+    { categoria: "Alimentacao", descricao: "Agua em suqueira por consumo - 6 reposicoes", previsto: 144.00, realizado: 0, data: null, fornecedor: "50 Eventos" },
+    { categoria: "Alimentacao", descricao: "Cafe por consumo - 12 termicas", previsto: 540.00, realizado: 0, data: null, fornecedor: "50 Eventos" },
+    { categoria: "Alimentacao", descricao: "Garrafas d'agua por consumo - 52 un", previsto: 260.00, realizado: 0, data: null, fornecedor: "50 Eventos" },
+    { categoria: "Alimentacao", descricao: "Vinhos de brinde - 4 garrafas Aurora para palestrantes", previsto: 280.00, realizado: 0, data: null, fornecedor: "50 Eventos" },
+    { categoria: "Bombeiro Civil", descricao: "Bombeiro civil - 2 diarias (montagem e evento)", previsto: 466.00, realizado: 0, data: null, fornecedor: "Praservi" },
+    { categoria: "Comunicacao Visual", descricao: "Retificacao de letras caixa do PMI", previsto: 120.00, realizado: 0, data: null, fornecedor: "Giga" },
+    { categoria: "Fotografia", descricao: "Cobertura fotografica dos 2 dias (26 e 27/9)", previsto: 1050.00, realizado: 0, data: null, fornecedor: "Ingrid Barbosa" },
+    { categoria: "Limpeza", descricao: "Limpeza para palestras - 2 serventes + material", previsto: 700.00, realizado: 0, data: null, fornecedor: "Praservi" },
+    { categoria: "Mobiliario", descricao: "Mobiliario stands e plenaria - 5 bistros altos + 4 cubos", previsto: 620.00, realizado: 0, data: null, fornecedor: "Central das Locacoes" },
+    { categoria: "Mobiliario", descricao: "Mobiliario workshops - 7 mesas redondas 1,5m c/ toalha", previsto: 906.00, realizado: 0, data: null, fornecedor: "Central das Locacoes" },
+    { categoria: "Producao Extra", descricao: "Carregadores - diaria extra de 2 (montagem workshop dia 25/9)", previsto: 500.00, realizado: 0, data: null, fornecedor: "Gol Comunicacao" },
+    { categoria: "Equipamentos", descricao: "Projecao, sonorizacao e iluminacao - Arena South Summit", previsto: 5000.00, realizado: 0, data: null, fornecedor: "Vision" },
+    { categoria: "Equipamentos", descricao: "Audiovisuais - Arena HP (2 laptops, passador, headset, 2 operadores)", previsto: 1600.00, realizado: 0, data: null, fornecedor: "Vision" },
+    { categoria: "Equipamentos", descricao: "Sonorizacao workshops - 60 pessoas, 1 microfone, operador full time", previsto: 1400.00, realizado: 0, data: null, fornecedor: "Vision" },
+    { categoria: "Palestrantes", descricao: "Hospedagens palestrantes - 10 diarias apto SGL standard c/ cafe", previsto: 3250.00, realizado: 0, data: null, fornecedor: "Master Porto Alegre Carlos Gomes" },
+    { categoria: "Comunicacao Visual", descricao: "Painel 'Eu vim no Summit' - autoportante 300x250cm", previsto: 1687.50, realizado: 0, data: null, fornecedor: "Konig Stands" },
+    { categoria: "Stands", descricao: "Balcoes para credenciamento e stands - octanorm pele de vidro + adesivo", previsto: 3812.50, realizado: 0, data: null, fornecedor: "Konig Stands" },
+    { categoria: "Palestrantes", descricao: "Transfers palestrantes - 20 trechos IN/OUT privativo", previsto: 1400.00, realizado: 0, data: null, fornecedor: "Prisma TT" },
+    { categoria: "Producao", descricao: "Assessoria na organizacao + staff durante o evento + 1 visita tecnica", previsto: 9000.00, realizado: 0, data: null, fornecedor: "Gol Comunicacao" }
+  ];
+
+  function migrarDespesasSummit2025(fin) {
+    if (!fin || fin._despSummit2025) return;
+    var atuais = Array.isArray(fin.despesas) ? fin.despesas : [];
+    // Backup recuperavel das despesas atuais dentro do proprio estado.
+    fin._despesasBackup = atuais.map(function (d) { return Object.assign({}, d); });
+    // Mantem somente as despesas atuais de "Gol Comunicacao e Eventos".
+    var mantidas = atuais.filter(function (d) {
+      var s = ((d.descricao || "") + " " + (d.fornecedor || "") + " " + (d.categoria || "")).toLowerCase();
+      return s.indexOf("gol comunica") >= 0 && s.indexOf("evento") >= 0;
+    });
+    var novos = DESPESAS_SUMMIT2025.map(function (it) {
+      return Object.assign({ id: window.Gestao.uid("d") }, it);
+    });
+    fin.despesas = mantidas.concat(novos);
+    fin._despSummit2025 = true;
+    if (window.Gestao && window.Gestao.save) window.Gestao.save();
+  }
+
   function renderInscricoes() {
     var Gestao = window.Gestao;
     var ins = getInscricoes();
@@ -1275,6 +1326,7 @@
   function render() {
     if (!_mount) return;
     var fin = getFin();
+    migrarDespesasSummit2025(fin);
     clear(_mount);
 
     // Cabeçalho padrão (estilo Cronograma) + cartão de saldo à direita.
