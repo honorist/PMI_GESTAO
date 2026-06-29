@@ -115,13 +115,40 @@
   }
 
   /* ============================================================
+     Contratos fechados lidos como despesas somente-leitura
+     ============================================================ */
+  function getContratosFechados() {
+    var g = window.Gestao;
+    if (!g) return [];
+    var lista = (g.data.contratacoes && g.data.contratacoes.fornecedores) || [];
+    return lista.filter(function (f) { return f.status === "fechado"; });
+  }
+
+  function contratosComoItens() {
+    return getContratosFechados().map(function (f) {
+      return {
+        id: "ctr-" + f.id,
+        descricao: f.nome || "Contrato",
+        categoria: f.categoria || "Contratos",
+        previsto: 0,
+        realizado: toNumber(f.valor),
+        fornecedor: f.nome,
+        data: f.dataCriacao || null,
+        _isContrato: true
+      };
+    });
+  }
+
+  /* ============================================================
      Cálculo dos totais (KPIs)
      ============================================================ */
   function computeTotals(fin) {
+    var valorContratos = getContratosFechados()
+      .reduce(function (s, f) { return s + toNumber(f.valor); }, 0);
     var recPrev = sumBy(fin.receitas, "previsto");
     var recReal = sumBy(fin.receitas, "realizado");
     var despPrev = sumBy(fin.despesas, "previsto");
-    var despReal = sumBy(fin.despesas, "realizado");
+    var despReal = sumBy(fin.despesas, "realizado") + valorContratos;
     return {
       recPrev: recPrev,
       recReal: recReal,
@@ -250,12 +277,16 @@
      ============================================================ */
   function renderTabela(fin, kind) {
     var isDesp = kind === "despesa";
-    var items = isDesp ? fin.despesas : fin.receitas;
+    var manualItems = isDesp ? fin.despesas : fin.receitas;
     var Gestao = window.Gestao;
+
+    /* Mescla contratos fechados nas despesas */
+    var items = isDesp
+      ? manualItems.concat(contratosComoItens())
+      : manualItems;
 
     var card = el("div", "card stack");
 
-    // Cabeçalho com botão "adicionar".
     var head = el("div", "spread");
     var title = el("h3", "section-title", isDesp ? "Despesas" : "Receitas");
     head.appendChild(title);
@@ -364,25 +395,24 @@
       tr.appendChild(el("td", null, it.fornecedor || "—"));
     }
 
-    // Ações.
+    // Ações (contratos são somente-leitura).
     var tdAct = el("td");
-    var actions = el("div", "fin-actions");
-
-    var edit = el("button", "btn btn-ghost sm", "Editar");
-    edit.type = "button";
-    edit.addEventListener("click", function () {
-      openForm(kind, it.id);
-    });
-    actions.appendChild(edit);
-
-    var del = el("button", "btn btn-ghost sm", "Excluir");
-    del.type = "button";
-    del.addEventListener("click", function () {
-      removeItem(kind, it.id, it.descricao);
-    });
-    actions.appendChild(del);
-
-    tdAct.appendChild(actions);
+    if (it._isContrato) {
+      var badge = el("span", null, "Contrato");
+      badge.style.cssText = "font-size:.75rem;font-weight:600;color:#36177B;background:#ede9f8;border:1px solid #c4b8e8;padding:2px 8px;border-radius:20px;white-space:nowrap;";
+      tdAct.appendChild(badge);
+    } else {
+      var actions = el("div", "fin-actions");
+      var edit = el("button", "btn btn-ghost sm", "Editar");
+      edit.type = "button";
+      edit.addEventListener("click", function () { openForm(kind, it.id); });
+      actions.appendChild(edit);
+      var del = el("button", "btn btn-ghost sm", "Excluir");
+      del.type = "button";
+      del.addEventListener("click", function () { removeItem(kind, it.id, it.descricao); });
+      actions.appendChild(del);
+      tdAct.appendChild(actions);
+    }
     tr.appendChild(tdAct);
     return tr;
   }
