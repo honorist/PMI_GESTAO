@@ -311,7 +311,23 @@
     var inFuncao = makeInput("text", existing ? existing.funcao || "" : "");
     inFuncao.placeholder = "Ex.: Recepção, Credenciamento, Apoio Técnico…";
     inFuncao.required = true;
-    form.appendChild(field("Função *", inFuncao, true));
+    var funcaoListId = "vol-funcao-list";
+    inFuncao.setAttribute("list", funcaoListId);
+    var funcaoDL = document.createElement("datalist");
+    funcaoDL.id = funcaoListId;
+    var funcoesCadastradas = [];
+    getVoluntarios().forEach(function (v) {
+      var f = (v.funcao || "").trim();
+      if (f && funcoesCadastradas.indexOf(f) === -1) funcoesCadastradas.push(f);
+    });
+    funcoesCadastradas.sort().forEach(function (f) {
+      var opt = document.createElement("option");
+      opt.value = f;
+      funcaoDL.appendChild(opt);
+    });
+    var funcaoField = field("Função *", inFuncao, true);
+    funcaoField.appendChild(funcaoDL);
+    form.appendChild(funcaoField);
 
     var inTel = makeInput("tel", existing ? existing.telefone || "" : "");
     inTel.placeholder = "(51) 99999-9999";
