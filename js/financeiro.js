@@ -156,8 +156,9 @@
       var d = somaDesembolsos(f);
       return { previsto: s.previsto + d.previsto, realizado: s.realizado + d.realizado };
     }, { previsto: 0, realizado: 0 });
-    var recPrev = sumBy(fin.receitas, "previsto");
-    var recReal = sumBy(fin.receitas, "realizado");
+    var ins = getInscricoes();
+    var recPrev = calcInscricoesPrev(ins);
+    var recReal = calcInscricroesReal(ins);
     var despPrev = sumBy(fin.despesas, "previsto") + somaCtr.previsto;
     var despReal = sumBy(fin.despesas, "realizado") + somaCtr.realizado;
     return {
@@ -703,6 +704,314 @@
   }
 
   /* ============================================================
+     Inscricoes — plano de receitas (ingressos + patrocinio)
+     ============================================================ */
+  var DEFAULT_INSCRICOES = {
+    cegas: {
+      label: "PMI-RS Summit 2026 - Lote Blind (Venda as Cegas) - CBGPL",
+      valor: 259, qtd_prev: 20, qtd_real: 0
+    },
+    lotes: [
+      { num: 1, tipos: [
+        { tipo: "Geral",      valor: 640, qtd_prev: 5,  qtd_real: 0 },
+        { tipo: "Estudante",  valor: 480, qtd_prev: 4,  qtd_real: 0 },
+        { tipo: "Filiado",    valor: 384, qtd_prev: 8,  qtd_real: 0 },
+        { tipo: "Voluntario", valor: 320, qtd_prev: 8,  qtd_real: 0 }
+      ]},
+      { num: 2, tipos: [
+        { tipo: "Geral",      valor: 740, qtd_prev: 10, qtd_real: 0 },
+        { tipo: "Estudante",  valor: 555, qtd_prev: 6,  qtd_real: 0 },
+        { tipo: "Filiado",    valor: 444, qtd_prev: 14, qtd_real: 0 },
+        { tipo: "Voluntario", valor: 370, qtd_prev: 4,  qtd_real: 0 }
+      ]},
+      { num: 3, tipos: [
+        { tipo: "Geral",      valor: 860, qtd_prev: 10, qtd_real: 0 },
+        { tipo: "Estudante",  valor: 645, qtd_prev: 8,  qtd_real: 0 },
+        { tipo: "Filiado",    valor: 516, qtd_prev: 14, qtd_real: 0 },
+        { tipo: "Voluntario", valor: 430, qtd_prev: 4,  qtd_real: 0 }
+      ]},
+      { num: 4, tipos: [
+        { tipo: "Geral",      valor: 960, qtd_prev: 30, qtd_real: 0 },
+        { tipo: "Estudante",  valor: 720, qtd_prev: 8,  qtd_real: 0 },
+        { tipo: "Filiado",    valor: 576, qtd_prev: 35, qtd_real: 0 },
+        { tipo: "Voluntario", valor: 480, qtd_prev: 8,  qtd_real: 0 }
+      ]}
+    ],
+    patrocinio: [
+      { cota: "Diamante", valor: 0, qtd_prev: 0 },
+      { cota: "Ouro",     valor: 0, qtd_prev: 0 },
+      { cota: "Prata",    valor: 0, qtd_prev: 0 },
+      { cota: "Bronze",   valor: 0, qtd_prev: 0 },
+      { cota: "Apoiador", valor: 0, qtd_prev: 0 }
+    ]
+  };
+
+  function getInscricoes() {
+    var data = (window.Gestao && window.Gestao.data) || {};
+    var fin = data.financeiro || {};
+    if (!fin.inscricoes) {
+      fin.inscricoes = JSON.parse(JSON.stringify(DEFAULT_INSCRICOES));
+      data.financeiro = fin;
+      if (window.Gestao) window.Gestao.data = data;
+    }
+    return fin.inscricoes;
+  }
+
+  function calcInscricoesPrev(ins) {
+    var t = ins.cegas ? toNumber(ins.cegas.valor) * toNumber(ins.cegas.qtd_prev) : 0;
+    (ins.lotes || []).forEach(function (l) {
+      (l.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_prev); });
+    });
+    (ins.patrocinio || []).forEach(function (p) { t += toNumber(p.valor) * toNumber(p.qtd_prev); });
+    return t;
+  }
+
+  function calcInscricroesReal(ins) {
+    var t = ins.cegas ? toNumber(ins.cegas.valor) * toNumber(ins.cegas.qtd_real) : 0;
+    (ins.lotes || []).forEach(function (l) {
+      (l.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_real); });
+    });
+    (ins.patrocinio || []).forEach(function (p) {
+      t += toNumber(p.valor) * getPatroCotaConfirmado(p.cota);
+    });
+    return t;
+  }
+
+  function getPatroCotaConfirmado(cotaNome) {
+    var g = window.Gestao;
+    if (!g) return 0;
+    var lista = (g.data.patrocinio && g.data.patrocinio.patrocinadores) || [];
+    var cmp = cotaNome.toLowerCase();
+    return lista.filter(function (p) { return p.status === "confirmado" && p.cota === cmp; }).length;
+  }
+
+  function renderInscricoes() {
+    var Gestao = window.Gestao;
+    var ins = getInscricoes();
+    var card = el("div", "card stack");
+    card.appendChild(el("h3", "section-title", "Receitas -- Inscricoes e Patrocinio"));
+
+    var CS = "font-size:.78rem;padding:4px 8px;border-bottom:1px solid var(--line);";
+    var HS = "font-size:.72rem;color:var(--muted);font-weight:600;padding:3px 8px;";
+
+    function numInp(val, onchange) {
+      var inp = document.createElement("input");
+      inp.type = "number";
+      inp.value = val;
+      inp.min = "0";
+      inp.style.cssText = "width:58px;border:1px solid transparent;border-radius:3px;background:transparent;font:inherit;text-align:right;padding:1px 3px;";
+      inp.addEventListener("focus", function () { inp.style.borderColor = "var(--purple,#6d28d9)"; inp.style.background = "var(--card)"; });
+      inp.addEventListener("blur",  function () { inp.style.borderColor = "transparent"; inp.style.background = "transparent"; });
+      inp.addEventListener("change", function () { onchange(toNumber(inp.value)); Gestao.save(); updateGrand(); });
+      return inp;
+    }
+
+    function tdR(content, bold) {
+      var td = document.createElement("td");
+      td.style.cssText = CS + "text-align:right;" + (bold ? "font-weight:700;font-variant-numeric:tabular-nums;" : "color:var(--muted);");
+      if (content && content.nodeName) td.appendChild(content);
+      else td.textContent = String(content !== undefined ? content : "");
+      return td;
+    }
+
+    function tdL(text, bold, colspan) {
+      var td = document.createElement("td");
+      td.style.cssText = CS + (bold ? "font-weight:600;" : "color:var(--muted);");
+      if (colspan) td.colSpan = colspan;
+      td.textContent = text;
+      return td;
+    }
+
+    function mkTbl(hdrs) {
+      var t = document.createElement("table");
+      t.style.cssText = "width:100%;border-collapse:collapse;margin-bottom:14px;";
+      var thead = document.createElement("thead");
+      var hr = document.createElement("tr");
+      hdrs.forEach(function (h, i) {
+        var th = document.createElement("th");
+        th.textContent = h;
+        th.style.cssText = HS + (i === 0 ? "text-align:left;" : "text-align:right;");
+        hr.appendChild(th);
+      });
+      thead.appendChild(hr);
+      t.appendChild(thead);
+      var tb = document.createElement("tbody");
+      t.appendChild(tb);
+      return { tbl: t, tbody: tb };
+    }
+
+    function subRow(label, colspan, prevEl, realEl) {
+      var tr = document.createElement("tr");
+      tr.style.background = "var(--surface,#f6f4fa)";
+      var td = document.createElement("td");
+      td.colSpan = colspan;
+      td.style.cssText = CS + "border-top:2px solid var(--line);color:var(--muted);font-size:.72rem;font-style:italic;";
+      td.textContent = label;
+      prevEl.style.borderTop = "2px solid var(--line)";
+      realEl.style.borderTop = "2px solid var(--line)";
+      tr.appendChild(td);
+      tr.appendChild(prevEl);
+      tr.appendChild(realEl);
+      return tr;
+    }
+
+    var gPrevEl = el("span", null, Gestao.fmtBRL(calcInscricoesPrev(ins)));
+    var gRealEl = el("span", null, Gestao.fmtBRL(calcInscricroesReal(ins)));
+    gPrevEl.style.fontWeight = "700";
+    gRealEl.style.fontWeight = "700";
+
+    function updateGrand() {
+      gPrevEl.textContent = Gestao.fmtBRL(calcInscricoesPrev(ins));
+      gRealEl.textContent = Gestao.fmtBRL(calcInscricroesReal(ins));
+    }
+
+    // --- Cegas ---
+    var c = ins.cegas;
+    var ct = mkTbl(["Categoria", "Valor/ing.", "Qtd Prev", "Qtd Real", "Total Prev", "Total Real"]);
+    var cPE = tdR(Gestao.fmtBRL(toNumber(c.valor) * toNumber(c.qtd_prev)), true);
+    var cRE = tdR(Gestao.fmtBRL(toNumber(c.valor) * toNumber(c.qtd_real)), false);
+    var cRow = document.createElement("tr");
+    cRow.appendChild(tdL(c.label || "Cegas", true));
+    cRow.appendChild(tdR(numInp(c.valor, function (v) {
+      c.valor = v;
+      cPE.textContent = Gestao.fmtBRL(v * c.qtd_prev);
+      cRE.textContent = Gestao.fmtBRL(v * c.qtd_real);
+    })));
+    cRow.appendChild(tdR(numInp(c.qtd_prev, function (v) {
+      c.qtd_prev = v;
+      cPE.textContent = Gestao.fmtBRL(c.valor * v);
+    })));
+    cRow.appendChild(tdR(numInp(c.qtd_real, function (v) {
+      c.qtd_real = v;
+      cRE.textContent = Gestao.fmtBRL(c.valor * v);
+    })));
+    cRow.appendChild(cPE);
+    cRow.appendChild(cRE);
+    ct.tbody.appendChild(cRow);
+    card.appendChild(ct.tbl);
+
+    // --- Lotes ---
+    (ins.lotes || []).forEach(function (lote) {
+      var lt = mkTbl(["Lote", "Tipo", "Valor/ing.", "Qtd Prev", "Qtd Real", "Total Prev", "Total Real"]);
+      var lPE = tdR("", true);
+      var lRE = tdR("", false);
+
+      function updSub() {
+        var sp = 0, sr = 0;
+        lote.tipos.forEach(function (tp) {
+          sp += toNumber(tp.valor) * toNumber(tp.qtd_prev);
+          sr += toNumber(tp.valor) * toNumber(tp.qtd_real);
+        });
+        lPE.textContent = Gestao.fmtBRL(sp);
+        lRE.textContent = Gestao.fmtBRL(sr);
+      }
+      updSub();
+
+      (lote.tipos || []).forEach(function (tp, ti) {
+        var tr = document.createElement("tr");
+        var tPE = tdR(Gestao.fmtBRL(toNumber(tp.valor) * toNumber(tp.qtd_prev)), true);
+        var tRE = tdR(Gestao.fmtBRL(toNumber(tp.valor) * toNumber(tp.qtd_real)), false);
+        if (ti === 0) tr.appendChild(tdL("Lote " + lote.num, true));
+        else { var bk = document.createElement("td"); bk.style.cssText = CS; tr.appendChild(bk); }
+        tr.appendChild(tdL(tp.tipo, false));
+        tr.appendChild(tdR(numInp(tp.valor, function (v) {
+          tp.valor = v;
+          tPE.textContent = Gestao.fmtBRL(v * tp.qtd_prev);
+          tRE.textContent = Gestao.fmtBRL(v * tp.qtd_real);
+          updSub();
+        })));
+        tr.appendChild(tdR(numInp(tp.qtd_prev, function (v) {
+          tp.qtd_prev = v;
+          tPE.textContent = Gestao.fmtBRL(tp.valor * v);
+          updSub();
+        })));
+        tr.appendChild(tdR(numInp(tp.qtd_real, function (v) {
+          tp.qtd_real = v;
+          tRE.textContent = Gestao.fmtBRL(tp.valor * v);
+          updSub();
+        })));
+        tr.appendChild(tPE);
+        tr.appendChild(tRE);
+        lt.tbody.appendChild(tr);
+      });
+      lt.tbody.appendChild(subRow("Subtotal Lote " + lote.num, 5, lPE, lRE));
+      card.appendChild(lt.tbl);
+    });
+
+    // --- Patrocinio ---
+    var pt = mkTbl(["Cota", "Valor/cota", "Qtd Prev", "Qtd Real*", "Total Prev", "Total Real*"]);
+    var ptPE = tdR("", true);
+    var ptRE = tdR("", false);
+
+    function updPat() {
+      var sp = 0, sr = 0;
+      (ins.patrocinio || []).forEach(function (p) {
+        sp += toNumber(p.valor) * toNumber(p.qtd_prev);
+        sr += toNumber(p.valor) * getPatroCotaConfirmado(p.cota);
+      });
+      ptPE.textContent = Gestao.fmtBRL(sp);
+      ptRE.textContent = Gestao.fmtBRL(sr);
+    }
+    updPat();
+
+    (ins.patrocinio || []).forEach(function (p) {
+      var qr = getPatroCotaConfirmado(p.cota);
+      var pPE = tdR(Gestao.fmtBRL(toNumber(p.valor) * toNumber(p.qtd_prev)), true);
+      var pRE = tdR(Gestao.fmtBRL(toNumber(p.valor) * qr), false);
+      var tr = document.createElement("tr");
+      tr.appendChild(tdL(p.cota, true));
+      tr.appendChild(tdR(numInp(p.valor, function (v) {
+        p.valor = v;
+        pPE.textContent = Gestao.fmtBRL(v * p.qtd_prev);
+        pRE.textContent = Gestao.fmtBRL(v * getPatroCotaConfirmado(p.cota));
+        updPat();
+      })));
+      tr.appendChild(tdR(numInp(p.qtd_prev, function (v) {
+        p.qtd_prev = v;
+        pPE.textContent = Gestao.fmtBRL(p.valor * v);
+        updPat();
+      })));
+      tr.appendChild(tdR(String(qr)));
+      tr.appendChild(pPE);
+      tr.appendChild(pRE);
+      pt.tbody.appendChild(tr);
+    });
+    var notaTd = document.createElement("td");
+    notaTd.colSpan = 6;
+    notaTd.style.cssText = CS + "font-size:.7rem;color:var(--muted);font-style:italic;";
+    notaTd.textContent = "* Qtd Real derivado automaticamente de patrocinadores com status Confirmado.";
+    var notaTr = document.createElement("tr");
+    notaTr.appendChild(notaTd);
+    pt.tbody.appendChild(notaTr);
+    pt.tbody.appendChild(subRow("Subtotal Patrocinio", 4, ptPE, ptRE));
+    card.appendChild(pt.tbl);
+
+    // --- Total Geral ---
+    var tw = el("div", "spread");
+    tw.style.cssText = "padding:10px 0 4px;border-top:2px solid var(--line);";
+    var tl = el("strong", null, "Total Receitas");
+    tl.style.fontSize = ".9rem";
+    var tv = el("div", null);
+    tv.style.cssText = "display:flex;gap:20px;font-size:.9rem;";
+    var pS = document.createElement("span");
+    var rS = document.createElement("span");
+    var pL = el("span", null, "Previsto: ");
+    pL.style.color = "var(--muted)";
+    var rL = el("span", null, "Realizado: ");
+    rL.style.color = "var(--muted)";
+    pS.appendChild(pL);
+    pS.appendChild(gPrevEl);
+    rS.appendChild(rL);
+    rS.appendChild(gRealEl);
+    tv.appendChild(pS);
+    tv.appendChild(rS);
+    tw.appendChild(tl);
+    tw.appendChild(tv);
+    card.appendChild(tw);
+    return card;
+  }
+
+  /* ============================================================
      Curva de Desembolso — gráfico SVG de barras mensais
      ============================================================ */
   function renderCurvaDesembolso() {
@@ -732,16 +1041,22 @@
     var maxVal = Math.max.apply(null, meses.map(function (m) {
       return Math.max(byMonth[m].previsto, byMonth[m].realizado);
     }));
-    var W = 640, H = 210;
-    var PL = 72, PB = 44, PT = 22, PR = 16;
+    var W = 680, H = 220;
+    var PL = 72, PB = 44, PT = 22, PR = 72;
     var cW = W - PL - PR, cH = H - PT - PB;
     var barW = Math.max(8, Math.min(44, Math.floor(cW / meses.length) - 8));
     var ABRL = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
+    // Curva S acumulada (previsto)
+    var cumPrev = [];
+    var runningCum = 0;
+    meses.forEach(function (m) { runningCum += byMonth[m].previsto; cumPrev.push(runningCum); });
+    var totalCum = runningCum || 1;
+
     var ns = "http://www.w3.org/2000/svg";
     var svg = document.createElementNS(ns, "svg");
     svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-    svg.style.cssText = "width:100%;max-width:700px;display:block;margin:0 auto;";
+    svg.style.cssText = "width:100%;max-width:760px;display:block;margin:0 auto;";
 
     function svgEl(tag, attrs) {
       var e = document.createElementNS(ns, tag);
@@ -754,9 +1069,10 @@
       return t;
     }
 
-    // Linhas de grade + labels eixo Y
+    // Linhas de grade + labels eixo Y esquerdo (mensal)
     var steps = 4;
-    for (var s = 0; s <= steps; s++) {
+    var s;
+    for (s = 0; s <= steps; s++) {
       var yVal = maxVal / steps * s;
       var yPx = PT + cH - Math.round(cH * s / steps);
       svg.appendChild(svgEl("line", { x1: PL, x2: PL + cW, y1: yPx, y2: yPx, stroke: "#e2e8f0", "stroke-width": 1 }));
@@ -764,8 +1080,17 @@
       svg.appendChild(txt(PL - 5, yPx + 4, yLbl, 9, "#94a3b8", "end"));
     }
 
-    // Barras agrupadas: roxo = previsto, verde = realizado
+    // Labels eixo Y direito (acumulado)
+    for (s = 0; s <= steps; s++) {
+      var yValR = totalCum / steps * s;
+      var yPxR = PT + cH - Math.round(cH * s / steps);
+      var yLblR = yValR >= 1000 ? "R$" + Math.round(yValR / 1000) + "k" : "R$" + Math.round(yValR);
+      svg.appendChild(txt(PL + cW + 5, yPxR + 4, yLblR, 9, "#f59e0b", "start"));
+    }
+
+    // Barras agrupadas + centros dos slots para a curva S
     var totalPrev = 0, totalReal = 0;
+    var slotCenters = [];
     meses.forEach(function (mes, i) {
       var v = byMonth[mes];
       totalPrev += v.previsto;
@@ -774,26 +1099,42 @@
       var gap = 2;
       var bw = Math.max(4, Math.floor((barW - gap) / 2));
       var slotX = Math.round(PL + slotW * i + (slotW - bw * 2 - gap) / 2);
+      slotCenters.push(slotX + bw + gap / 2);
 
       var hPrev = maxVal > 0 ? Math.round((v.previsto / maxVal) * cH) : 0;
-      var xPrev = slotX;
-      svg.appendChild(svgEl("rect", { x: xPrev, y: PT + cH - hPrev, width: bw, height: hPrev, fill: "#6d28d9", rx: 2 }));
+      svg.appendChild(svgEl("rect", { x: slotX, y: PT + cH - hPrev, width: bw, height: hPrev, fill: "#6d28d9", rx: 2 }));
 
       var hReal = maxVal > 0 ? Math.round((v.realizado / maxVal) * cH) : 0;
-      var xReal = slotX + bw + gap;
-      svg.appendChild(svgEl("rect", { x: xReal, y: PT + cH - hReal, width: bw, height: hReal, fill: "#1F9D6B", rx: 2 }));
+      svg.appendChild(svgEl("rect", { x: slotX + bw + gap, y: PT + cH - hReal, width: bw, height: hReal, fill: "#1F9D6B", rx: 2 }));
 
-      // valor previsto acima
       if (v.previsto > 0) {
         var vLbl = v.previsto >= 1000 ? "R$" + Math.round(v.previsto / 1000) + "k" : "R$" + Math.round(v.previsto);
-        svg.appendChild(txt(xPrev + bw / 2, PT + cH - hPrev - 3, vLbl, 8, "#475569"));
+        svg.appendChild(txt(slotX + bw / 2, PT + cH - hPrev - 3, vLbl, 8, "#475569"));
       }
 
-      // label mês
       var p = mes.split("-");
       var mAbr = (ABRL[parseInt(p[1], 10) - 1] || p[1]) + "/" + (p[0] ? p[0].slice(2) : "");
       svg.appendChild(txt(slotX + bw + gap / 2, PT + cH + 16, mAbr, 9, "#64748b"));
     });
+
+    // Curva S — polyline laranja sobre as barras
+    if (meses.length > 0) {
+      var pts = meses.map(function (mes, i) {
+        return slotCenters[i] + "," + (PT + cH - Math.round((cumPrev[i] / totalCum) * cH));
+      });
+      svg.appendChild(svgEl("polyline", {
+        points: pts.join(" "),
+        fill: "none",
+        stroke: "#f59e0b",
+        "stroke-width": "2",
+        "stroke-linejoin": "round",
+        "stroke-linecap": "round"
+      }));
+      pts.forEach(function (pt) {
+        var xy = pt.split(",");
+        svg.appendChild(svgEl("circle", { cx: xy[0], cy: xy[1], r: "3.5", fill: "#f59e0b", stroke: "#fff", "stroke-width": "1.5" }));
+      });
+    }
 
     // Legenda
     var legendY = H - 8;
@@ -801,8 +1142,47 @@
     svg.appendChild(txt(PL + 13, legendY, "Previsto", 9, "#475569", "start"));
     svg.appendChild(svgEl("rect", { x: PL + 72, y: legendY - 7, width: 10, height: 7, fill: "#1F9D6B", rx: 1 }));
     svg.appendChild(txt(PL + 85, legendY, "Realizado", 9, "#475569", "start"));
+    svg.appendChild(svgEl("line", { x1: PL + 154, y1: legendY - 3, x2: PL + 168, y2: legendY - 3, stroke: "#f59e0b", "stroke-width": "2" }));
+    svg.appendChild(svgEl("circle", { cx: PL + 161, cy: legendY - 3, r: "3", fill: "#f59e0b" }));
+    svg.appendChild(txt(PL + 171, legendY, "Acumulado prev.", 9, "#475569", "start"));
 
+    card.style.position = "relative";
     card.appendChild(svg);
+
+    // Tooltip flutuante (aparece ao passar o mouse)
+    var tooltip = document.createElement("div");
+    tooltip.style.cssText = "position:absolute;background:rgba(15,10,40,.9);color:#fff;border-radius:8px;font-size:.73rem;padding:7px 12px;pointer-events:none;display:none;z-index:50;white-space:nowrap;line-height:1.75;";
+    card.appendChild(tooltip);
+
+    svg.style.cursor = "crosshair";
+    svg.addEventListener("mousemove", function (e) {
+      var rect = svg.getBoundingClientRect();
+      var svgX = (e.clientX - rect.left) * W / rect.width;
+      var slotW = cW / meses.length;
+      var idx = Math.floor((svgX - PL) / slotW);
+      if (idx < 0 || idx >= meses.length) { tooltip.style.display = "none"; return; }
+      var mes = meses[idx];
+      var v = byMonth[mes];
+      var p = mes.split("-");
+      var mAbr = (ABRL[parseInt(p[1], 10) - 1] || p[1]) + "/" + p[0];
+      tooltip.style.display = "block";
+      var cardRect = card.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - cardRect.left + 14) + "px";
+      tooltip.style.top  = (e.clientY - cardRect.top  - 16) + "px";
+      while (tooltip.firstChild) tooltip.removeChild(tooltip.firstChild);
+      var hd = document.createElement("strong");
+      hd.textContent = mAbr;
+      tooltip.appendChild(hd);
+      tooltip.appendChild(document.createElement("br"));
+      tooltip.appendChild(document.createTextNode("Previsto: " + Gestao.fmtBRL(v.previsto)));
+      if (v.realizado > 0) {
+        tooltip.appendChild(document.createElement("br"));
+        tooltip.appendChild(document.createTextNode("Realizado: " + Gestao.fmtBRL(v.realizado)));
+      }
+      tooltip.appendChild(document.createElement("br"));
+      tooltip.appendChild(document.createTextNode("Acum. prev.: " + Gestao.fmtBRL(cumPrev[idx])));
+    });
+    svg.addEventListener("mouseleave", function () { tooltip.style.display = "none"; });
 
     var info = el("div", null, "Previsto total: " + Gestao.fmtBRL(totalPrev) + "   Realizado: " + Gestao.fmtBRL(totalReal));
     info.style.cssText = "text-align:right;font-size:.78rem;color:var(--muted);margin-top:2px;";
@@ -858,7 +1238,7 @@
     var root = el("div", "stack");
 
     root.appendChild(renderResumo(fin));
-    root.appendChild(renderTabela(fin, "receita"));
+    root.appendChild(renderInscricoes());
     root.appendChild(renderTabela(fin, "despesa"));
     root.appendChild(renderCurvaDesembolso());
 
