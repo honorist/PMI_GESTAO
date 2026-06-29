@@ -1172,7 +1172,6 @@
   "use strict";
 
   var LS_THEME = "gestao_theme";
-  var LS_FONT  = "gestao_font";
 
   /* ---- Dark mode ---- */
   function applyTheme(t) {
@@ -1185,13 +1184,6 @@
   function toggleTheme() {
     var cur = document.documentElement.getAttribute("data-theme");
     applyTheme(cur === "dark" ? "light" : "dark");
-  }
-
-  /* ---- Font size ---- */
-  function applyFont(size) {
-    var html = document.documentElement;
-    if (size) { html.setAttribute("data-font-size", size); localStorage.setItem(LS_FONT, size); }
-    else { html.removeAttribute("data-font-size"); localStorage.removeItem(LS_FONT); }
   }
 
   /* ---- Back-to-top ---- */
@@ -1227,24 +1219,10 @@
     /* Restaurar preferências salvas */
     var savedTheme = localStorage.getItem(LS_THEME);
     if (savedTheme) applyTheme(savedTheme);
-    var savedFont = localStorage.getItem(LS_FONT);
-    if (savedFont) applyFont(savedFont);
 
     /* Botão dark mode */
     var btnTheme = document.getElementById("btn-theme");
     if (btnTheme) btnTheme.addEventListener("click", toggleTheme);
-
-    /* Botões A- / A+ */
-    var btnFontSm = document.getElementById("btn-font-sm");
-    var btnFontLg = document.getElementById("btn-font-lg");
-    if (btnFontSm) btnFontSm.addEventListener("click", function () {
-      var cur = document.documentElement.getAttribute("data-font-size");
-      applyFont(cur === "sm" ? null : "sm");
-    });
-    if (btnFontLg) btnFontLg.addEventListener("click", function () {
-      var cur = document.documentElement.getAttribute("data-font-size");
-      applyFont(cur === "lg" ? null : "lg");
-    });
 
     initBackTop();
     initKeyShortcuts();

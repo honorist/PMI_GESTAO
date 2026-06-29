@@ -135,11 +135,6 @@ small {
   --shadow:     0 18px 50px rgba(0, 0, 0, .40);
 }
 
-/* ============================================================
-   Escala de fonte — UI-29
-   ============================================================ */
-[data-font-size="sm"] { --font-base: 13px; }
-[data-font-size="lg"] { --font-base: 17px; }
 
 /* Acessibilidade: foco visível e consistente */
 :focus-visible {

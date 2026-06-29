@@ -796,13 +796,8 @@ body.is-viewer .btn-danger {
 #btn-back-top:hover { background: var(--purple-2); }
 
 /* ============================================================
-   Controles de fonte e dark toggle — UI-28, UI-29
+   Dark toggle — UI-28
    ============================================================ */
-.font-controls {
-  display: flex;
-  gap: 2px;
-}
-.font-controls .btn,
 #btn-theme {
   padding: 5px 9px;
   font-size: .8rem;
