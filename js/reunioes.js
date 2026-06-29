@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    reunioes.js — Módulo Reuniões (aba "Reuniões")
    ------------------------------------------------------------
    Atas e decisões dos GTs do Summit POA PMIRS 2026.
@@ -366,10 +366,10 @@
 
   function renderListaReunioes(reunioes) {
     var ordered = sortReunioesDesc(reunioes);
-    var stack = el(“div”, “stack reu-lista”);
+    var stack = el("div", "stack reu-lista");
     if (!ordered.length) {
       stack.appendChild(
-        window.Gestao.emptyState(“Nenhuma reunião registrada.”, “+ Reunião”, function () { openForm(null); })
+        window.Gestao.emptyState("Nenhuma reunião registrada.", "+ Reunião", function () { openForm(null); })
       );
       return stack;
     }

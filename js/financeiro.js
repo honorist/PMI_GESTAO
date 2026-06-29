@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    financeiro.js — Módulo Financeiro (aba "Financeiro")
    ------------------------------------------------------------
    Painel financeiro do evento:
@@ -271,8 +271,8 @@
       var emptyKind = kind;
       card.appendChild(
         Gestao.emptyState(
-          isDesp ? “Nenhuma despesa cadastrada.” : “Nenhuma receita cadastrada.”,
-          isDesp ? “+ Despesa” : “+ Receita”,
+          isDesp ? "Nenhuma despesa cadastrada." : "Nenhuma receita cadastrada.",
+          isDesp ? "+ Despesa" : "+ Receita",
           function () { openForm(emptyKind, null); }
         )
       );

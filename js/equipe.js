@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    equipe.js — Módulo Equipe (aba "Equipe")
    ------------------------------------------------------------
    "Quem é quem" do Summit: responsáveis por grupo de trabalho (GT).
@@ -581,7 +581,7 @@
 
     if (!membros.length) {
       root.appendChild(
-        window.Gestao.emptyState(“Nenhum membro cadastrado.”, “+ Membro”, function () { openForm(null); })
+        window.Gestao.emptyState("Nenhum membro cadastrado.", "+ Membro", function () { openForm(null); })
       );
     } else {
       root.appendChild(buildOrg(membros, disciplinas));

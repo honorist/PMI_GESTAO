@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    contratacoes.js — Módulo Contratações (aba "Contratações")
    ------------------------------------------------------------
    Gestão de fornecedores/contratos:
@@ -588,7 +588,7 @@
     root.appendChild(renderResumo(fornecedores));
 
     if (!fornecedores.length) {
-      root.appendChild(Gestao.emptyState(“Nenhum fornecedor cadastrado.”, “+ Fornecedor”, function () { openForm(null); }));
+      root.appendChild(Gestao.emptyState("Nenhum fornecedor cadastrado.", "+ Fornecedor", function () { openForm(null); }));
     } else {
       root.appendChild(renderKanban(fornecedores));
     }
