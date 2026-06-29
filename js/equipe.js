@@ -156,10 +156,30 @@
   }
 
   /* ============================================================
+     Avatar com iniciais (UI-17)
+     ============================================================ */
+  function iniciais(nome) {
+    return (nome || "?").trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join("").toUpperCase();
+  }
+
+  function corAvatar(nome) {
+    var cores = ["#36177B", "#2F63B4", "#3F7A4A", "#E0611F", "#1F9D6B"];
+    var s = 0;
+    for (var i = 0; i < (nome || "").length; i++) s += nome.charCodeAt(i);
+    return cores[s % cores.length];
+  }
+
+  /* ============================================================
      Renderização — card de membro
      ============================================================ */
   function renderCard(m) {
     var card = el("div", "card eqp-card");
+
+    var av = document.createElement("div");
+    av.className = "avatar-initials";
+    av.textContent = iniciais(m.nome);
+    av.style.background = corAvatar(m.nome);
+    card.appendChild(av);
 
     var nomeTexto = (m.nome || "").trim();
     var nome = el(
@@ -267,18 +287,21 @@
       list.push(Object.assign({ id: window.Gestao.uid("m") }, values));
     }
     window.Gestao.save();
+    window.Gestao.toast("Membro salvo");
     render();
   }
 
   function removeMembro(id, nome) {
     var label = nome && String(nome).trim() ? '"' + nome + '"' : "este membro";
-    if (!window.confirm("Excluir " + label + "?")) return;
-    var data = window.Gestao.data;
-    data.equipe.membros = getMembros().filter(function (x) {
-      return x.id !== id;
+    window.Gestao.confirm("Excluir " + label + "?", function () {
+      var data = window.Gestao.data;
+      data.equipe.membros = getMembros().filter(function (x) {
+        return x.id !== id;
+      });
+      window.Gestao.save();
+      window.Gestao.toast("Membro removido");
+      render();
     });
-    window.Gestao.save();
-    render();
   }
 
   /* ============================================================
@@ -362,7 +385,10 @@
 
     var inPapel = makeInput("text", existing ? existing.papel || "" : "");
     inPapel.placeholder = "Ex.: Gerente de Projetos";
-    form.appendChild(field("Papel", inPapel));
+    var papelField = field("Papel", inPapel);
+    var papelLabel = papelField.querySelector("label");
+    if (papelLabel) window.Gestao.addTooltip(papelLabel, "Ex.: Gerente de Projetos, Coordenador de Comunicação, Tesoureiro");
+    form.appendChild(papelField);
 
     var inEmail = makeInput("email", existing ? existing.email || "" : "");
     inEmail.placeholder = "nome@exemplo.com";
@@ -370,6 +396,7 @@
 
     var inTel = makeInput("tel", existing ? existing.telefone || "" : "");
     inTel.placeholder = "(51) 99999-9999";
+    window.Gestao.maskPhone(inTel);
     form.appendChild(field("Telefone", inTel));
 
     var actions = el("div", "eqp-form-actions");
@@ -554,7 +581,7 @@
 
     if (!membros.length) {
       root.appendChild(
-        el("div", "empty", "Nenhum membro cadastrado. Use “+ Membro”.")
+        window.Gestao.emptyState(“Nenhum membro cadastrado.”, “+ Membro”, function () { openForm(null); })
       );
     } else {
       root.appendChild(buildOrg(membros, disciplinas));

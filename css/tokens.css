@@ -6,6 +6,9 @@
    ============================================================ */
 
 :root {
+  /* --- Escala de fonte (controlada por data-font-size no <html>) --- */
+  --font-base: 15px;
+
   /* --- Paleta de marca (igual ao site oficial) --- */
   --purple: #36177B;       /* roxo principal (topbar) */
   --purple-2: #4A1D8A;     /* roxo secundário (hover/realce) */
@@ -62,7 +65,7 @@ body {
 
 body {
   font-family: var(--font);
-  font-size: 15px;
+  font-size: var(--font-base);
   line-height: 1.5;
   color: var(--ink);
   background: var(--bg);
@@ -118,6 +121,25 @@ small {
   font-size: .82rem;
   color: var(--muted);
 }
+
+/* ============================================================
+   Dark mode — UI-28
+   ============================================================ */
+[data-theme="dark"] {
+  --ink:        #E8E0D0;
+  --muted:      #A89878;
+  --bg:         #1A1614;
+  --card:       #252018;
+  --card-cream: #201E18;
+  --line:       #3A342A;
+  --shadow:     0 18px 50px rgba(0, 0, 0, .40);
+}
+
+/* ============================================================
+   Escala de fonte — UI-29
+   ============================================================ */
+[data-font-size="sm"] { --font-base: 13px; }
+[data-font-size="lg"] { --font-base: 17px; }
 
 /* Acessibilidade: foco visível e consistente */
 :focus-visible {

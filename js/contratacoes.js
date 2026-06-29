@@ -28,7 +28,8 @@
   var STATUSES = [
     { id: "a_contratar", label: "A contratar", badge: "muted" },
     { id: "negociando", label: "Negociando", badge: "orange" },
-    { id: "fechado", label: "Fechado", badge: "green" }
+    { id: "fechado", label: "Fechado", badge: "green" },
+    { id: "cancelado", label: "Cancelado", badge: "canceled" }
   ];
 
   /* ============================================================
@@ -112,6 +113,7 @@
       var status = isStatusValido(f.status) ? f.status : "a_contratar";
       if (status === "fechado") valorFechado += toNumber(f.valor);
       else if (status === "negociando") valorNegociando += toNumber(f.valor);
+      else if (status === "cancelado") { /* não conta em nAContratar */ }
       else nAContratar += 1;
     });
     return {
@@ -152,7 +154,7 @@
      Kanban por status
      ============================================================ */
   function groupByStatus(fornecedores) {
-    var groups = { a_contratar: [], negociando: [], fechado: [] };
+    var groups = { a_contratar: [], negociando: [], fechado: [], cancelado: [] };
     fornecedores.forEach(function (f) {
       var status = isStatusValido(f.status) ? f.status : "a_contratar";
       groups[status].push(f);
@@ -190,7 +192,7 @@
 
     var list = el("div", "ctr-col-list");
     if (!items.length) {
-      list.appendChild(el("div", "empty", "Vazio"));
+      list.appendChild(Gestao.emptyState("Vazio", "+ Contrato", function () { openForm(null); }));
     } else {
       items.forEach(function (f) {
         list.appendChild(renderCard(f));
@@ -320,18 +322,21 @@
       list.push(novo);
     }
     window.Gestao.save();
+    window.Gestao.toast("Contrato salvo");
     render();
   }
 
   function removeFornecedor(id, nome) {
     var label = nome && String(nome).trim() ? '"' + nome + '"' : "este fornecedor";
-    if (!window.confirm("Excluir " + label + "?")) return;
-    var data = window.Gestao.data;
-    data.contratacoes.fornecedores = getFornecedores().filter(function (x) {
-      return x.id !== id;
+    window.Gestao.confirm("Excluir " + label + "?", function () {
+      var data = window.Gestao.data;
+      data.contratacoes.fornecedores = getFornecedores().filter(function (x) {
+        return x.id !== id;
+      });
+      window.Gestao.save();
+      window.Gestao.toast("Contrato removido");
+      render();
     });
-    window.Gestao.save();
-    render();
   }
 
   /* ============================================================
@@ -583,7 +588,7 @@
     root.appendChild(renderResumo(fornecedores));
 
     if (!fornecedores.length) {
-      root.appendChild(el("div", "empty", "Nenhum fornecedor cadastrado. Use “+ Fornecedor”."));
+      root.appendChild(Gestao.emptyState(“Nenhum fornecedor cadastrado.”, “+ Fornecedor”, function () { openForm(null); }));
     } else {
       root.appendChild(renderKanban(fornecedores));
     }

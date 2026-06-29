@@ -553,6 +553,9 @@
         "stroke-dashoffset": -circ * a.ini,
         transform: "rotate(-90 " + cx + " " + cy + ")"
       });
+      var ttl = document.createElementNS(SVG_NS, "title");
+      ttl.textContent = a.label + ": " + a.valor + " tarefas";
+      seg.appendChild(ttl);
       svg.appendChild(seg);
     });
 
@@ -616,7 +619,9 @@
       head.appendChild(el("span", "vg-disc__pct", d.pct + "%"));
       bloco.appendChild(head);
 
-      bloco.appendChild(barraProgresso(d.pct, d.cor || "var(--purple)"));
+      var bp = barraProgresso(d.pct, d.cor || "var(--purple)");
+      bp.setAttribute("title", d.nome + ": " + d.pct + "% concluído");
+      bloco.appendChild(bp);
       card.appendChild(bloco);
     });
 
@@ -639,6 +644,7 @@
       var fill = el("div", "vg-fin-bar__fill " + cls);
       var pct = maxVal > 0 ? (valor / maxVal) * 100 : 0;
       fill.style.width = clampPct(pct) + "%";
+      fill.setAttribute("title", rotulo + " " + legenda.toLowerCase() + ": " + Gestao.fmtBRL(valor));
       track.appendChild(fill);
       row.appendChild(el("span", "vg-fin-bar__cap", legenda));
       row.appendChild(track);
@@ -733,6 +739,7 @@
       var h = maxQtd > 0 ? (dados.qtd / maxQtd) * 100 : 0;
       // piso visual para colunas com 0 (fica baixinha mas visível)
       bar.style.height = (dados.qtd > 0 ? Math.max(8, h) : 2) + "%";
+      bar.setAttribute("title", col.label + ": " + dados.qtd + " contratos");
       var barWrap = el("div", "vg-pipe__barwrap");
       barWrap.appendChild(bar);
       coluna.appendChild(barWrap);

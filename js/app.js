@@ -996,6 +996,89 @@
     });
   }
 
+  /* ============================================================
+     Utilitários globais — consumidos por todos os módulos
+     ============================================================ */
+
+  Gestao.toast = function (msg, type, ms) {
+    type = type || "success";
+    ms = ms === undefined ? 3000 : ms;
+    var c = document.getElementById("gestao-toasts");
+    if (!c) {
+      c = document.createElement("div"); c.id = "gestao-toasts";
+      document.body.appendChild(c);
+    }
+    var t = document.createElement("div");
+    t.className = "gestao-toast gestao-toast--" + type;
+    t.textContent = msg;
+    c.appendChild(t);
+    requestAnimationFrame(function () { t.classList.add("is-visible"); });
+    setTimeout(function () {
+      t.classList.remove("is-visible");
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 350);
+    }, ms);
+  };
+
+  Gestao.confirm = function (msg, onYes, labelYes) {
+    labelYes = labelYes || "Excluir";
+    var bd = document.createElement("div");
+    bd.className = "gestao-confirm-backdrop";
+    var box = document.createElement("div"); box.className = "gestao-confirm-box";
+    var p = document.createElement("p"); p.className = "gestao-confirm-msg"; p.textContent = msg;
+    var btns = document.createElement("div"); btns.className = "gestao-confirm-btns";
+    var no = document.createElement("button"); no.className = "btn"; no.textContent = "Cancelar"; no.type = "button";
+    var yes = document.createElement("button"); yes.className = "btn btn-danger"; yes.textContent = labelYes; yes.type = "button";
+    btns.appendChild(no); btns.appendChild(yes);
+    box.appendChild(p); box.appendChild(btns); bd.appendChild(box); document.body.appendChild(bd);
+    function close() { if (bd.parentNode) bd.parentNode.removeChild(bd); }
+    no.addEventListener("click", close);
+    bd.addEventListener("click", function (e) { if (e.target === bd) close(); });
+    document.addEventListener("keydown", function esc(e) {
+      if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc); }
+    });
+    yes.addEventListener("click", function () { close(); onYes(); });
+    setTimeout(function () { no.focus(); }, 50);
+  };
+
+  Gestao.maskPhone = function (input) {
+    if (!input || input._phoneMasked) return;
+    input._phoneMasked = true;
+    input.addEventListener("input", function () {
+      var v = input.value.replace(/\D/g, "").slice(0, 11);
+      if (v.length > 6)      input.value = "(" + v.slice(0,2) + ") " + v.slice(2,7) + "-" + v.slice(7);
+      else if (v.length > 2) input.value = "(" + v.slice(0,2) + ") " + v.slice(2);
+      else if (v.length > 0) input.value = "(" + v;
+    });
+  };
+
+  Gestao.maskBRL = function (input) {
+    if (!input || input._brlMasked) return;
+    input._brlMasked = true;
+    input.addEventListener("blur", function () {
+      var raw = input.value.replace(/[R$\s.]/g, "").replace(",", ".");
+      var n = parseFloat(raw);
+      if (!isNaN(n) && n >= 0)
+        input.value = n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    });
+  };
+
+  Gestao.addTooltip = function (labelEl, text) {
+    var icon = document.createElement("span");
+    icon.className = "tooltip-icon"; icon.setAttribute("title", text); icon.textContent = " ⓘ";
+    labelEl.appendChild(icon);
+  };
+
+  Gestao.emptyState = function (msg, btnLabel, onBtnClick) {
+    var wrap = document.createElement("div"); wrap.className = "empty-cta";
+    var p = document.createElement("p"); p.textContent = msg; wrap.appendChild(p);
+    if (btnLabel && onBtnClick && !Gestao.readonly) {
+      var btn = document.createElement("button");
+      btn.className = "btn btn-primary sm"; btn.type = "button"; btn.textContent = btnLabel;
+      btn.addEventListener("click", onBtnClick); wrap.appendChild(btn);
+    }
+    return wrap;
+  };
+
   // Expõe globalmente para os módulos.
   window.Gestao = Gestao;
 
@@ -1078,5 +1161,98 @@
     document.addEventListener("DOMContentLoaded", wireDropdowns);
   } else {
     wireDropdowns();
+  }
+})();
+
+/* ============================================================
+   Dark mode + Font size + Back-to-top + Keyboard shortcuts
+   UI-28, UI-29, UI-14, UI-13
+   ============================================================ */
+(function () {
+  "use strict";
+
+  var LS_THEME = "gestao_theme";
+  var LS_FONT  = "gestao_font";
+
+  /* ---- Dark mode ---- */
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t || "light");
+    localStorage.setItem(LS_THEME, t || "light");
+    var btn = document.getElementById("btn-theme");
+    if (btn) btn.textContent = t === "dark" ? "☀" : "🌙";
+  }
+
+  function toggleTheme() {
+    var cur = document.documentElement.getAttribute("data-theme");
+    applyTheme(cur === "dark" ? "light" : "dark");
+  }
+
+  /* ---- Font size ---- */
+  function applyFont(size) {
+    var html = document.documentElement;
+    if (size) { html.setAttribute("data-font-size", size); localStorage.setItem(LS_FONT, size); }
+    else { html.removeAttribute("data-font-size"); localStorage.removeItem(LS_FONT); }
+  }
+
+  /* ---- Back-to-top ---- */
+  function initBackTop() {
+    var btn = document.createElement("button");
+    btn.id = "btn-back-top";
+    btn.type = "button";
+    btn.setAttribute("aria-label", "Voltar ao topo");
+    btn.textContent = "↑";
+    document.body.appendChild(btn);
+    window.addEventListener("scroll", function () {
+      if (window.scrollY > 300) btn.classList.add("is-visible");
+      else btn.classList.remove("is-visible");
+    }, { passive: true });
+    btn.addEventListener("click", function () { window.scrollTo({ top: 0, behavior: "smooth" }); });
+  }
+
+  /* ---- Keyboard shortcuts Alt+1..6 ---- */
+  var TAB_SHORTCUTS = ["tab-visao", "tab-cronograma", "tab-financeiro", "tab-equipe", "tab-reunioes", "tab-relatorios"];
+
+  function initKeyShortcuts() {
+    document.addEventListener("keydown", function (e) {
+      if (!e.altKey || e.shiftKey || e.ctrlKey || e.metaKey) return;
+      var n = parseInt(e.key, 10);
+      if (n >= 1 && n <= TAB_SHORTCUTS.length) {
+        e.preventDefault();
+        if (window.Gestao && window.Gestao.showTab) window.Gestao.showTab(TAB_SHORTCUTS[n - 1]);
+      }
+    });
+  }
+
+  function init() {
+    /* Restaurar preferências salvas */
+    var savedTheme = localStorage.getItem(LS_THEME);
+    if (savedTheme) applyTheme(savedTheme);
+    var savedFont = localStorage.getItem(LS_FONT);
+    if (savedFont) applyFont(savedFont);
+
+    /* Botão dark mode */
+    var btnTheme = document.getElementById("btn-theme");
+    if (btnTheme) btnTheme.addEventListener("click", toggleTheme);
+
+    /* Botões A- / A+ */
+    var btnFontSm = document.getElementById("btn-font-sm");
+    var btnFontLg = document.getElementById("btn-font-lg");
+    if (btnFontSm) btnFontSm.addEventListener("click", function () {
+      var cur = document.documentElement.getAttribute("data-font-size");
+      applyFont(cur === "sm" ? null : "sm");
+    });
+    if (btnFontLg) btnFontLg.addEventListener("click", function () {
+      var cur = document.documentElement.getAttribute("data-font-size");
+      applyFont(cur === "lg" ? null : "lg");
+    });
+
+    initBackTop();
+    initKeyShortcuts();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
   }
 })();

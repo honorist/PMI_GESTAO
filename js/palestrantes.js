@@ -154,6 +154,59 @@
     wrapTema.appendChild(txtTema);
     body.appendChild(wrapTema);
 
+    /* -- Bio -- */
+    var wrapBio = el("div", "spk-modal__field");
+    wrapBio.appendChild(el("label", null, "Mini-biografia"));
+    var txtBio = document.createElement("textarea");
+    txtBio.rows = 3;
+    txtBio.value = sess.bio || "";
+    txtBio.placeholder = "Mini-biografia do palestrante (será exibida no programa)";
+    wrapBio.appendChild(txtBio);
+    body.appendChild(wrapBio);
+
+    /* -- LinkedIn -- */
+    var wrapLinkedin = el("div", "spk-modal__field");
+    wrapLinkedin.appendChild(el("label", null, "LinkedIn"));
+    var inpLinkedin = document.createElement("input");
+    inpLinkedin.type = "url";
+    inpLinkedin.value = sess.linkedin || "";
+    inpLinkedin.placeholder = "https://linkedin.com/in/...";
+    wrapLinkedin.appendChild(inpLinkedin);
+    body.appendChild(wrapLinkedin);
+
+    /* -- Foto -- */
+    var wrapFoto = el("div", "spk-modal__field");
+    wrapFoto.appendChild(el("label", null, "Foto (máx. 300 KB)"));
+    var fotoDataUrl = sess.fotoDataUrl || "";
+    var fotoPreview = document.createElement("img");
+    fotoPreview.alt = "Preview";
+    fotoPreview.style.cssText = "display:" + (fotoDataUrl ? "block" : "none") + ";width:60px;height:60px;border-radius:50%;object-fit:cover;margin:4px 0;";
+    if (fotoDataUrl) { fotoPreview.src = fotoDataUrl; }
+    wrapFoto.appendChild(fotoPreview);
+    var inpFoto = document.createElement("input");
+    inpFoto.type = "file";
+    inpFoto.accept = "image/*";
+    inpFoto.addEventListener("change", function () {
+      var file = inpFoto.files && inpFoto.files[0];
+      if (!file) { return; }
+      if (file.size > 300 * 1024) {
+        if (window.Gestao && window.Gestao.toast) {
+          window.Gestao.toast("Foto muito grande (máx. 300 KB)", "error");
+        }
+        inpFoto.value = "";
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        fotoDataUrl = ev.target.result;
+        fotoPreview.src = fotoDataUrl;
+        fotoPreview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    });
+    wrapFoto.appendChild(inpFoto);
+    body.appendChild(wrapFoto);
+
     modal.appendChild(body);
 
     var foot = el("div", "spk-modal__foot");
@@ -176,7 +229,10 @@
       onSave({
         palestrante: inpNome.value.trim(),
         empresa:     inpEmpresa.value.trim(),
-        tema:        txtTema.value.trim()
+        tema:        txtTema.value.trim(),
+        bio:         txtBio.value.trim(),
+        linkedin:    inpLinkedin.value.trim(),
+        fotoDataUrl: fotoDataUrl
       });
       fechar();
     });
@@ -198,11 +254,35 @@
     body.appendChild(el("div", "spk-sess__titulo", sess.titulo));
 
     var temPalestrante = sess.palestrante && sess.palestrante.trim();
-    body.appendChild(el(
-      "div",
-      "spk-sess__speaker" + (temPalestrante ? "" : " is-empty"),
-      temPalestrante ? sess.palestrante : "(a definir)"
-    ));
+    var speakerDiv = el("div", "spk-sess__speaker" + (temPalestrante ? "" : " is-empty"));
+
+    if (temPalestrante) {
+      if (sess.fotoDataUrl) {
+        var fotoEl = document.createElement("img");
+        fotoEl.src = sess.fotoDataUrl;
+        fotoEl.alt = sess.palestrante;
+        fotoEl.style.cssText = "width:36px;height:36px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;";
+        speakerDiv.appendChild(fotoEl);
+      }
+      speakerDiv.appendChild(el("span", null, sess.palestrante));
+      if (sess.linkedin) {
+        var lkEl = document.createElement("a");
+        lkEl.href = sess.linkedin;
+        lkEl.target = "_blank";
+        lkEl.rel = "noopener noreferrer";
+        lkEl.textContent = " 🔗";
+        lkEl.style.cssText = "margin-left:4px;text-decoration:none;";
+        speakerDiv.appendChild(lkEl);
+      }
+    } else {
+      speakerDiv.textContent = "(a definir)";
+    }
+    body.appendChild(speakerDiv);
+
+    if (temPalestrante && sess.bio) {
+      var bioTxt = sess.bio.length > 80 ? sess.bio.slice(0, 80) + "…" : sess.bio;
+      body.appendChild(el("p", "spk-sess__bio", bioTxt));
+    }
 
     if (temPalestrante && sess.empresa) {
       body.appendChild(el("div", "spk-sess__empresa", sess.empresa));
@@ -299,14 +379,18 @@
       palcos.forEach(function (palco) {
         (palco.sessoes || []).forEach(function (s) {
           if (s.id === sessId) {
-            s.palestrante = vals.palestrante;
-            s.empresa = vals.empresa;
-            s.tema = vals.tema;
+            s.palestrante  = vals.palestrante;
+            s.empresa      = vals.empresa;
+            s.tema         = vals.tema;
+            s.bio          = vals.bio;
+            s.linkedin     = vals.linkedin;
+            s.fotoDataUrl  = vals.fotoDataUrl;
           }
         });
       });
       data.palestrantes = plData;
       window.Gestao.save();
+      window.Gestao.toast("Palestrante salvo");
       render(mount, data);
     }
 
@@ -323,37 +407,18 @@
   var _resultadoTimer = null;
 
   function buildResultadoPanel(mount) {
-    var isMaster = window.Gestao && window.Gestao.role === "master";
     var painel = el("div", "spk-votacao-painel");
 
-    /* Cabeçalho */
     var head = el("div", "spk-votacao-head");
     head.appendChild(el("h2", "spk-votacao-titulo", "Resultado da Votação"));
-
-    var acoes = el("div", "spk-votacao-acoes");
-
     var linkEl = document.createElement("a");
     linkEl.href = "/votacao.html";
     linkEl.target = "_blank";
     linkEl.className = "btn sm";
-    linkEl.textContent = "Abrir votação ↗";
-    acoes.appendChild(linkEl);
-
-    if (isMaster) {
-      var btnZerar = el("button", "btn sm spk-btn-zerar", "Zerar votos");
-      btnZerar.type = "button";
-      acoes.appendChild(btnZerar);
-    }
-
-    head.appendChild(acoes);
+    linkEl.textContent = "Abrir página de votação ↗";
+    head.appendChild(linkEl);
     painel.appendChild(head);
 
-    /* Faixa de confirmação (oculta inicialmente) */
-    var faixaConfirm = el("div", "spk-votacao-confirm");
-    faixaConfirm.hidden = true;
-    painel.appendChild(faixaConfirm);
-
-    /* Corpo com resultados */
     var corpo = el("div", "spk-votacao-corpo");
     painel.appendChild(corpo);
 
@@ -362,74 +427,6 @@
 
     if (_resultadoTimer) clearInterval(_resultadoTimer);
     _resultadoTimer = setInterval(function () { carregarResultado(corpo); }, 10000);
-
-    /* ---- Dupla confirmação inline ---- */
-    if (!isMaster) return;
-
-    var etapa = 0; // 0 = idle, 1 = 1ª confirm, 2 = 2ª confirm
-
-    function mostrarEtapa1() {
-      etapa = 1;
-      limparEl(faixaConfirm);
-      faixaConfirm.hidden = false;
-
-      faixaConfirm.appendChild(el("span", "spk-confirm-msg", "Apagar todos os votos?"));
-
-      var btnCanc = el("button", "btn sm", "Cancelar");
-      btnCanc.type = "button";
-      btnCanc.addEventListener("click", cancelar);
-      faixaConfirm.appendChild(btnCanc);
-
-      var btnOk = el("button", "btn sm spk-btn-danger", "Confirmar");
-      btnOk.type = "button";
-      btnOk.addEventListener("click", mostrarEtapa2);
-      faixaConfirm.appendChild(btnOk);
-    }
-
-    function mostrarEtapa2() {
-      etapa = 2;
-      limparEl(faixaConfirm);
-
-      faixaConfirm.appendChild(el("span", "spk-confirm-msg spk-confirm-msg--alerta",
-        "Ação irreversível — todos os votos serão apagados!"));
-
-      var btnCanc = el("button", "btn sm", "Cancelar");
-      btnCanc.type = "button";
-      btnCanc.addEventListener("click", cancelar);
-      faixaConfirm.appendChild(btnCanc);
-
-      var btnFinal = el("button", "btn sm spk-btn-danger", "Zerar mesmo assim");
-      btnFinal.type = "button";
-      btnFinal.addEventListener("click", executarZerar);
-      faixaConfirm.appendChild(btnFinal);
-    }
-
-    function cancelar() {
-      etapa = 0;
-      faixaConfirm.hidden = true;
-      limparEl(faixaConfirm);
-    }
-
-    function executarZerar() {
-      var btnFinal = faixaConfirm.querySelector(".spk-btn-danger");
-      if (btnFinal) { btnFinal.disabled = true; btnFinal.textContent = "Zerando…"; }
-
-      fetch("/api/votacao/zerar", { method: "DELETE" })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.error) throw new Error(data.error);
-          cancelar();
-          carregarResultado(corpo);
-        })
-        .catch(function () {
-          cancelar();
-          alert("Erro ao zerar votação. Tente novamente.");
-        });
-    }
-
-    btnZerar.addEventListener("click", function () {
-      if (etapa === 0) mostrarEtapa1();
-    });
   }
 
   function carregarResultado(corpo) {

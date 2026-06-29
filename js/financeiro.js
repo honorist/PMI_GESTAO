@@ -163,15 +163,27 @@
         valueClass: "is-receita"
       })
     );
-    grid.appendChild(
-      kpiCard({
-        topClass: "t-despesa",
-        label: "Despesa prevista",
-        value: Gestao.fmtBRL(t.despPrev),
-        sub: "realizado: " + Gestao.fmtBRL(t.despReal),
-        valueClass: "is-despesa"
-      })
-    );
+    var despCard = kpiCard({
+      topClass: "t-despesa",
+      label: "Despesa prevista",
+      value: Gestao.fmtBRL(t.despPrev),
+      sub: "realizado: " + Gestao.fmtBRL(t.despReal),
+      valueClass: "is-despesa"
+    });
+    // Func-16: badge de desvio se realizado > previsto * 1,10
+    if (t.despPrev > 0 && t.despReal > t.despPrev * 1.10) {
+      var pctDesvio = Math.round((t.despReal / t.despPrev - 1) * 100);
+      var badge = el("span", "badge", "⚠ +" + pctDesvio + "%");
+      badge.style.background = "#E0611F";
+      badge.style.color = "#fff";
+      badge.style.padding = "2px 8px";
+      badge.style.borderRadius = "4px";
+      badge.style.fontSize = "12px";
+      badge.style.marginLeft = "8px";
+      var kpiBox = despCard.querySelector(".fin-kpi");
+      if (kpiBox) kpiBox.appendChild(badge);
+    }
+    grid.appendChild(despCard);
     grid.appendChild(
       kpiCard({
         topClass: "t-saldo",
@@ -256,13 +268,12 @@
     card.appendChild(head);
 
     if (!items.length) {
+      var emptyKind = kind;
       card.appendChild(
-        el(
-          "div",
-          "empty",
-          isDesp
-            ? "Nenhuma despesa cadastrada. Use “+ Despesa”."
-            : "Nenhuma receita cadastrada. Use “+ Receita”."
+        Gestao.emptyState(
+          isDesp ? “Nenhuma despesa cadastrada.” : “Nenhuma receita cadastrada.”,
+          isDesp ? “+ Despesa” : “+ Receita”,
+          function () { openForm(emptyKind, null); }
         )
       );
       return card;
@@ -432,20 +443,23 @@
       list.push(novo);
     }
     window.Gestao.save();
+    window.Gestao.toast("Item salvo");
     render(); // re-renderiza a aba inteira
   }
 
   function removeItem(kind, id, descricao) {
     var label = descricao ? '"' + descricao + '"' : "este item";
-    if (!window.confirm("Excluir " + label + "?")) return;
-    var fin = getFin();
-    if (kind === "despesa") {
-      fin.despesas = fin.despesas.filter(function (x) { return x.id !== id; });
-    } else {
-      fin.receitas = fin.receitas.filter(function (x) { return x.id !== id; });
-    }
-    window.Gestao.save();
-    render();
+    window.Gestao.confirm("Excluir " + label + "?", function () {
+      var fin = getFin();
+      if (kind === "despesa") {
+        fin.despesas = fin.despesas.filter(function (x) { return x.id !== id; });
+      } else {
+        fin.receitas = fin.receitas.filter(function (x) { return x.id !== id; });
+      }
+      window.Gestao.save();
+      window.Gestao.toast("Item removido");
+      render();
+    });
   }
 
   /* ============================================================
@@ -574,11 +588,13 @@
     inPrevisto.placeholder = "0,00";
     inPrevisto.inputMode = "decimal";
     form.appendChild(field("Previsto (R$)", inPrevisto));
+    window.Gestao.maskBRL(inPrevisto);
 
     var inRealizado = makeInput("text", existing ? brlInput(existing.realizado) : "");
     inRealizado.placeholder = "0,00";
     inRealizado.inputMode = "decimal";
     form.appendChild(field("Realizado (R$)", inRealizado));
+    window.Gestao.maskBRL(inRealizado);
 
     var inData = makeInput("date", existing && existing.data ? isoDate(existing.data) : "");
     form.appendChild(field("Data", inData));

@@ -133,7 +133,8 @@
       pauta: Array.isArray(r.pauta) ? r.pauta : [],
       decisoes: Array.isArray(r.decisoes) ? r.decisoes : [],
       acoes: Array.isArray(r.acoes) ? r.acoes : [],
-      ata: trimStr(r.ata)
+      ata: trimStr(r.ata),
+      ataPdf: r.ataPdf || null
     };
   }
 
@@ -198,18 +199,21 @@
       list.push(Object.assign({ id: window.Gestao.uid("re") }, values));
     }
     window.Gestao.save();
+    window.Gestao.toast("Reunião salva");
     render();
   }
 
   function removeReuniao(id, titulo) {
     var label = trimStr(titulo) ? '"' + titulo + '"' : "esta reunião";
-    if (!window.confirm("Excluir " + label + "?")) return;
-    var data = window.Gestao.data;
-    data.reunioes.reunioes = getReunioes().filter(function (x) {
-      return x.id !== id;
+    window.Gestao.confirm("Excluir " + label + "?", function () {
+      var data = window.Gestao.data;
+      data.reunioes.reunioes = getReunioes().filter(function (x) {
+        return x.id !== id;
+      });
+      window.Gestao.save();
+      window.Gestao.toast("Reunião removida");
+      render();
     });
-    window.Gestao.save();
-    render();
   }
 
   // Define o status de uma ação específica (por reunião + índice).
@@ -362,10 +366,10 @@
 
   function renderListaReunioes(reunioes) {
     var ordered = sortReunioesDesc(reunioes);
-    var stack = el("div", "stack reu-lista");
+    var stack = el(“div”, “stack reu-lista”);
     if (!ordered.length) {
       stack.appendChild(
-        el("div", "empty", "Nenhuma reunião registrada. Use “+ Nova reunião”.")
+        window.Gestao.emptyState(“Nenhuma reunião registrada.”, “+ Reunião”, function () { openForm(null); })
       );
       return stack;
     }
@@ -500,6 +504,14 @@
       secAta.appendChild(el("p", "reu-ata", r.ata));
     } else {
       secAta.appendChild(emptyHint("Ata não preenchida."));
+    }
+    if (r.ataPdf) {
+      var linkPdf = document.createElement("a");
+      linkPdf.href = r.ataPdf;
+      linkPdf.download = "ata-" + r.data + ".pdf";
+      linkPdf.textContent = "📥 Baixar ata PDF";
+      linkPdf.className = "btn sm";
+      secAta.appendChild(linkPdf);
     }
     wrap.appendChild(secAta);
 
@@ -768,6 +780,7 @@
 
   function openForm(id) {
     var existing = id ? normalizeReuniao(findReuniao(id)) : null;
+    var _ataPdfDataUrl = null;
     closeForm();
 
     _backdrop = el("div", "reu-modal-backdrop");
@@ -870,6 +883,36 @@
     taAta.rows = 7;
     form.appendChild(field("Ata", taAta, true));
 
+    // Upload de ata em PDF.
+    var inAtaPdf = document.createElement("input");
+    inAtaPdf.type = "file";
+    inAtaPdf.accept = "application/pdf,.pdf";
+    inAtaPdf.style.display = "none";
+    var btnAtaPdf = document.createElement("button");
+    btnAtaPdf.type = "button";
+    btnAtaPdf.className = "btn sm";
+    btnAtaPdf.textContent = existing && existing.ataPdf ? "📎 Substituir PDF da ata" : "📎 Anexar PDF da ata";
+    btnAtaPdf.addEventListener("click", function () { inAtaPdf.click(); });
+    inAtaPdf.addEventListener("change", function () {
+      var f = inAtaPdf.files[0];
+      if (!f) return;
+      if (f.size > 2 * 1024 * 1024) {
+        window.Gestao.toast("PDF muito grande (máx 2 MB)", "error");
+        inAtaPdf.value = "";
+        return;
+      }
+      var rd = new FileReader();
+      rd.onload = function (e) {
+        _ataPdfDataUrl = e.target.result;
+        btnAtaPdf.textContent = "📎 " + f.name;
+      };
+      rd.readAsDataURL(f);
+    });
+    var pdfFieldWrap = el("div", "reu-field full");
+    pdfFieldWrap.appendChild(btnAtaPdf);
+    pdfFieldWrap.appendChild(inAtaPdf);
+    form.appendChild(pdfFieldWrap);
+
     // Botões.
     var actions = el("div", "reu-form-actions");
     var cancel = el("button", "btn", "Cancelar");
@@ -901,7 +944,8 @@
         pauta: pautaEd.read(),
         decisoes: decEd.read(),
         acoes: acoesEd.read(),
-        ata: taAta.value.trim()
+        ata: taAta.value.trim(),
+        ataPdf: _ataPdfDataUrl || (existing && existing.ataPdf) || null
       };
       upsertReuniao(id, values);
       closeForm();

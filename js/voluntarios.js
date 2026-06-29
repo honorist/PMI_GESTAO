@@ -8,11 +8,12 @@
    - CRUD completo (modal) persistido via Gestao.save().
 
    Contrato consumido (window.Gestao):
-     Gestao.data.voluntarios = { voluntarios:[{id,nome,funcao,telefone,email,dia}] }
+     Gestao.data.voluntarios = { voluntarios:[{id,nome,funcao,telefone,email,dia,turno}] }
      Gestao.uid(prefix) · Gestao.save() · Gestao.onTab(id, renderFn)
      Gestao.pageHeader(opts) · Gestao.headerStat(opts)
 
    dia: "13" | "14" | "ambos"
+   turno: "manha" | "tarde" | "integral"
 
    Segurança: todo valor do usuário vai ao DOM via textContent /
    createElement / .value. Links são <a> com .href/.textContent.
@@ -144,6 +145,10 @@
         v.dia === "ambos" ? " vol-badge-dia--ambos" : ""
       );
       meta.appendChild(el("span", diaBadgeClass, labelDia(v.dia)));
+      if (v.turno) {
+        var turnoLabels = { manha: "Manhã (8h–12h)", tarde: "Tarde (13h–18h)", integral: "Integral (8h–18h)" };
+        meta.appendChild(el("span", "vol-card__turno muted-text", turnoLabels[v.turno] || v.turno));
+      }
       card.appendChild(meta);
     }
 
@@ -225,18 +230,20 @@
       list.push(Object.assign({ id: window.Gestao.uid("vl") }, values));
     }
     window.Gestao.save();
+    window.Gestao.toast("Voluntário salvo");
     render();
   }
 
   function removeVoluntario(id, nome) {
     var label = nome && String(nome).trim() ? '"' + nome + '"' : "este voluntário";
-    if (!window.confirm("Excluir " + label + "?")) return;
-    var data = window.Gestao.data;
-    data.voluntarios.voluntarios = getVoluntarios().filter(function (x) {
-      return x.id !== id;
+    Gestao.confirm("Excluir " + label + "?", function () {
+      var data = window.Gestao.data;
+      data.voluntarios.voluntarios = getVoluntarios().filter(function (x) { return x.id !== id; });
+      window.Gestao.save();
+      Gestao.toast("Voluntário removido");
+      render();
     });
-    window.Gestao.save();
-    render();
+    return; // sai imediatamente — o callback cuida do resto
   }
 
   /* ============================================================
@@ -327,10 +334,13 @@
     });
     var funcaoField = field("Função *", inFuncao, true);
     funcaoField.appendChild(funcaoDL);
+    var labelFuncao = funcaoField.querySelector("label");
+    if (labelFuncao) window.Gestao.addTooltip(labelFuncao, "Ex.: Recepção, Credenciamento, Apoio Técnico, Comunicação");
     form.appendChild(funcaoField);
 
     var inTel = makeInput("tel", existing ? existing.telefone || "" : "");
     inTel.placeholder = "(51) 99999-9999";
+    window.Gestao.maskPhone(inTel);
     form.appendChild(field("Telefone", inTel));
 
     var inEmail = makeInput("email", existing ? existing.email || "" : "");
@@ -343,6 +353,13 @@
       { value: "ambos", label: "Ambos os dias"  }
     ], existing ? existing.dia || "13" : "13");
     form.appendChild(field("Dia de atuação", selDia));
+
+    var selTurno = makeSelect([
+      { value: "manha",    label: "Manhã (8h–12h)"   },
+      { value: "tarde",    label: "Tarde (13h–18h)"  },
+      { value: "integral", label: "Integral (8h–18h)" }
+    ], existing ? existing.turno || "integral" : "integral");
+    form.appendChild(field("Turno", selTurno));
 
     var actions = el("div", "vol-form-actions");
     var cancel = el("button", "btn", "Cancelar");
@@ -365,7 +382,8 @@
         funcao: funcao,
         telefone: inTel.value.trim(),
         email: inEmail.value.trim(),
-        dia: selDia.value
+        dia: selDia.value,
+        turno: selTurno.value
       });
       closeForm();
     });
@@ -424,7 +442,7 @@
     root.appendChild(bar);
 
     if (!voluntarios.length) {
-      root.appendChild(el("div", "empty", "Nenhum voluntário cadastrado. Use “+ Voluntário”."));
+      root.appendChild(Gestao.emptyState("Nenhum voluntário cadastrado ainda.", "+ Voluntário", function () { openForm(null); }));
     } else {
       var grupos = agruparPorDia(voluntarios);
       grupos.forEach(function (g) {

@@ -507,6 +507,7 @@
             }
           }, 3000);
         } else {
+          if (window.Gestao) window.Gestao.toast("Candidato removido");
           onDelete(c.id);
           document.body.removeChild(overlay);
         }
@@ -661,9 +662,17 @@
     var readonly   = !!(window.Gestao && window.Gestao.readonly);
     var filtroAtivo = mount._filtroProsp || "todos";
 
-    function salvarERender() {
+    function salvarERender(toastMsg) {
       if (window.Gestao) window.Gestao.save();
       render(mount, data);
+      if (toastMsg && window.Gestao) window.Gestao.toast(toastMsg);
+    }
+
+    function openNewForm() {
+      openModal(null, true, function (novo) {
+        candidatos.push(novo);
+        salvarERender("Candidato salvo");
+      }, null);
     }
 
     /* Cabeçalho */
@@ -720,12 +729,7 @@
     if (!readonly) {
       var btnAdd = el("button", "btn btn-primary sm", "+ Adicionar Candidato");
       btnAdd.type = "button";
-      btnAdd.addEventListener("click", function () {
-        openModal(null, true, function (novo) {
-          candidatos.push(novo);
-          salvarERender();
-        }, null);
-      });
+      btnAdd.addEventListener("click", function () { openNewForm(); });
       toolbarRight.appendChild(btnAdd);
     }
     toolbar.appendChild(toolbarRight);
@@ -737,18 +741,21 @@
       : candidatos.filter(function (c) { return c.status === filtroAtivo; });
 
     if (!filtrados.length) {
-      var empty = el("div", "prosp-empty");
+      var emptyEl;
       if (!candidatos.length) {
-        empty.appendChild(el("p", "prosp-empty__icon", "🎤"));
-        empty.appendChild(el("p", "prosp-empty__title", "Nenhum candidato ainda"));
-        if (!readonly) {
-          empty.appendChild(el("p", "prosp-empty__hint",
-            "Clique em \"+ Adicionar Candidato\" para começar a prospecção."));
-        }
+        emptyEl = window.Gestao
+          ? window.Gestao.emptyState(
+              "Nenhum candidato cadastrado.",
+              !readonly ? "+ Candidato" : null,
+              !readonly ? openNewForm : null
+            )
+          : el("p", "prosp-empty__title", "Nenhum candidato cadastrado.");
       } else {
-        empty.appendChild(el("p", "prosp-empty__title", "Nenhum candidato com este status."));
+        emptyEl = window.Gestao
+          ? window.Gestao.emptyState("Nenhum candidato com este status.")
+          : el("p", "prosp-empty__title", "Nenhum candidato com este status.");
       }
-      mount.appendChild(empty);
+      mount.appendChild(emptyEl);
       return;
     }
 
@@ -758,7 +765,7 @@
         var idx = findIndex(candidatos, function (x) { return x.id === cand.id; });
         openModal(cand, false, function (updated) {
           if (idx >= 0) candidatos[idx] = updated;
-          salvarERender();
+          salvarERender("Candidato salvo");
         }, function (id) {
           var di = findIndex(candidatos, function (x) { return x.id === id; });
           if (di >= 0) candidatos.splice(di, 1);

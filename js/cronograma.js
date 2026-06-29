@@ -546,7 +546,7 @@
     prazo: 78
   };
 
-  function buildGantt(crono, onEditar) {
+  function buildGantt(crono, onEditar, onNova) {
     var map = discById(crono);
 
     var card = el("div", { cls: "cro-gantt-card" });
@@ -591,9 +591,15 @@
     }
 
     if (!algumaLinha) {
-      body.appendChild(
-        el("div", { cls: "cro-gantt-vazio", text: "Nenhuma tarefa corresponde aos filtros." })
-      );
+      if (crono.tarefas.length === 0) {
+        body.appendChild(
+          Gestao.emptyState("Nenhuma tarefa cadastrada ainda.", "+ Tarefa", onNova || function () {})
+        );
+      } else {
+        body.appendChild(
+          el("div", { cls: "cro-gantt-vazio", text: "Nenhuma tarefa corresponde aos filtros." })
+        );
+      }
     }
 
     gantt.appendChild(body);
@@ -814,11 +820,32 @@
       on: { click: onNova }
     });
 
-    // Linha 1: rótulo + ação
+    // Contagem de tarefas visíveis (com filtros actuais)
+    var visiveis = crono.tarefas.filter(passaFiltro);
+    var nTotal = visiveis.length;
+    var nConcluidas = visiveis.filter(function (t) { return t.status === "concluido"; }).length;
+    var hoje = hojeLocal();
+    var nAtrasadas = visiveis.filter(function (t) {
+      if (t.status === "concluido") return false;
+      var fim = parseISO(t.fim);
+      return fim && fim < hoje;
+    }).length;
+    var statTxt = nTotal + (nTotal === 1 ? " tarefa" : " tarefas") +
+      " · " + nConcluidas + " concluída" + (nConcluidas === 1 ? "" : "s") +
+      " · " + nAtrasadas + " atrasada" + (nAtrasadas === 1 ? "" : "s");
+    var stat = el("p", { cls: "cro-toolbar-stat", text: statTxt });
+
+    // Linha 1: rótulo + contagem + ação
     var topo = el("div", {
       cls: "cro-toolbar-top",
       children: [
-        el("h3", { cls: "cro-toolbar-titulo", text: "Gantt do projeto" }),
+        el("div", {
+          cls: "cro-toolbar-titles",
+          children: [
+            el("h3", { cls: "cro-toolbar-titulo", text: "Gantt do projeto" }),
+            stat
+          ]
+        }),
         btnNova
       ]
     });
@@ -982,11 +1009,14 @@
           cls: "btn btn-danger", text: "Excluir", attrs: { type: "button" },
           on: {
             click: function () {
-              if (window.confirm('Excluir a tarefa "' + dados.nome + '"? Esta ação não pode ser desfeita.')) {
-                excluirTarefa(crono, dados.id);
-                fecharModal();
-                onSalvo();
-              }
+              Gestao.confirm(
+                'Excluir a tarefa "' + dados.nome + '"? Esta ação não pode ser desfeita.',
+                function () {
+                  excluirTarefa(crono, dados.id);
+                  fecharModal();
+                  onSalvo();
+                }
+              );
             }
           }
         })
@@ -1141,6 +1171,7 @@
     }
 
     Gestao.save();
+    Gestao.toast("Tarefa salva");
     return { ok: true };
   }
 
@@ -1152,6 +1183,7 @@
     if (idx !== -1) {
       crono.tarefas.splice(idx, 1);
       Gestao.save();
+      Gestao.toast("Tarefa removida");
     }
   }
 
@@ -1204,7 +1236,7 @@
     // Toolbar (título + filtros + nova)
     var toolbar = buildToolbar(crono, novaTarefa, function (opts) {
       if (opts && opts.keepFocus) {
-        atualizarSomenteGantt(mount, crono, editarPorId);
+        atualizarSomenteGantt(mount, crono, editarPorId, novaTarefa);
       } else {
         rerender();
       }
@@ -1212,16 +1244,16 @@
     mount.appendChild(toolbar);
 
     // 4. Gantt
-    var gantt = buildGantt(crono, editarPorId);
+    var gantt = buildGantt(crono, editarPorId, novaTarefa);
     gantt.setAttribute("data-cro-gantt-root", "1");
     mount.appendChild(gantt);
   }
 
   // Atualiza apenas o Gantt (preserva foco do campo de busca).
-  function atualizarSomenteGantt(mount, crono, editarPorId) {
+  function atualizarSomenteGantt(mount, crono, editarPorId, novaTarefa) {
     var antigo = mount.querySelector('[data-cro-gantt-root]');
     if (!antigo) return;
-    var novo = buildGantt(crono, editarPorId);
+    var novo = buildGantt(crono, editarPorId, novaTarefa);
     novo.setAttribute("data-cro-gantt-root", "1");
     antigo.parentNode.replaceChild(novo, antigo);
   }

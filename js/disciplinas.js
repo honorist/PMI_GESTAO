@@ -35,6 +35,10 @@
   // Disciplina atualmente selecionada (persiste durante a sessão de view).
   var _selecionada = null;
 
+  // Referências para re-render a partir de handlers internos (ex.: líder).
+  var _mountRef = null;
+  var _dataRef = null;
+
   /* ============================================================
      Injeção de CSS (uma única vez)
      ============================================================ */
@@ -59,6 +63,21 @@
 
   function badge(cor, texto) {
     return el("span", "badge " + (cor || "muted"), texto);
+  }
+
+  // Resolve o nome de um membro da equipe pelo id (ou string de nome) guardado
+  // em disc.lider. Aceita tanto {id, nome} quanto {id, name}.
+  function nomeMembro(membros, liderId) {
+    if (!liderId) return null;
+    var liderStr = String(liderId);
+    var m = (membros || []).filter(function (mb) {
+      return (
+        String(mb.id) === liderStr ||
+        (mb.nome && mb.nome === liderStr) ||
+        (mb.name && mb.name === liderStr)
+      );
+    })[0];
+    return m ? (m.nome || m.name || liderStr) : liderStr;
   }
 
   // Formata 'AAAA-MM-DD' via Gestao.fmtData (com fallback) ou "—".
@@ -172,6 +191,39 @@
   }
 
   /* ============================================================
+     Breadcrumb de contexto (UI-11)
+     ============================================================ */
+  function buildBreadcrumb(discNome) {
+    var bc = el("div", "breadcrumb");
+    bc.style.cssText =
+      "display:flex;gap:6px;align-items:center;font-size:.82rem;" +
+      "color:var(--muted);margin-bottom:12px;";
+
+    var spanPlan = el("span", null, "Planejamento");
+    spanPlan.style.cssText = "cursor:pointer;color:var(--purple-2);";
+    spanPlan.addEventListener("click", function () {
+      if (window.Gestao && window.Gestao.showTab) {
+        window.Gestao.showTab("tab-cronograma");
+      }
+    });
+    bc.appendChild(spanPlan);
+
+    var sep1 = el("span", null, "›");
+    sep1.style.color = "var(--muted)";
+    bc.appendChild(sep1);
+
+    bc.appendChild(el("span", null, "Disciplinas"));
+
+    var sep2 = el("span", null, "›");
+    sep2.style.color = "var(--muted)";
+    bc.appendChild(sep2);
+
+    bc.appendChild(el("span", null, discNome || "—"));
+
+    return bc;
+  }
+
+  /* ============================================================
      Sub-navegação (pílulas das disciplinas)
      ============================================================ */
   function buildNav(disciplinas, onSelect) {
@@ -204,7 +256,7 @@
   /* ============================================================
      Cabeçalho colorido da disciplina + avanço
      ============================================================ */
-  function buildHead(disc, status, pct) {
+  function buildHead(disc, status, pct, membros) {
     var head = el("div", "dsc-head");
     head.style.background = disc.cor || "var(--purple)";
 
@@ -238,6 +290,55 @@
     stats.appendChild(badge("blue", status.andamento + " em andamento"));
     stats.appendChild(badge("muted", status.pendente + " pendentes"));
     head.appendChild(stats);
+
+    // Linha de líder do GT (Func-21).
+    var rowLider = el("div", "dsc-head__lider");
+    var liderNomeAtual = nomeMembro(membros, disc.lider);
+    var liderLabel = el("span", "dsc-head__lider-label", "Líder: ");
+    var liderNomeEl = el("strong", null, liderNomeAtual || "Não definido");
+    rowLider.appendChild(liderLabel);
+    rowLider.appendChild(liderNomeEl);
+
+    // Botão "Definir líder" — visível só quando não é readonly e há membros.
+    var readonly = window.Gestao && typeof window.Gestao.podeEditar === "function"
+      ? !window.Gestao.podeEditar()
+      : false;
+    if (!readonly && membros && membros.length) {
+      var btnLider = el("button", "btn-ghost btn sm dsc-head__lider-btn", "Definir líder");
+      btnLider.type = "button";
+      btnLider.addEventListener("click", function () {
+        var sel = document.createElement("select");
+        sel.className = "dsc-head__lider-sel";
+
+        var optVazio = document.createElement("option");
+        optVazio.value = "";
+        optVazio.textContent = "— sem líder —";
+        sel.appendChild(optVazio);
+
+        membros.forEach(function (mb) {
+          var opt = document.createElement("option");
+          var val = String(mb.id || mb.nome || mb.name || "");
+          opt.value = val;
+          opt.textContent = mb.nome || mb.name || val;
+          if (val && val === String(disc.lider || "")) opt.selected = true;
+          sel.appendChild(opt);
+        });
+
+        sel.addEventListener("change", function () {
+          disc.lider = sel.value || null;
+          if (window.Gestao && window.Gestao.save) window.Gestao.save();
+          if (window.Gestao && window.Gestao.toast) {
+            window.Gestao.toast("Líder definido com sucesso");
+          }
+          if (_mountRef && _dataRef) render(_mountRef, _dataRef);
+        });
+
+        rowLider.replaceChild(sel, btnLider);
+      });
+      rowLider.appendChild(btnLider);
+    }
+
+    head.appendChild(rowLider);
 
     return head;
   }
@@ -483,6 +584,7 @@
     var cron = data.cronograma || {};
     var eap = data.eap || {};
     var contr = data.contratacoes || {};
+    var membros = (data.equipe && data.equipe.membros) || [];
 
     var tarefas = tarefasDaDisciplina(cron, disc.id);
     var status = contarStatus(tarefas);
@@ -494,7 +596,7 @@
     var fornecedores = contratacoesDaDisciplina(contr, disc.id, eapDiscId);
 
     var painel = el("div");
-    painel.appendChild(buildHead(disc, status, pct));
+    painel.appendChild(buildHead(disc, status, pct, membros));
     painel.appendChild(buildTarefas(tarefas));
     painel.appendChild(buildPacotes(pacotes, !eapDisc, disc));
     painel.appendChild(buildContratacoes(fornecedores));
@@ -507,6 +609,9 @@
   function render(mount, data) {
     ensureStyles();
     data = data || {};
+    // Armazena refs para re-render a partir de handlers internos (ex.: líder).
+    _mountRef = mount;
+    _dataRef = data;
     var disciplinas = (data.cronograma && data.cronograma.disciplinas) || [];
 
     mount.innerHTML = ""; // limpa placeholder
@@ -534,11 +639,14 @@
       })
     );
 
-    // Painel da disciplina selecionada.
+    // Painel da disciplina selecionada (com breadcrumb de contexto acima).
     var disc = disciplinas.filter(function (d) {
       return d.id === _selecionada;
     })[0];
-    if (disc) mount.appendChild(buildPainel(disc, data));
+    if (disc) {
+      mount.appendChild(buildBreadcrumb(disc.nome));
+      mount.appendChild(buildPainel(disc, data));
+    }
   }
 
   /* ============================================================

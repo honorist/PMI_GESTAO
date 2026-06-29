@@ -675,6 +675,195 @@ body.is-viewer .btn-danger {
 }
 
 /* ============================================================
+   Dark mode — overrides app-nível (UI-28)
+   ============================================================ */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--card);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+/* ============================================================
+   Save status flash — UI-2
+   ============================================================ */
+@keyframes savePulse {
+  0%   { background: var(--green-bright); transform: scale(1.4); }
+  60%  { background: var(--green-bright); transform: scale(1); }
+  100% { background: var(--muted); }
+}
+.save-status[data-state="saved"] .dot {
+  animation: savePulse 2s ease forwards;
+}
+
+/* ============================================================
+   Toast — UI-5
+   ============================================================ */
+#gestao-toasts {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.gestao-toast {
+  padding: 11px 18px;
+  border-radius: var(--rad-sm);
+  font-size: .88rem;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(0,0,0,.22);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .22s, transform .22s;
+  pointer-events: auto;
+  max-width: 320px;
+}
+.gestao-toast.is-visible  { opacity: 1; transform: translateY(0); }
+.gestao-toast--success    { background: var(--green-bright); }
+.gestao-toast--error      { background: #c0392b; }
+.gestao-toast--info       { background: var(--blue); }
+.gestao-toast--warn       { background: var(--orange); }
+
+/* ============================================================
+   Confirm modal — UI-4
+   ============================================================ */
+.gestao-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26,17,69,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 8000;
+  padding: 20px;
+}
+.gestao-confirm-box {
+  background: var(--card);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  padding: 28px 24px 20px;
+  width: 100%;
+  max-width: 360px;
+}
+.gestao-confirm-msg {
+  font-size: 1rem;
+  color: var(--ink);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+.gestao-confirm-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ============================================================
+   Back-to-top — UI-14
+   ============================================================ */
+#btn-back-top {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  z-index: 500;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--purple);
+  color: #fff;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .2s, transform .2s;
+  pointer-events: none;
+}
+#btn-back-top.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+#btn-back-top:hover { background: var(--purple-2); }
+
+/* ============================================================
+   Controles de fonte e dark toggle — UI-28, UI-29
+   ============================================================ */
+.font-controls {
+  display: flex;
+  gap: 2px;
+}
+.font-controls .btn,
+#btn-theme {
+  padding: 5px 9px;
+  font-size: .8rem;
+  font-weight: 700;
+  min-width: 32px;
+}
+
+/* Checkmark na aba ativa dentro de dropdown — UI-12 */
+.tab-group__menu .tab-btn[aria-selected="true"]::after {
+  content: " ✓";
+  color: var(--teal);
+}
+
+/* Empty state com CTA — UI-1 */
+.empty-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 16px;
+  text-align: center;
+}
+.empty-cta p { color: var(--muted); margin: 0; }
+
+/* Avatar com iniciais — UI-17 */
+.avatar-initials {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .8rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* Tooltip icon — UI-10 */
+.tooltip-icon {
+  color: var(--muted);
+  cursor: help;
+  font-size: .82em;
+  position: relative;
+}
+
+/* Barra de progresso de vagas por dia — UI-23 */
+.vol-progress-bar {
+  height: 4px;
+  background: var(--line);
+  border-radius: 99px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.vol-progress-bar__fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width .4s ease;
+}
+
+/* ============================================================
    Tab groups — dropdowns de navegação agrupada
    ============================================================ */
 .tab-group {

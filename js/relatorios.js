@@ -40,12 +40,37 @@
      Injeção do CSS do módulo (sem tocar no index.html)
      ============================================================ */
   function ensureStyles() {
-    if (document.getElementById("relatorios-css")) return;
-    var link = document.createElement("link");
-    link.id = "relatorios-css";
-    link.rel = "stylesheet";
-    link.href = "css/relatorios.css";
-    document.head.appendChild(link);
+    if (!document.getElementById("relatorios-css")) {
+      var link = document.createElement("link");
+      link.id = "relatorios-css";
+      link.rel = "stylesheet";
+      link.href = "css/relatorios.css";
+      document.head.appendChild(link);
+    }
+    if (!document.getElementById("relatorios-assinatura-css")) {
+      var style = document.createElement("style");
+      style.id = "relatorios-assinatura-css";
+      style.textContent = [
+        ".rel-assinatura { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; }",
+        ".rel-assinatura__titulo { font-size: .875rem; font-weight: 600; text-transform: uppercase;",
+        "  letter-spacing: .05em; color: #6b7280; margin-bottom: 1rem; }",
+        ".rel-assinatura__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: .75rem; }",
+        ".rel-assinatura__field { display: flex; flex-direction: column; gap: .35rem; }",
+        ".rel-assinatura__label { font-size: .8125rem; font-weight: 500; color: #374151; }",
+        ".rel-assinatura__input { width: 100%; padding: .35rem .5rem; border: 1px solid #d1d5db;",
+        "  border-radius: .25rem; font-size: .875rem; box-sizing: border-box; }",
+        ".rel-assinatura__nota { font-size: .75rem; color: #9ca3af; margin: 0; }",
+        "@media print {",
+        "  .rel-assinatura { display: block !important; page-break-inside: avoid; }",
+        "  .rel-assinatura__input {",
+        "    border-top: none; border-left: none; border-right: none;",
+        "    border-bottom: 1px solid #374151;",
+        "    border-radius: 0; background: transparent; padding-left: 0;",
+        "  }",
+        "}"
+      ].join("\n");
+      document.head.appendChild(style);
+    }
   }
 
   /* ============================================================
@@ -372,6 +397,51 @@
     return card;
   }
 
+  // Bloco de assinatura (aprovação) adicionado ao final de cada relatório.
+  // idSuffix garante ids únicos quando os dois relatórios coexistem no DOM.
+  function buildSignatureBlock(idSuffix) {
+    var sec = document.createElement("section");
+    sec.className = "rel-assinatura";
+
+    sec.appendChild(el("h4", "rel-assinatura__titulo", "Aprovação do Relatório"));
+
+    var grid = el("div", "rel-assinatura__grid");
+
+    // Campo: Aprovado por
+    var fieldNome = el("div", "rel-assinatura__field");
+    var idNome = "rel-assinatura-nome-" + idSuffix;
+    var labelNome = el("label", "rel-assinatura__label", "Aprovado por:");
+    labelNome.setAttribute("for", idNome);
+    var inputNome = document.createElement("input");
+    inputNome.className = "rel-assinatura__input";
+    inputNome.type = "text";
+    inputNome.id = idNome;
+    inputNome.placeholder = "Nome completo";
+    fieldNome.appendChild(labelNome);
+    fieldNome.appendChild(inputNome);
+    grid.appendChild(fieldNome);
+
+    // Campo: Data de aprovação
+    var fieldData = el("div", "rel-assinatura__field");
+    var idData = "rel-assinatura-data-" + idSuffix;
+    var labelData = el("label", "rel-assinatura__label", "Data:");
+    labelData.setAttribute("for", idData);
+    var inputData = document.createElement("input");
+    inputData.className = "rel-assinatura__input";
+    inputData.type = "date";
+    inputData.id = idData;
+    fieldData.appendChild(labelData);
+    fieldData.appendChild(inputData);
+    grid.appendChild(fieldData);
+
+    sec.appendChild(grid);
+    sec.appendChild(
+      el("p", "rel-assinatura__nota", "Preencha antes de imprimir. Os dados não são salvos.")
+    );
+
+    return sec;
+  }
+
   // Rodapé do documento.
   function docFoot() {
     var foot = el("div", "rel-doc__foot");
@@ -655,6 +725,7 @@
       )
     );
 
+    doc.appendChild(buildSignatureBlock("status"));
     doc.appendChild(docFoot());
     return doc;
   }
@@ -1117,6 +1188,7 @@
 
     doc.appendChild(section("Compliance / Conformidade", compWrap));
 
+    doc.appendChild(buildSignatureBlock("financeiro"));
     doc.appendChild(docFoot());
     return doc;
   }
