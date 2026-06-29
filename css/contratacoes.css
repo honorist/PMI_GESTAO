@@ -222,3 +222,65 @@
   .ctr-kanban { grid-template-columns: 1fr; }
   .ctr-form { grid-template-columns: 1fr; }
 }
+
+/* --- Painel de desembolsos (contratos fechados) --- */
+.ctr-desemp-wrap {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+  padding-top: 8px;
+}
+
+.ctr-desemp-toggle {
+  color: var(--purple, #36177B);
+  font-size: .8rem;
+  font-weight: 600;
+  padding: 2px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  letter-spacing: .2px;
+}
+
+.ctr-desemp-panel { margin-top: 8px; }
+
+.ctr-desemp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .79rem;
+  margin-bottom: 4px;
+}
+.ctr-desemp-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+.ctr-desemp-table td:first-child { color: var(--muted); font-weight: 500; }
+
+.ctr-desemp-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+}
+
+.ctr-desemp-add {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.ctr-desemp-mes,
+.ctr-desemp-valor {
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  background: var(--card);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: .78rem;
+}
+.ctr-desemp-mes  { flex: 0 0 130px; }
+.ctr-desemp-valor { flex: 1; min-width: 70px; }

@@ -258,11 +258,144 @@
 
     foot.appendChild(actions);
     card.appendChild(foot);
+
+    // Painel de desembolsos (somente contratos fechados)
+    if (f.status === "fechado") {
+      var desembs = Array.isArray(f.desembolsos) ? f.desembolsos : [];
+      var toggleLabel = "Desembolsos" + (desembs.length ? " (" + desembs.length + ")" : "");
+      var wrap = el("div", "ctr-desemp-wrap");
+      var toggleBtn = el("button", "ctr-desemp-toggle", "");
+      toggleBtn.type = "button";
+      var panelEl = buildDesembolsoPanel(f);
+      panelEl.style.display = "none";
+      toggleBtn.textContent = "▸ " + toggleLabel;
+      toggleBtn.addEventListener("click", function () {
+        var isHidden = panelEl.style.display === "none";
+        panelEl.style.display = isHidden ? "block" : "none";
+        toggleBtn.textContent = (isHidden ? "▾ " : "▸ ") + toggleLabel;
+      });
+      wrap.appendChild(toggleBtn);
+      wrap.appendChild(panelEl);
+      card.appendChild(wrap);
+    }
+
     return card;
   }
 
   function badge(text, color) {
     return el("span", "badge " + color, text);
+  }
+
+  /* ============================================================
+     Desembolsos — funções de edição por contrato fechado
+     ============================================================ */
+  function fmtMes(mesStr) {
+    if (!mesStr) return "-";
+    var p = mesStr.split("-");
+    var abr = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+    var m = parseInt(p[1], 10) - 1;
+    return (abr[m] || p[1]) + "/" + p[0];
+  }
+
+  function addDesembolso(fId, mes, valor) {
+    var list = getFornecedores();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id !== fId) continue;
+      var arr = Array.isArray(list[i].desembolsos) ? list[i].desembolsos.slice() : [];
+      var found = false;
+      for (var j = 0; j < arr.length; j++) {
+        if (arr[j].mes === mes) { arr[j] = { mes: mes, valor: valor }; found = true; break; }
+      }
+      if (!found) {
+        arr.push({ mes: mes, valor: valor });
+        arr.sort(function (a, b) { return a.mes < b.mes ? -1 : 1; });
+      }
+      list[i] = Object.assign({}, list[i], { desembolsos: arr });
+      window.Gestao.save();
+      render();
+      return;
+    }
+  }
+
+  function removeDesembolso(fId, mes) {
+    var list = getFornecedores();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id !== fId) continue;
+      var arr = (Array.isArray(list[i].desembolsos) ? list[i].desembolsos : [])
+        .filter(function (d) { return d.mes !== mes; });
+      list[i] = Object.assign({}, list[i], { desembolsos: arr });
+      window.Gestao.save();
+      render();
+      return;
+    }
+  }
+
+  function buildDesembolsoPanel(f) {
+    var Gestao = window.Gestao;
+    var desembolsos = Array.isArray(f.desembolsos) ? f.desembolsos : [];
+    var totalD = desembolsos.reduce(function (s, d) { return s + toNumber(d.valor); }, 0);
+    var valorC = toNumber(f.valor);
+
+    var panel = el("div", "ctr-desemp-panel");
+
+    if (desembolsos.length) {
+      var table = document.createElement("table");
+      table.className = "ctr-desemp-table";
+      desembolsos.forEach(function (d) {
+        var tr = document.createElement("tr");
+        var delBtn = el("button", "btn btn-ghost sm", "x");
+        delBtn.type = "button";
+        delBtn.style.padding = "0 5px";
+        delBtn.addEventListener("click", function () { removeDesembolso(f.id, d.mes); });
+        var tdDel = document.createElement("td");
+        tdDel.appendChild(delBtn);
+        tr.appendChild(el("td", null, fmtMes(d.mes)));
+        tr.appendChild(el("td", "ctr-desemp-val", Gestao.fmtBRL(d.valor)));
+        tr.appendChild(tdDel);
+        table.appendChild(tr);
+      });
+      panel.appendChild(table);
+
+      var diff = valorC - totalD;
+      var ok = Math.abs(diff) < 1;
+      var msg = ok
+        ? "OK " + Gestao.fmtBRL(totalD) + " / " + Gestao.fmtBRL(valorC)
+        : (diff > 0 ? "faltam " + Gestao.fmtBRL(diff) : "excede " + Gestao.fmtBRL(-diff));
+      var totalEl = el("div", null, msg);
+      totalEl.style.cssText = "font-size:.75rem;font-weight:600;color:" + (ok ? "var(--green,#1F9D6B)" : "#d97706") + ";margin-bottom:4px;";
+      panel.appendChild(totalEl);
+    }
+
+    var addRow = el("div", "ctr-desemp-add");
+    var mesInput = document.createElement("input");
+    mesInput.type = "month";
+    mesInput.className = "ctr-desemp-mes";
+    var now = new Date();
+    var ny = now.getFullYear(), nm = now.getMonth() + 2;
+    if (nm > 12) { nm = 1; ny++; }
+    mesInput.value = ny + "-" + String(nm).padStart(2, "0");
+
+    var valInput = document.createElement("input");
+    valInput.type = "number";
+    valInput.className = "ctr-desemp-valor";
+    valInput.placeholder = "Valor";
+    valInput.min = "0";
+    valInput.step = "0.01";
+
+    var addBtn = el("button", "btn btn-primary sm", "+");
+    addBtn.type = "button";
+    addBtn.addEventListener("click", function () {
+      var mes = mesInput.value;
+      var val = toNumber(valInput.value);
+      if (!mes || val <= 0) return;
+      addDesembolso(f.id, mes, val);
+    });
+
+    addRow.appendChild(mesInput);
+    addRow.appendChild(valInput);
+    addRow.appendChild(addBtn);
+    panel.appendChild(addRow);
+    return panel;
   }
 
   // Select que muda o status do fornecedor diretamente do card.

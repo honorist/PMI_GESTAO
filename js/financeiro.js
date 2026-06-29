@@ -124,14 +124,21 @@
     return lista.filter(function (f) { return f.status === "fechado"; });
   }
 
+  function somaDesembolsos(f) {
+    var arr = Array.isArray(f.desembolsos) ? f.desembolsos : [];
+    return arr.length > 0
+      ? arr.reduce(function (s, d) { return s + toNumber(d.valor); }, 0)
+      : toNumber(f.valor);
+  }
+
   function contratosComoItens() {
     return getContratosFechados().map(function (f) {
       return {
         id: "ctr-" + f.id,
         descricao: f.nome || "Contrato",
         categoria: f.categoria || "Contratos",
-        previsto: 0,
-        realizado: toNumber(f.valor),
+        previsto: toNumber(f.valor),
+        realizado: somaDesembolsos(f),
         fornecedor: f.nome,
         data: f.dataCriacao || null,
         _isContrato: true
@@ -144,7 +151,7 @@
      ============================================================ */
   function computeTotals(fin) {
     var valorContratos = getContratosFechados()
-      .reduce(function (s, f) { return s + toNumber(f.valor); }, 0);
+      .reduce(function (s, f) { return s + somaDesembolsos(f); }, 0);
     var recPrev = sumBy(fin.receitas, "previsto");
     var recReal = sumBy(fin.receitas, "realizado");
     var despPrev = sumBy(fin.despesas, "previsto");
@@ -692,6 +699,92 @@
   }
 
   /* ============================================================
+     Curva de Desembolso — gráfico SVG de barras mensais
+     ============================================================ */
+  function renderCurvaDesembolso() {
+    var contratos = getContratosFechados();
+    var byMonth = {};
+    contratos.forEach(function (f) {
+      (Array.isArray(f.desembolsos) ? f.desembolsos : []).forEach(function (d) {
+        if (!d.mes) return;
+        byMonth[d.mes] = (byMonth[d.mes] || 0) + toNumber(d.valor);
+      });
+    });
+
+    var card = el("div", "card stack");
+    card.appendChild(el("h3", "section-title", "Curva de Desembolso"));
+
+    var meses = Object.keys(byMonth).sort();
+    if (!meses.length) {
+      var hint = el("p", null, "Nenhum desembolso cadastrado. Va em Contratacoes, abra um contrato fechado e adicione desembolsos mensais.");
+      hint.style.cssText = "color:var(--muted);font-size:.85rem;";
+      card.appendChild(hint);
+      return card;
+    }
+
+    var Gestao = window.Gestao;
+    var valores = meses.map(function (m) { return byMonth[m]; });
+    var maxVal = Math.max.apply(null, valores);
+    var W = 640, H = 210;
+    var PL = 72, PB = 44, PT = 22, PR = 16;
+    var cW = W - PL - PR, cH = H - PT - PB;
+    var barW = Math.max(8, Math.min(44, Math.floor(cW / meses.length) - 8));
+    var ABRL = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+    var ns = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.style.cssText = "width:100%;max-width:700px;display:block;margin:0 auto;";
+
+    function svgEl(tag, attrs) {
+      var e = document.createElementNS(ns, tag);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      return e;
+    }
+    function txt(x, y, content, fs, fill, anchor) {
+      var t = svgEl("text", { x: x, y: y, "font-size": fs || 10, fill: fill || "#64748b", "text-anchor": anchor || "middle" });
+      t.textContent = content;
+      return t;
+    }
+
+    // Linhas de grade + labels eixo Y
+    var steps = 4;
+    for (var s = 0; s <= steps; s++) {
+      var yVal = maxVal / steps * s;
+      var yPx = PT + cH - Math.round(cH * s / steps);
+      svg.appendChild(svgEl("line", { x1: PL, x2: PL + cW, y1: yPx, y2: yPx, stroke: "#e2e8f0", "stroke-width": 1 }));
+      var yLbl = yVal >= 1000 ? "R$" + Math.round(yVal / 1000) + "k" : "R$" + Math.round(yVal);
+      svg.appendChild(txt(PL - 5, yPx + 4, yLbl, 9, "#94a3b8", "end"));
+    }
+
+    // Barras
+    var totalGeral = 0;
+    meses.forEach(function (mes, i) {
+      var val = byMonth[mes];
+      totalGeral += val;
+      var barH = maxVal > 0 ? Math.round((val / maxVal) * cH) : 0;
+      var slotW = cW / meses.length;
+      var x = Math.round(PL + slotW * i + (slotW - barW) / 2);
+      var y = PT + cH - barH;
+      svg.appendChild(svgEl("rect", { x: x, y: y, width: barW, height: barH, fill: "#6d28d9", rx: 3 }));
+      // valor acima da barra
+      var vLbl = val >= 1000 ? "R$" + Math.round(val / 1000) + "k" : "R$" + Math.round(val);
+      svg.appendChild(txt(x + barW / 2, y - 4, vLbl, 9, "#475569"));
+      // label mês no eixo X
+      var p = mes.split("-");
+      var mAbr = (ABRL[parseInt(p[1], 10) - 1] || p[1]) + "/" + (p[0] ? p[0].slice(2) : "");
+      svg.appendChild(txt(x + barW / 2, PT + cH + 16, mAbr, 9, "#64748b"));
+    });
+
+    card.appendChild(svg);
+
+    var info = el("div", null, "Total planejado: " + Gestao.fmtBRL(totalGeral));
+    info.style.cssText = "text-align:right;font-size:.78rem;color:var(--muted);margin-top:2px;";
+    card.appendChild(info);
+    return card;
+  }
+
+  /* ============================================================
      Cabeçalho padrão da aba (logo + título + cartão de saldo)
      ------------------------------------------------------------
      O cartão à direita mostra o SALDO realizado (receita realizada −
@@ -741,6 +834,7 @@
     root.appendChild(renderResumo(fin));
     root.appendChild(renderTabela(fin, "receita"));
     root.appendChild(renderTabela(fin, "despesa"));
+    root.appendChild(renderCurvaDesembolso());
 
     _mount.appendChild(root);
   }
