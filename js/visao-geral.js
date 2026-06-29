@@ -221,11 +221,46 @@
     return base;
   }
 
+  // Qtd de patrocinadores confirmados numa cota (espelha financeiro.js).
+  function vgPatroConfirmado(cotaNome) {
+    var g = window.Gestao;
+    if (!g || !g.data) return 0;
+    var lista = (g.data.patrocinio && g.data.patrocinio.patrocinadores) || [];
+    var cmp = String(cotaNome || "").toLowerCase();
+    return lista.filter(function (p) {
+      return p.status === "confirmado" && p.cota === cmp;
+    }).length;
+  }
+
+  // Totais de receita pela tabela de inscricoes (Cegas+Lotes+Patrocinio).
+  function vgInscricoes(financeiro) {
+    var ins = financeiro && financeiro.inscricoes;
+    if (!ins) return null;
+    var n = function (v) { return parseFloat(v) || 0; };
+    var prev = 0, real = 0;
+    if (ins.cegas) {
+      prev += n(ins.cegas.valor) * n(ins.cegas.qtd_prev);
+      real += n(ins.cegas.valor) * n(ins.cegas.qtd_real);
+    }
+    (ins.lotes || []).forEach(function (l) {
+      (l.tipos || []).forEach(function (tp) {
+        prev += n(tp.valor) * n(tp.qtd_prev);
+        real += n(tp.valor) * n(tp.qtd_real);
+      });
+    });
+    (ins.patrocinio || []).forEach(function (p) {
+      prev += n(p.valor) * n(p.qtd_prev);
+      real += n(p.valor) * vgPatroConfirmado(p.cota);
+    });
+    return { prev: prev, real: real };
+  }
+
   // Receita/despesa: total previsto e realizado de cada lado.
   function resumoFinanceiro(financeiro) {
+    var ins = vgInscricoes(financeiro);
     return {
-      receitaPrev: soma(financeiro.receitas || [], "previsto"),
-      receitaReal: soma(financeiro.receitas || [], "realizado"),
+      receitaPrev: ins ? ins.prev : soma(financeiro.receitas || [], "previsto"),
+      receitaReal: ins ? ins.real : soma(financeiro.receitas || [], "realizado"),
       despesaPrev: soma(financeiro.despesas || [], "previsto"),
       despesaReal: soma(financeiro.despesas || [], "realizado")
     };

@@ -488,7 +488,9 @@
     var marcos = tarefas.filter(function (t) {
       return t.marco;
     }).length;
-    var saldoReal = sumBy(fin.receitas, "realizado") - sumBy(fin.despesas, "realizado");
+    var inscReal = inscricoesTotais(fin);
+    var recRealResumo = inscReal.temInscricoes ? inscReal.real : sumBy(fin.receitas, "realizado");
+    var saldoReal = recRealResumo - sumBy(fin.despesas, "realizado");
 
     var resumo = el("div", "rel-summary");
     resumo.appendChild(
@@ -778,13 +780,49 @@
   }
 
   // Indicadores gerenciais consolidados (números, sem DOM).
+  // Qtd de patrocinadores confirmados numa cota (espelha financeiro.js).
+  function patroCotaConfirmado(cotaNome) {
+    var g = window.Gestao;
+    if (!g || !g.data) return 0;
+    var lista = (g.data.patrocinio && g.data.patrocinio.patrocinadores) || [];
+    var cmp = String(cotaNome || "").toLowerCase();
+    return lista.filter(function (p) {
+      return p.status === "confirmado" && p.cota === cmp;
+    }).length;
+  }
+
+  // Totais de receita a partir da tabela estruturada de inscricoes
+  // (Cegas + Lotes + Patrocinio). Fallback ao array antigo se ausente.
+  function inscricoesTotais(fin) {
+    var ins = fin && fin.inscricoes;
+    if (!ins) return { temInscricoes: false, prev: 0, real: 0 };
+    var num = function (v) { return parseFloat(v) || 0; };
+    var prev = 0, real = 0;
+    if (ins.cegas) {
+      prev += num(ins.cegas.valor) * num(ins.cegas.qtd_prev);
+      real += num(ins.cegas.valor) * num(ins.cegas.qtd_real);
+    }
+    (ins.lotes || []).forEach(function (l) {
+      (l.tipos || []).forEach(function (tp) {
+        prev += num(tp.valor) * num(tp.qtd_prev);
+        real += num(tp.valor) * num(tp.qtd_real);
+      });
+    });
+    (ins.patrocinio || []).forEach(function (p) {
+      prev += num(p.valor) * num(p.qtd_prev);
+      real += num(p.valor) * patroCotaConfirmado(p.cota);
+    });
+    return { temInscricoes: true, prev: prev, real: real };
+  }
+
   function computeFinanceiro(fin, contr) {
     var receitas = (fin && fin.receitas) || [];
     var despesas = (fin && fin.despesas) || [];
     var fornecedores = (contr && contr.fornecedores) || [];
 
-    var recPrev = sumBy(receitas, "previsto");
-    var recReal = sumBy(receitas, "realizado");
+    var insc = inscricoesTotais(fin);
+    var recPrev = insc.temInscricoes ? insc.prev : sumBy(receitas, "previsto");
+    var recReal = insc.temInscricoes ? insc.real : sumBy(receitas, "realizado");
     var despPrev = sumBy(despesas, "previsto");
     var despReal = sumBy(despesas, "realizado");
 
@@ -841,6 +879,26 @@
       .sort(function (a, b) {
         return b.valor - a.valor;
       });
+  }
+
+  // Receitas por categoria a partir das inscricoes (Cegas, Lotes,
+  // Patrocinio) para os graficos. Fallback ao array antigo se ausente.
+  function receitaCategorias(fin) {
+    var ins = fin && fin.inscricoes;
+    if (!ins) return computePorCategoria((fin && fin.receitas) || [], "previsto");
+    var num = function (v) { return parseFloat(v) || 0; };
+    var rows = [];
+    if (ins.cegas) rows.push({ label: "Venda as Cegas", valor: num(ins.cegas.valor) * num(ins.cegas.qtd_prev) });
+    (ins.lotes || []).forEach(function (l) {
+      var s = 0;
+      (l.tipos || []).forEach(function (tp) { s += num(tp.valor) * num(tp.qtd_prev); });
+      rows.push({ label: "Lote " + l.num, valor: s });
+    });
+    var pat = 0;
+    (ins.patrocinio || []).forEach(function (p) { pat += num(p.valor) * num(p.qtd_prev); });
+    if (pat > 0) rows.push({ label: "Patrocinio", valor: pat });
+    return rows.filter(function (r) { return r.valor > 0; })
+      .sort(function (a, b) { return b.valor - a.valor; });
   }
 
   // Verificações de conformidade derivadas dos dados.
@@ -1134,7 +1192,7 @@
 
     /* ---- 4. Gráficos de alto nível ---- */
     var despCats = computePorCategoria(fin.despesas, "previsto");
-    var recCats = computePorCategoria(fin.receitas, "previsto");
+    var recCats = receitaCategorias(fin);
 
     var graf = el("div", "rel-graf-stack");
 
