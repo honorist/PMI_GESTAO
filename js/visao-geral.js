@@ -255,14 +255,38 @@
     return { prev: prev, real: real };
   }
 
+  // Soma dos desembolsos de um contrato (previsto/realizado), compat .valor.
+  function vgSomaDesembolsos(f) {
+    var arr = Array.isArray(f.desembolsos) ? f.desembolsos : [];
+    return arr.reduce(function (s, d) {
+      var prev = parseFloat(d.previsto !== undefined ? d.previsto : d.valor) || 0;
+      return { prev: s.prev + prev, real: s.real + (parseFloat(d.realizado) || 0) };
+    }, { prev: 0, real: 0 });
+  }
+
+  // Contratos fechados somados pela despesa de seus desembolsos.
+  function vgContratosFechados() {
+    var g = window.Gestao;
+    var c = (g && g.data && g.data.contratacoes) || {};
+    return (c.fornecedores || [])
+      .filter(function (f) { return f.status === "fechado"; })
+      .reduce(function (s, f) {
+        var d = vgSomaDesembolsos(f);
+        return { prev: s.prev + d.prev, real: s.real + d.real };
+      }, { prev: 0, real: 0 });
+  }
+
   // Receita/despesa: total previsto e realizado de cada lado.
+  // Despesa = lancamentos manuais + desembolsos de contratos fechados
+  // (mesmo modelo do Financeiro e do Relatorio).
   function resumoFinanceiro(financeiro) {
     var ins = vgInscricoes(financeiro);
+    var ctr = vgContratosFechados();
     return {
       receitaPrev: ins ? ins.prev : soma(financeiro.receitas || [], "previsto"),
       receitaReal: ins ? ins.real : soma(financeiro.receitas || [], "realizado"),
-      despesaPrev: soma(financeiro.despesas || [], "previsto"),
-      despesaReal: soma(financeiro.despesas || [], "realizado")
+      despesaPrev: soma(financeiro.despesas || [], "previsto") + ctr.prev,
+      despesaReal: soma(financeiro.despesas || [], "realizado") + ctr.real
     };
   }
 

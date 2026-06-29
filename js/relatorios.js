@@ -815,6 +815,16 @@
     return { temInscricoes: true, prev: prev, real: real };
   }
 
+  // Soma dos desembolsos de um contrato (previsto/realizado), com
+  // compat ao campo antigo .valor tratado como previsto.
+  function somaDesembolsos(f) {
+    var arr = Array.isArray(f.desembolsos) ? f.desembolsos : [];
+    return arr.reduce(function (s, d) {
+      var prev = parseFloat(d.previsto !== undefined ? d.previsto : d.valor) || 0;
+      return { prev: s.prev + prev, real: s.real + (parseFloat(d.realizado) || 0) };
+    }, { prev: 0, real: 0 });
+  }
+
   function computeFinanceiro(fin, contr) {
     var receitas = (fin && fin.receitas) || [];
     var despesas = (fin && fin.despesas) || [];
@@ -823,8 +833,6 @@
     var insc = inscricoesTotais(fin);
     var recPrev = insc.temInscricoes ? insc.prev : sumBy(receitas, "previsto");
     var recReal = insc.temInscricoes ? insc.real : sumBy(receitas, "realizado");
-    var despPrev = sumBy(despesas, "previsto");
-    var despReal = sumBy(despesas, "realizado");
 
     var fechados = fornecedores.filter(function (f) {
       return f.status === "fechado";
@@ -832,7 +840,16 @@
     var negociando = fornecedores.filter(function (f) {
       return f.status === "negociando";
     });
-    var comprometido = sumBy(fechados, "valor"); // despesa comprometida
+    // Contratos fechados entram na despesa pelos seus desembolsos
+    // (mesmo modelo do Financeiro: sem desembolso = 0).
+    var ctr = fechados.reduce(function (s, f) {
+      var d = somaDesembolsos(f);
+      return { prev: s.prev + d.prev, real: s.real + d.real };
+    }, { prev: 0, real: 0 });
+    var despPrev = sumBy(despesas, "previsto") + ctr.prev;
+    var despReal = sumBy(despesas, "realizado") + ctr.real;
+
+    var comprometido = sumBy(fechados, "valor"); // valor total dos contratos fechados
     var emNegociacao = sumBy(negociando, "valor");
 
     return {
