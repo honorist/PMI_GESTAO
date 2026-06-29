@@ -739,10 +739,8 @@
     ],
     patrocinio: [
       { cota: "Diamante", valor: 0, qtd_prev: 0 },
-      { cota: "Ouro",     valor: 0, qtd_prev: 0 },
-      { cota: "Prata",    valor: 0, qtd_prev: 0 },
-      { cota: "Bronze",   valor: 0, qtd_prev: 0 },
-      { cota: "Apoiador", valor: 0, qtd_prev: 0 }
+      { cota: "Premium",  valor: 0, qtd_prev: 0 },
+      { cota: "Master",   valor: 0, qtd_prev: 0 }
     ]
   };
 
@@ -753,8 +751,29 @@
       fin.inscricoes = JSON.parse(JSON.stringify(DEFAULT_INSCRICOES));
       data.financeiro = fin;
       if (window.Gestao) window.Gestao.data = data;
+    } else {
+      reconcilePatrocinioCotas(fin.inscricoes);
     }
     return fin.inscricoes;
+  }
+
+  // Alinha a lista de cotas de patrocinio com o conjunto canonico
+  // (DEFAULT_INSCRICOES.patrocinio), preservando valores ja digitados
+  // por cota que sobrevive. Trata blobs antigos com cotas removidas.
+  function reconcilePatrocinioCotas(ins) {
+    var canon = DEFAULT_INSCRICOES.patrocinio.map(function (p) { return p.cota; });
+    var atual = Array.isArray(ins.patrocinio) ? ins.patrocinio : [];
+    var byCota = {};
+    atual.forEach(function (p) { byCota[p.cota] = p; });
+    var precisaTrocar = atual.length !== canon.length ||
+      canon.some(function (c) { return !byCota[c]; });
+    if (!precisaTrocar) return;
+    ins.patrocinio = canon.map(function (c) {
+      var prev = byCota[c];
+      return prev
+        ? { cota: c, valor: toNumber(prev.valor), qtd_prev: toNumber(prev.qtd_prev) }
+        : { cota: c, valor: 0, qtd_prev: 0 };
+    });
   }
 
   function calcInscricoesPrev(ins) {
@@ -803,6 +822,22 @@
       inp.addEventListener("focus", function () { inp.style.borderColor = "var(--purple,#6d28d9)"; inp.style.background = "var(--card)"; });
       inp.addEventListener("blur",  function () { inp.style.borderColor = "transparent"; inp.style.background = "transparent"; });
       inp.addEventListener("change", function () { onchange(toNumber(inp.value)); Gestao.save(); updateGrand(); });
+      return inp;
+    }
+
+    // Campo de valor com mascara de moeda (R$ X.XXX,XX) ao digitar.
+    function moneyInp(val, onchange) {
+      var inp = document.createElement("input");
+      inp.type = "text";
+      inp.inputMode = "numeric";
+      inp.style.cssText = "width:96px;border:1px solid transparent;border-radius:3px;background:transparent;font:inherit;text-align:right;padding:1px 4px;";
+      function fmt(n) { return toNumber(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
+      function parse() { var d = inp.value.replace(/\D/g, ""); return d ? parseInt(d, 10) / 100 : 0; }
+      inp.value = fmt(val);
+      inp.addEventListener("focus", function () { inp.style.borderColor = "var(--purple,#6d28d9)"; inp.style.background = "var(--card)"; });
+      inp.addEventListener("input", function () { inp.value = fmt(parse()); });
+      inp.addEventListener("blur",  function () { inp.style.borderColor = "transparent"; inp.style.background = "transparent"; });
+      inp.addEventListener("change", function () { onchange(parse()); Gestao.save(); updateGrand(); });
       return inp;
     }
 
@@ -872,7 +907,7 @@
     var cRE = tdR(Gestao.fmtBRL(toNumber(c.valor) * toNumber(c.qtd_real)), false);
     var cRow = document.createElement("tr");
     cRow.appendChild(tdL(c.label || "Cegas", true));
-    cRow.appendChild(tdR(numInp(c.valor, function (v) {
+    cRow.appendChild(tdR(moneyInp(c.valor, function (v) {
       c.valor = v;
       cPE.textContent = Gestao.fmtBRL(v * c.qtd_prev);
       cRE.textContent = Gestao.fmtBRL(v * c.qtd_real);
@@ -914,7 +949,7 @@
         if (ti === 0) tr.appendChild(tdL("Lote " + lote.num, true));
         else { var bk = document.createElement("td"); bk.style.cssText = CS; tr.appendChild(bk); }
         tr.appendChild(tdL(tp.tipo, false));
-        tr.appendChild(tdR(numInp(tp.valor, function (v) {
+        tr.appendChild(tdR(moneyInp(tp.valor, function (v) {
           tp.valor = v;
           tPE.textContent = Gestao.fmtBRL(v * tp.qtd_prev);
           tRE.textContent = Gestao.fmtBRL(v * tp.qtd_real);
@@ -960,7 +995,7 @@
       var pRE = tdR(Gestao.fmtBRL(toNumber(p.valor) * qr), false);
       var tr = document.createElement("tr");
       tr.appendChild(tdL(p.cota, true));
-      tr.appendChild(tdR(numInp(p.valor, function (v) {
+      tr.appendChild(tdR(moneyInp(p.valor, function (v) {
         p.valor = v;
         pPE.textContent = Gestao.fmtBRL(v * p.qtd_prev);
         pRE.textContent = Gestao.fmtBRL(v * getPatroCotaConfirmado(p.cota));
@@ -1042,7 +1077,7 @@
       return Math.max(byMonth[m].previsto, byMonth[m].realizado);
     }));
     var W = 680, H = 220;
-    var PL = 72, PB = 44, PT = 22, PR = 72;
+    var PL = 72, PB = 44, PT = 22, PR = 18;
     var cW = W - PL - PR, cH = H - PT - PB;
     var barW = Math.max(8, Math.min(44, Math.floor(cW / meses.length) - 8));
     var ABRL = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
@@ -1052,6 +1087,8 @@
     var runningCum = 0;
     meses.forEach(function (m) { runningCum += byMonth[m].previsto; cumPrev.push(runningCum); });
     var totalCum = runningCum || 1;
+    // Escala unica: comporta tanto as barras mensais quanto o acumulado
+    var maxScale = Math.max(maxVal, totalCum) || 1;
 
     var ns = "http://www.w3.org/2000/svg";
     var svg = document.createElementNS(ns, "svg");
@@ -1069,23 +1106,15 @@
       return t;
     }
 
-    // Linhas de grade + labels eixo Y esquerdo (mensal)
+    // Linhas de grade + labels eixo Y unico (escala unica)
     var steps = 4;
     var s;
     for (s = 0; s <= steps; s++) {
-      var yVal = maxVal / steps * s;
+      var yVal = maxScale / steps * s;
       var yPx = PT + cH - Math.round(cH * s / steps);
       svg.appendChild(svgEl("line", { x1: PL, x2: PL + cW, y1: yPx, y2: yPx, stroke: "#e2e8f0", "stroke-width": 1 }));
       var yLbl = yVal >= 1000 ? "R$" + Math.round(yVal / 1000) + "k" : "R$" + Math.round(yVal);
       svg.appendChild(txt(PL - 5, yPx + 4, yLbl, 9, "#94a3b8", "end"));
-    }
-
-    // Labels eixo Y direito (acumulado)
-    for (s = 0; s <= steps; s++) {
-      var yValR = totalCum / steps * s;
-      var yPxR = PT + cH - Math.round(cH * s / steps);
-      var yLblR = yValR >= 1000 ? "R$" + Math.round(yValR / 1000) + "k" : "R$" + Math.round(yValR);
-      svg.appendChild(txt(PL + cW + 5, yPxR + 4, yLblR, 9, "#f59e0b", "start"));
     }
 
     // Barras agrupadas + centros dos slots para a curva S
@@ -1101,10 +1130,10 @@
       var slotX = Math.round(PL + slotW * i + (slotW - bw * 2 - gap) / 2);
       slotCenters.push(slotX + bw + gap / 2);
 
-      var hPrev = maxVal > 0 ? Math.round((v.previsto / maxVal) * cH) : 0;
+      var hPrev = maxScale > 0 ? Math.round((v.previsto / maxScale) * cH) : 0;
       svg.appendChild(svgEl("rect", { x: slotX, y: PT + cH - hPrev, width: bw, height: hPrev, fill: "#6d28d9", rx: 2 }));
 
-      var hReal = maxVal > 0 ? Math.round((v.realizado / maxVal) * cH) : 0;
+      var hReal = maxScale > 0 ? Math.round((v.realizado / maxScale) * cH) : 0;
       svg.appendChild(svgEl("rect", { x: slotX + bw + gap, y: PT + cH - hReal, width: bw, height: hReal, fill: "#1F9D6B", rx: 2 }));
 
       if (v.previsto > 0) {
@@ -1120,7 +1149,7 @@
     // Curva S — polyline laranja sobre as barras
     if (meses.length > 0) {
       var pts = meses.map(function (mes, i) {
-        return slotCenters[i] + "," + (PT + cH - Math.round((cumPrev[i] / totalCum) * cH));
+        return slotCenters[i] + "," + (PT + cH - Math.round((cumPrev[i] / maxScale) * cH));
       });
       svg.appendChild(svgEl("polyline", {
         points: pts.join(" "),
@@ -1149,40 +1178,56 @@
     card.style.position = "relative";
     card.appendChild(svg);
 
-    // Tooltip flutuante (aparece ao passar o mouse)
+    // Tooltip flutuante (aparece ao passar o mouse sobre a coluna do mes)
     var tooltip = document.createElement("div");
-    tooltip.style.cssText = "position:absolute;background:rgba(15,10,40,.9);color:#fff;border-radius:8px;font-size:.73rem;padding:7px 12px;pointer-events:none;display:none;z-index:50;white-space:nowrap;line-height:1.75;";
+    tooltip.style.cssText = "position:absolute;background:rgba(15,10,40,.92);color:#fff;border-radius:8px;font-size:.74rem;padding:8px 12px;pointer-events:none;display:none;z-index:50;white-space:nowrap;line-height:1.7;box-shadow:0 4px 14px rgba(0,0,0,.25);";
     card.appendChild(tooltip);
 
-    svg.style.cursor = "crosshair";
-    svg.addEventListener("mousemove", function (e) {
-      var rect = svg.getBoundingClientRect();
-      var svgX = (e.clientX - rect.left) * W / rect.width;
-      var slotW = cW / meses.length;
-      var idx = Math.floor((svgX - PL) / slotW);
-      if (idx < 0 || idx >= meses.length) { tooltip.style.display = "none"; return; }
-      var mes = meses[idx];
+    // Linha-guia vertical (segue a coluna sob o cursor)
+    var guide = svgEl("line", { x1: 0, y1: PT, x2: 0, y2: PT + cH, stroke: "#94a3b8", "stroke-width": 1, "stroke-dasharray": "3 3", opacity: 0 });
+    svg.appendChild(guide);
+
+    // Overlay transparente por coluna: captura o hover de forma confiavel
+    var slotW = cW / meses.length;
+    meses.forEach(function (mes, i) {
       var v = byMonth[mes];
-      var p = mes.split("-");
-      var mAbr = (ABRL[parseInt(p[1], 10) - 1] || p[1]) + "/" + p[0];
-      tooltip.style.display = "block";
-      var cardRect = card.getBoundingClientRect();
-      tooltip.style.left = (e.clientX - cardRect.left + 14) + "px";
-      tooltip.style.top  = (e.clientY - cardRect.top  - 16) + "px";
-      while (tooltip.firstChild) tooltip.removeChild(tooltip.firstChild);
-      var hd = document.createElement("strong");
-      hd.textContent = mAbr;
-      tooltip.appendChild(hd);
-      tooltip.appendChild(document.createElement("br"));
-      tooltip.appendChild(document.createTextNode("Previsto: " + Gestao.fmtBRL(v.previsto)));
-      if (v.realizado > 0) {
+      var x0 = PL + slotW * i;
+      var center = slotCenters[i];
+      var hot = svgEl("rect", { x: x0, y: PT, width: slotW, height: cH, fill: "#6d28d9", "fill-opacity": 0 });
+      hot.style.cursor = "pointer";
+
+      function show(e) {
+        hot.setAttribute("fill-opacity", 0.06);
+        guide.setAttribute("x1", center);
+        guide.setAttribute("x2", center);
+        guide.setAttribute("opacity", 1);
+        var p = mes.split("-");
+        var mAbr = (ABRL[parseInt(p[1], 10) - 1] || p[1]) + "/" + p[0];
+        var cardRect = card.getBoundingClientRect();
+        tooltip.style.display = "block";
+        tooltip.style.left = (e.clientX - cardRect.left + 14) + "px";
+        tooltip.style.top  = (e.clientY - cardRect.top  - 10) + "px";
+        while (tooltip.firstChild) tooltip.removeChild(tooltip.firstChild);
+        var hd = document.createElement("strong");
+        hd.textContent = mAbr;
+        tooltip.appendChild(hd);
+        tooltip.appendChild(document.createElement("br"));
+        tooltip.appendChild(document.createTextNode("Desembolso previsto: " + Gestao.fmtBRL(v.previsto)));
         tooltip.appendChild(document.createElement("br"));
         tooltip.appendChild(document.createTextNode("Realizado: " + Gestao.fmtBRL(v.realizado)));
+        tooltip.appendChild(document.createElement("br"));
+        tooltip.appendChild(document.createTextNode("Acumulado previsto: " + Gestao.fmtBRL(cumPrev[i])));
       }
-      tooltip.appendChild(document.createElement("br"));
-      tooltip.appendChild(document.createTextNode("Acum. prev.: " + Gestao.fmtBRL(cumPrev[idx])));
+      function hide() {
+        hot.setAttribute("fill-opacity", 0);
+        guide.setAttribute("opacity", 0);
+        tooltip.style.display = "none";
+      }
+      hot.addEventListener("mouseenter", show);
+      hot.addEventListener("mousemove", show);
+      hot.addEventListener("mouseleave", hide);
+      svg.appendChild(hot);
     });
-    svg.addEventListener("mouseleave", function () { tooltip.style.display = "none"; });
 
     var info = el("div", null, "Previsto total: " + Gestao.fmtBRL(totalPrev) + "   Realizado: " + Gestao.fmtBRL(totalReal));
     info.style.cssText = "text-align:right;font-size:.78rem;color:var(--muted);margin-top:2px;";

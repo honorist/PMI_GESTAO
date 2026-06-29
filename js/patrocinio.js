@@ -68,13 +68,11 @@
 
   var COTAS = {
     diamante:  { label: "Diamante",  cor: "#0284c7" },
-    ouro:      { label: "Ouro",      cor: "#d97706" },
-    prata:     { label: "Prata",     cor: "#64748b" },
-    bronze:    { label: "Bronze",    cor: "#b45309" },
-    apoiador:  { label: "Apoiador",  cor: "#6b7280" }
+    premium:   { label: "Premium",   cor: "#7c3aed" },
+    master:    { label: "Master",    cor: "#d97706" }
   };
 
-  var COTA_ORDER = ["diamante", "ouro", "prata", "bronze", "apoiador"];
+  var COTA_ORDER = ["diamante", "premium", "master"];
 
   /* ============================================================
      Dados
@@ -329,7 +327,7 @@
     inpValor.min    = "0";
     var inpResp     = inp(p.responsavel, "Membro da equipe responsavel");
 
-    var selCota   = sel(COTA_ORDER.map(function (k) { return { value: k, label: COTAS[k].label }; }), p.cota || "ouro");
+    var selCota   = sel(COTA_ORDER.map(function (k) { return { value: k, label: COTAS[k].label }; }), p.cota || "diamante");
     var selStatus = sel(STATUS_ORDER.map(function (k) { return { value: k, label: STATUS[k].label }; }), p.status || "prospeccao");
 
     grid.appendChild(field("Empresa *", inpNome));
