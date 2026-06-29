@@ -1005,3 +1005,78 @@
     boot();
   }
 })();
+
+/* ============================================================
+   Tab-group dropdowns — toggle e active state
+   Fora do IIFE principal para fazer patch em window.Gestao.showTab
+   depois que ele é publicado.
+   ============================================================ */
+(function () {
+  "use strict";
+
+  function updateGroupActive(tabId) {
+    document.querySelectorAll(".tab-group").forEach(function (group) {
+      var btn = group.querySelector(".tab-group__btn");
+      if (!btn) return;
+      var hasTab = group.querySelector('[data-tab="' + tabId + '"]');
+      if (hasTab) {
+        btn.classList.add("is-active");
+      } else {
+        btn.classList.remove("is-active");
+      }
+    });
+  }
+
+  function closeAllMenus() {
+    document.querySelectorAll(".tab-group__menu").forEach(function (m) {
+      m.hidden = true;
+    });
+    document.querySelectorAll(".tab-group__btn").forEach(function (b) {
+      b.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  function wireDropdowns() {
+    document.querySelectorAll(".tab-group__btn").forEach(function (btn) {
+      var group = btn.parentElement;
+      var menu = group && group.querySelector(".tab-group__menu");
+      if (!menu) return;
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var opening = menu.hidden;
+        closeAllMenus();
+        if (opening) {
+          menu.hidden = false;
+          btn.setAttribute("aria-expanded", "true");
+        }
+      });
+    });
+
+    document.querySelectorAll(".tab-group__menu .tab-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        closeAllMenus();
+        updateGroupActive(btn.getAttribute("data-tab"));
+      });
+    });
+
+    document.addEventListener("click", closeAllMenus);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeAllMenus();
+    });
+
+    if (window.Gestao) {
+      var _orig = window.Gestao.showTab;
+      window.Gestao.showTab = function (id) {
+        _orig.call(this, id);
+        updateGroupActive(id);
+      };
+      updateGroupActive("tab-visao");
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireDropdowns);
+  } else {
+    wireDropdowns();
+  }
+})();
