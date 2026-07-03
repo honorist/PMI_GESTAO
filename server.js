@@ -34,9 +34,10 @@ const DATA_DIR = path.join(ROOT, "data");
 const COOKIE_NOME = "gestao_sess";
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Limite do corpo das requisições. Anexos podem chegar em base64,
-// por isso o teto é generoso (8 MB), mas ainda bloqueia abusos.
-const BODY_LIMIT = "8mb";
+// Limite do corpo das requisições. O estado inteiro trafega num único
+// PUT e pode conter anexos em base64 (fotos + PDFs/materiais dos
+// palestrantes), por isso o teto é generoso (20 MB) mas ainda bloqueia abusos.
+const BODY_LIMIT = "20mb";
 
 // Porta (Railway injeta PORT; cai para 3000 em dev).
 const PORT = process.env.PORT || 3000;

@@ -27,7 +27,7 @@
     var link = document.createElement("link");
     link.id = "prosp-css";
     link.rel = "stylesheet";
-    link.href = "css/prospeccao.css";
+    link.href = "css/prospeccao.css?v=2";
     document.head.appendChild(link);
   }
 
@@ -51,6 +51,18 @@
     }
     return -1;
   }
+
+  /* Tamanho legível: 340 KB · 1.2 MB */
+  function fmtSize(bytes) {
+    var b = Number(bytes) || 0;
+    if (b < 1024) return b + " B";
+    if (b < 1024 * 1024) return Math.round(b / 1024) + " KB";
+    return (b / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  // Teto por anexo. O estado inteiro trafega num único PUT (ver server.js
+  // BODY_LIMIT), então limitamos cada arquivo para não estourar o request.
+  var MAX_ANEXO_BYTES = 2 * 1024 * 1024; // 2 MB
 
   /* ============================================================
      Configurações de domínio
@@ -175,6 +187,19 @@
         linksRow.appendChild(va);
       }
       body.appendChild(linksRow);
+    }
+
+    /* Materiais anexados (CV, apresentação, etc.) — download direto */
+    if (Array.isArray(c.anexos) && c.anexos.length) {
+      var anexRow = el("div", "prosp-card__anexos");
+      c.anexos.forEach(function (a) {
+        var dl = el("a", "prosp-anexo-chip", "📎 " + (a.nome || "arquivo"));
+        dl.href = a.data;
+        dl.download = a.nome || "anexo";
+        dl.title = "Baixar " + (a.nome || "arquivo") + (a.tamanho ? " (" + fmtSize(a.tamanho) + ")" : "");
+        anexRow.appendChild(dl);
+      });
+      body.appendChild(anexRow);
     }
 
     card.appendChild(body);
@@ -447,6 +472,99 @@
       "Histórico de contato, observações, links adicionais…", 4);
     form.appendChild(field("Notas internas", taNotas, null, true));
 
+    /* -- Anexos do palestrante (PDF, CV, apresentação, etc.) -- */
+    var anexosState = Array.isArray(c.anexos) ? c.anexos.slice() : [];
+    var anexSection = el("div", "prosp-field prosp-field--full");
+    anexSection.appendChild(el("span", "prosp-field__label", "Anexos do palestrante"));
+
+    var anexList  = el("div", "prosp-anexos-list");
+    var anexError = el("p", "prosp-field__hint prosp-field__hint--error");
+    anexError.style.display = "none";
+
+    var anexInput = document.createElement("input");
+    anexInput.type = "file";
+    anexInput.accept = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*";
+    anexInput.multiple = true;
+    anexInput.style.display = "none";
+
+    function renderAnexos() {
+      clear(anexList);
+      if (!anexosState.length) {
+        anexList.appendChild(el("p", "prosp-anexos-empty",
+          "Nenhum anexo. Ex.: currículo, portfólio, proposta, apresentação."));
+        return;
+      }
+      anexosState.forEach(function (a, i) {
+        var item = el("div", "prosp-anexo-item");
+
+        var dl = el("a", "prosp-anexo-item__name", "📎 " + (a.nome || "arquivo"));
+        dl.href = a.data;
+        dl.download = a.nome || "anexo";
+        dl.title = "Baixar";
+        item.appendChild(dl);
+
+        if (a.tamanho) {
+          item.appendChild(el("span", "prosp-anexo-item__size", fmtSize(a.tamanho)));
+        }
+
+        var rm = el("button", "prosp-anexo-item__rm", "✕");
+        rm.type = "button";
+        rm.setAttribute("aria-label", "Remover anexo " + (a.nome || ""));
+        (function (idx) {
+          rm.addEventListener("click", function () {
+            anexosState.splice(idx, 1);
+            renderAnexos();
+          });
+        })(i);
+        item.appendChild(rm);
+
+        anexList.appendChild(item);
+      });
+    }
+    renderAnexos();
+
+    function showAnexError(msg) {
+      anexError.textContent = msg;
+      anexError.style.display = "block";
+      setTimeout(function () { anexError.style.display = "none"; }, 4500);
+    }
+
+    anexInput.addEventListener("change", function () {
+      var files = Array.prototype.slice.call(anexInput.files || []);
+      files.forEach(function (file) {
+        if (file.size > MAX_ANEXO_BYTES) {
+          showAnexError("“" + file.name + "” tem " + fmtSize(file.size) +
+            " (máx 2 MB). Comprima o arquivo antes de anexar.");
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          anexosState.push({
+            id:      window.Gestao ? window.Gestao.uid("anx") : "anx-" + Date.now(),
+            nome:    file.name,
+            tipo:    file.type || "",
+            tamanho: file.size,
+            data:    e.target.result
+          });
+          renderAnexos();
+        };
+        reader.readAsDataURL(file);
+      });
+      anexInput.value = "";
+    });
+
+    var btnAnex = el("button", "btn sm prosp-upload-btn", "📎 Anexar arquivo");
+    btnAnex.type = "button";
+    btnAnex.addEventListener("click", function () { anexInput.click(); });
+
+    anexSection.appendChild(anexList);
+    anexSection.appendChild(anexInput);
+    anexSection.appendChild(btnAnex);
+    anexSection.appendChild(anexError);
+    anexSection.appendChild(el("span", "prosp-field__hint",
+      "PDF, Word, PowerPoint, Excel ou imagem · até 2 MB por arquivo"));
+    form.appendChild(anexSection);
+
     modal.appendChild(form);
 
     /* -- Ações do modal -- */
@@ -483,6 +601,7 @@
         temasProposto:   temasState.slice(),
         avaliacaoComite: ratingState.value,
         notas:           taNotas.value.trim(),
+        anexos:          anexosState.slice(),
         dataCriacao:     c.dataCriacao || new Date().toISOString().slice(0, 10)
       });
       document.body.removeChild(overlay);
@@ -636,6 +755,18 @@
           linksEl.appendChild(va);
         }
         right.appendChild(linksEl);
+      }
+
+      if (Array.isArray(c.anexos) && c.anexos.length) {
+        var matEl = el("div", "prosp-comite-card__links");
+        matEl.appendChild(el("span", "prosp-comite-card__temas-lbl", "Materiais:"));
+        c.anexos.forEach(function (a) {
+          var dl = el("a", "prosp-link", "📎 " + (a.nome || "arquivo"));
+          dl.href = a.data;
+          dl.download = a.nome || "anexo";
+          matEl.appendChild(dl);
+        });
+        right.appendChild(matEl);
       }
 
       card.appendChild(right);

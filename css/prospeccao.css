@@ -531,6 +531,108 @@
   min-width: 180px;
 }
 
+/* ============================================================
+   Anexos do palestrante (PDF, CV, apresentação…)
+   ============================================================ */
+
+/* Chips de download no card da listagem */
+.prosp-card__anexos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.prosp-anexo-chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: #ede9f8;
+  color: var(--purple);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid #c4b8e8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s, color 0.15s;
+}
+
+.prosp-anexo-chip:hover {
+  background: var(--purple);
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Lista de anexos dentro do modal de edição */
+.prosp-anexos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.prosp-anexos-empty {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+  margin: 2px 0;
+}
+
+.prosp-anexo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--card-cream);
+  border: 1.5px solid var(--line);
+  border-radius: var(--rad-sm);
+}
+
+.prosp-anexo-item__name {
+  flex: 1;
+  min-width: 0;
+  color: var(--purple);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prosp-anexo-item__name:hover {
+  text-decoration: underline;
+}
+
+.prosp-anexo-item__size {
+  font-size: 0.75rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.prosp-anexo-item__rm {
+  background: none;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0.65;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.prosp-anexo-item__rm:hover {
+  opacity: 1;
+  background: #fee2e2;
+}
+
 /* Estrelas clicáveis */
 .prosp-stars-input {
   display: flex;
