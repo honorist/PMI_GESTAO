@@ -64,6 +64,15 @@
   // BODY_LIMIT), então limitamos cada arquivo para não estourar o request.
   var MAX_ANEXO_BYTES = 2 * 1024 * 1024; // 2 MB
 
+  // Só devolve a URL se for um data: de tipo benigno. Defesa em profundidade:
+  // o valor é persistido no estado compartilhado e re-renderizado para outros
+  // usuários (viewer/comitê). Bloqueia javascript:, data:text/html e SVG (que
+  // podem carregar script). Vazio => o chamador trata como anexo inválido.
+  var DATA_URL_OK = /^data:(application\/pdf|application\/msword|application\/vnd\.(?:ms-|openxmlformats-officedocument)[^;,]*|application\/octet-stream|image\/(?:png|jpe?g|gif|webp|bmp|tiff?|heic|heif)|text\/plain)[;,]/i;
+  function safeDataUrl(u) {
+    return typeof u === "string" && DATA_URL_OK.test(u) ? u : "";
+  }
+
   /* ============================================================
      Configurações de domínio
      ============================================================ */
@@ -194,9 +203,15 @@
       var anexRow = el("div", "prosp-card__anexos");
       c.anexos.forEach(function (a) {
         var dl = el("a", "prosp-anexo-chip", "📎 " + (a.nome || "arquivo"));
-        dl.href = a.data;
-        dl.download = a.nome || "anexo";
-        dl.title = "Baixar " + (a.nome || "arquivo") + (a.tamanho ? " (" + fmtSize(a.tamanho) + ")" : "");
+        var safe = safeDataUrl(a.data);
+        if (safe) {
+          dl.href = safe;
+          dl.download = a.nome || "anexo";
+          dl.title = "Baixar " + (a.nome || "arquivo") + (a.tamanho ? " (" + fmtSize(a.tamanho) + ")" : "");
+        } else {
+          dl.title = "Anexo em formato não suportado";
+          dl.setAttribute("aria-disabled", "true");
+        }
         anexRow.appendChild(dl);
       });
       body.appendChild(anexRow);
@@ -498,9 +513,15 @@
         var item = el("div", "prosp-anexo-item");
 
         var dl = el("a", "prosp-anexo-item__name", "📎 " + (a.nome || "arquivo"));
-        dl.href = a.data;
-        dl.download = a.nome || "anexo";
-        dl.title = "Baixar";
+        var safeItem = safeDataUrl(a.data);
+        if (safeItem) {
+          dl.href = safeItem;
+          dl.download = a.nome || "anexo";
+          dl.title = "Baixar";
+        } else {
+          dl.title = "Anexo em formato não suportado";
+          dl.setAttribute("aria-disabled", "true");
+        }
         item.appendChild(dl);
 
         if (a.tamanho) {
@@ -539,12 +560,18 @@
         }
         var reader = new FileReader();
         reader.onload = function (e) {
+          var url = e.target.result;
+          if (!safeDataUrl(url)) {
+            showAnexError("“" + file.name +
+              "” está num formato não suportado. Use PDF, Word, PowerPoint, Excel ou imagem (não-SVG).");
+            return;
+          }
           anexosState.push({
             id:      window.Gestao ? window.Gestao.uid("anx") : "anx-" + Date.now(),
             nome:    file.name,
             tipo:    file.type || "",
             tamanho: file.size,
-            data:    e.target.result
+            data:    url
           });
           renderAnexos();
         };
@@ -762,8 +789,14 @@
         matEl.appendChild(el("span", "prosp-comite-card__temas-lbl", "Materiais:"));
         c.anexos.forEach(function (a) {
           var dl = el("a", "prosp-link", "📎 " + (a.nome || "arquivo"));
-          dl.href = a.data;
-          dl.download = a.nome || "anexo";
+          var safeMat = safeDataUrl(a.data);
+          if (safeMat) {
+            dl.href = safeMat;
+            dl.download = a.nome || "anexo";
+          } else {
+            dl.title = "Anexo em formato não suportado";
+            dl.setAttribute("aria-disabled", "true");
+          }
           matEl.appendChild(dl);
         });
         right.appendChild(matEl);
