@@ -167,15 +167,25 @@ const CREATE_VOTOS_SQL = `
 `;
 
 // Decifra ../data/vault.enc (AES-256-GCM, chave PBKDF2) com a senha de
-// seed. Usado quando o repo só tem o vault cifrado (sem JSON em claro),
-// mantendo os dados protegidos no repositório.
+// seed. Usado quando o repo só tem o vault cifrado (sem JSON em claro).
+//
+// A senha vem SOMENTE de SEED_PASSWORD. Sem ela o vault não é decifrado
+// (falha segura), como já ocorre com MASTER_PASSWORD/VIEWER_PASSWORD.
+// Um valor padrão embutido aqui equivaleria a publicar a chave junto do
+// cofre, já que data/vault.enc é versionado.
 function decifrarVault() {
   try {
     const crypto = require("crypto");
     const vp = path.join(DATA_DIR, "vault.enc");
     if (!fs.existsSync(vp)) return null;
     const v = JSON.parse(fs.readFileSync(vp, "utf8"));
-    const senha = process.env.SEED_PASSWORD || "PMBOKSUMMIT";
+    const senha = process.env.SEED_PASSWORD;
+    if (!senha) {
+      console.warn(
+        "[seed] SEED_PASSWORD ausente — vault.enc não será decifrado."
+      );
+      return null;
+    }
     const salt = Buffer.from(v.salt, "base64");
     const iv = Buffer.from(v.iv, "base64");
     const ct = Buffer.from(v.ct, "base64");
