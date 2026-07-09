@@ -65,6 +65,34 @@ if (!MASTER_PASSWORD || !VIEWER_PASSWORD) {
   );
 }
 
+// Perfis de área temática: cada um edita SOMENTE as chaves de domínio
+// listadas em `edita` (o resto do estado fica em modo leitura). A senha
+// vem de variável de ambiente própria; sem a senha, o perfil não loga.
+const AREA_ROLES = {
+  governanca: {
+    senha: process.env.GOVERNANCA_PASSWORD || "",
+    edita: [
+      "cronograma", "eap", "financeiro", "contratacoes", "canvas",
+      "reunioes", "documentos", "equipe", "checklist", "metas"
+    ]
+  },
+  conteudo: {
+    senha: process.env.CONTEUDO_PASSWORD || "",
+    edita: ["palestrantes", "prospeccao"]
+  },
+  experiencia: {
+    senha: process.env.EXPERIENCIA_PASSWORD || "",
+    edita: ["patrocinio", "voluntarios"]
+  }
+};
+
+// Chaves editáveis de uma role: null = todas (master), [] = nenhuma (viewer).
+function chavesEditaveis(role) {
+  if (role === "master") return null;
+  const area = AREA_ROLES[role];
+  return area ? area.edita : [];
+}
+
 // Quais chaves de domínio compõem o estado (mesma forma de Gestao.data).
 // A ordem/forma espelha tools/build-vault.js para manter consistência.
 const SEED_SOURCES = {
@@ -249,10 +277,13 @@ app.use(cookieParser(SESSION_SECRET));
 
 /* ---- Helpers de sessão ---------------------------------- */
 
-// Lê a role do cookie assinado. Retorna "master" | "viewer" | null.
+// Lê a role do cookie assinado. Retorna "master" | "viewer" |
+// nome de área (governanca/conteudo/experiencia) | null.
 function lerRole(req) {
   const role = req.signedCookies && req.signedCookies[COOKIE_NOME];
-  return role === "master" || role === "viewer" ? role : null;
+  if (role === "master" || role === "viewer") return role;
+  if (role && AREA_ROLES[role]) return role;
+  return null;
 }
 
 // Define o cookie de sessão assinado com a role.
@@ -313,11 +344,20 @@ app.post("/api/login", (req, res) => {
   let role = null;
   if (senhaConfere(senha, MASTER_PASSWORD)) role = "master";
   else if (senhaConfere(senha, VIEWER_PASSWORD)) role = "viewer";
+  else {
+    // Senhas dos perfis de área (governanca/conteudo/experiencia).
+    for (const nome of Object.keys(AREA_ROLES)) {
+      if (senhaConfere(senha, AREA_ROLES[nome].senha)) {
+        role = nome;
+        break;
+      }
+    }
+  }
 
   if (!role) return res.status(401).json({ error: "senha_incorreta" });
 
   setSessao(res, role);
-  return res.json({ role });
+  return res.json({ role, edita: chavesEditaveis(role) });
 });
 
 // POST /api/logout -> limpa o cookie de sessão.
@@ -326,11 +366,11 @@ app.post("/api/logout", (req, res) => {
   return res.json({ ok: true });
 });
 
-// GET /api/me -> { role } ou 401.
+// GET /api/me -> { role, edita } ou 401.
 app.get("/api/me", (req, res) => {
   const role = lerRole(req);
   if (!role) return res.status(401).json({ error: "nao_autenticado" });
-  return res.json({ role });
+  return res.json({ role, edita: chavesEditaveis(role) });
 });
 
 /* ============================================================
@@ -364,9 +404,19 @@ app.get("/api/estado", exigeSessao, async (_req, res) => {
   }
 });
 
-// PUT /api/estado { data } -> { updated_at }. Exige sessão MASTER.
-app.put("/api/estado", exigeMaster, async (req, res) => {
+// PUT /api/estado { data } -> { updated_at }.
+// - master: substitui o estado inteiro (comportamento original).
+// - perfil de área: só as chaves permitidas do payload são aplicadas,
+//   via merge raso no Postgres (data || $1::jsonb) — atômico e à prova
+//   de escalada: o que estiver fora da área é simplesmente ignorado.
+// - viewer: 403.
+app.put("/api/estado", exigeSessao, async (req, res) => {
   if (!pool) return res.status(503).json({ error: "sem_banco" });
+
+  const permitidas = chavesEditaveis(req.role);
+  if (permitidas && permitidas.length === 0) {
+    return res.status(403).json({ error: "somente_leitura" });
+  }
 
   const data = req.body && req.body.data;
   // Validação de fronteira: precisa ser um objeto (não array/escalar/null).
@@ -374,13 +424,29 @@ app.put("/api/estado", exigeMaster, async (req, res) => {
     return res.status(400).json({ error: "data_invalido" });
   }
 
-  try {
-    const { rows } = await pool.query(
-      `update estado set data = $1::jsonb, updated_at = now()
+  // Perfil de área: reduz o payload às chaves da área.
+  let payload = data;
+  if (permitidas) {
+    payload = {};
+    for (const k of permitidas) {
+      if (data[k] !== undefined) payload[k] = data[k];
+    }
+    if (Object.keys(payload).length === 0) {
+      return res.status(403).json({ error: "fora_da_area" });
+    }
+  }
+
+  // Master substitui tudo; área faz merge raso das chaves permitidas.
+  const sql = permitidas
+    ? `update estado set data = data || $1::jsonb, updated_at = now()
        where id = 1
-       returning updated_at`,
-      [JSON.stringify(data)]
-    );
+       returning updated_at`
+    : `update estado set data = $1::jsonb, updated_at = now()
+       where id = 1
+       returning updated_at`;
+
+  try {
+    const { rows } = await pool.query(sql, [JSON.stringify(payload)]);
 
     if (rows.length === 0) {
       // Linha ainda não existe — cria agora (defensivo).
@@ -388,7 +454,7 @@ app.put("/api/estado", exigeMaster, async (req, res) => {
         `insert into estado (id, data, updated_at)
          values (1, $1::jsonb, now())
          returning updated_at`,
-        [JSON.stringify(data)]
+        [JSON.stringify(payload)]
       );
       return res.json({ updated_at: ins.rows[0].updated_at });
     }
