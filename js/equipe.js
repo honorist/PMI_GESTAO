@@ -71,6 +71,32 @@
     return Array.isArray(crono.disciplinas) ? crono.disciplinas : [];
   }
 
+  // Voluntários — leitura cross-domain. Quem escreve `reservadoPor` é a
+  // aba Voluntários; aqui só desenhamos o vínculo.
+  function getVoluntarios() {
+    var data = (window.Gestao && window.Gestao.data) || {};
+    var vol = data.voluntarios || {};
+    return Array.isArray(vol.voluntarios) ? vol.voluntarios : [];
+  }
+
+  // Indexa voluntários reservados por id do membro recrutador.
+  // Um `reservadoPor` que não resolve para um membro existente é um
+  // vínculo órfão (membro excluído) e é simplesmente ignorado — esta é a
+  // defesa real contra a limpeza que o servidor pode ter descartado.
+  function voluntariosPorMembro(voluntarios, membros) {
+    var existe = {};
+    membros.forEach(function (m) { existe[m.id] = true; });
+
+    var mapa = {};
+    voluntarios.forEach(function (v) {
+      var pid = v && v.reservadoPor;
+      if (!pid || !existe[pid]) return;
+      if (!mapa[pid]) mapa[pid] = [];
+      mapa[pid].push(v);
+    });
+    return mapa;
+  }
+
   /* ============================================================
      Normalização de nome (casamento GT × disciplina)
      ------------------------------------------------------------
@@ -291,6 +317,20 @@
     render();
   }
 
+  // Limpeza oportunista das reservas do membro excluído. Escreve em
+  // `voluntarios`, domínio FORA da área de `governanca` — nesse perfil o
+  // servidor descarta a chave em silêncio. Por isso quem realmente protege
+  // o organograma é voluntariosPorMembro(), que ignora vínculos órfãos.
+  function limparReservasDoMembro(membroId) {
+    var data = window.Gestao.data;
+    var vol = data && data.voluntarios;
+    if (!vol || !Array.isArray(vol.voluntarios)) return;
+    vol.voluntarios = vol.voluntarios.map(function (v) {
+      if (!v || v.reservadoPor !== membroId) return v;
+      return Object.assign({}, v, { reservadoPor: null, reservadoEm: null });
+    });
+  }
+
   function removeMembro(id, nome) {
     var label = nome && String(nome).trim() ? '"' + nome + '"' : "este membro";
     window.Gestao.confirm("Excluir " + label + "?", function () {
@@ -298,6 +338,7 @@
       data.equipe.membros = getMembros().filter(function (x) {
         return x.id !== id;
       });
+      limparReservasDoMembro(id);
       window.Gestao.save();
       window.Gestao.toast("Membro removido");
       render();
@@ -518,7 +559,35 @@
     return box;
   }
 
-  function buildOrg(membros, disciplinas) {
+  // Nó de voluntário: sem ações (o CRUD vive na aba Voluntários) e com
+  // aparência distinta — borda tracejada — para não passar por membro.
+  function miniNodeVoluntario(v) {
+    var box = el("div", "eqp-onode eqp-onode--vol");
+    box.appendChild(el("div", "eqp-onode__nome", (v.nome || "").trim() || "—"));
+    if (v.funcao && String(v.funcao).trim()) {
+      box.appendChild(el("div", "eqp-onode__papel", String(v.funcao)));
+    }
+    box.appendChild(el("span", "badge eqp-onode__voltag", "Voluntário"));
+    return box;
+  }
+
+  // Membro + seus voluntários reservados pendurados abaixo dele.
+  function nodeComVoluntarios(m, disciplinas, mapaVol) {
+    var node = miniNode(m, disciplinas);
+    var vols = mapaVol[m.id];
+    if (!vols || !vols.length) return node;
+
+    var branch = el("div", "eqp-obranch");
+    branch.appendChild(node);
+    var stack = el("div", "eqp-ovol");
+    vols.forEach(function (v) {
+      stack.appendChild(miniNodeVoluntario(v));
+    });
+    branch.appendChild(stack);
+    return branch;
+  }
+
+  function buildOrg(membros, disciplinas, mapaVol) {
     var c = classificar(membros);
     var scroller = el("div", "eqp-oc-scroll");
     var oc = el("div", "eqp-oc");
@@ -526,25 +595,25 @@
     if (c.pres) {
       var temAbaixo = c.vp || c.gp || c.resto.length;
       var l0 = el("div", "eqp-oc__lvl" + (temAbaixo ? " eqp-oc__lvl--drop" : ""));
-      l0.appendChild(miniNode(c.pres, disciplinas));
+      l0.appendChild(nodeComVoluntarios(c.pres, disciplinas, mapaVol));
       oc.appendChild(l0);
     }
     if (c.vp) {
       var temAbaixoVp = c.gp || c.resto.length;
       var lvp = el("div", "eqp-oc__lvl" + (temAbaixoVp ? " eqp-oc__lvl--drop" : ""));
-      lvp.appendChild(miniNode(c.vp, disciplinas));
+      lvp.appendChild(nodeComVoluntarios(c.vp, disciplinas, mapaVol));
       oc.appendChild(lvp);
     }
     if (c.gp) {
       var l1 = el("div", "eqp-oc__lvl" + (c.resto.length ? " eqp-oc__lvl--drop" : ""));
-      l1.appendChild(miniNode(c.gp, disciplinas));
+      l1.appendChild(nodeComVoluntarios(c.gp, disciplinas, mapaVol));
       oc.appendChild(l1);
     }
     if (c.resto.length) {
       var row = el("div", "eqp-oc__row" + (c.resto.length === 1 ? " is-single" : ""));
       c.resto.forEach(function (m) {
         var col = el("div", "eqp-oc__col");
-        col.appendChild(miniNode(m, disciplinas));
+        col.appendChild(nodeComVoluntarios(m, disciplinas, mapaVol));
         row.appendChild(col);
       });
       oc.appendChild(row);
@@ -563,6 +632,7 @@
     if (!_mount) return;
     var membros = getMembros();
     var disciplinas = getDisciplinas();
+    var mapaVol = voluntariosPorMembro(getVoluntarios(), membros);
     clear(_mount);
 
     _mount.appendChild(buildHeader(membros));
@@ -584,7 +654,7 @@
         window.Gestao.emptyState("Nenhum membro cadastrado.", "+ Membro", function () { openForm(null); })
       );
     } else {
-      root.appendChild(buildOrg(membros, disciplinas));
+      root.appendChild(buildOrg(membros, disciplinas, mapaVol));
     }
 
     _mount.appendChild(root);
@@ -617,7 +687,8 @@
       normalizar: normalizar,
       corDoGT: corDoGT,
       soDigitos: soDigitos,
-      agruparPorGT: agruparPorGT
+      agruparPorGT: agruparPorGT,
+      voluntariosPorMembro: voluntariosPorMembro
     };
   }
 })();

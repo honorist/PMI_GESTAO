@@ -50,6 +50,11 @@
           <button id="btn-import" class="btn sm" type="button" title="Importar backup JSON">
             <span aria-hidden="true">⭱</span> <span class="label">Importar</span>
           </button>
+
+          <!-- Só aparece no modo backend (o modo vault não tem sessão). -->
+          <button id="btn-logout" class="btn sm" type="button" title="Encerrar sessão" hidden>
+            <span aria-hidden="true">⏻</span> <span class="label">Sair</span>
+          </button>
         </div>
       </div>
 
@@ -114,6 +119,7 @@
               <button class="tab-btn" type="button" role="tab" data-tab="tab-reunioes" aria-selected="false" aria-controls="tab-reunioes" tabindex="-1">Reuniões</button>
               <button class="tab-btn" type="button" role="tab" data-tab="tab-documentos" aria-selected="false" aria-controls="tab-documentos" tabindex="-1">Documentos</button>
               <button class="tab-btn" type="button" role="tab" data-tab="tab-relatorios" aria-selected="false" aria-controls="tab-relatorios" tabindex="-1">Relatórios</button>
+              <button class="tab-btn" type="button" role="tab" data-tab="tab-agenda" aria-selected="false" aria-controls="tab-agenda" tabindex="-1">Agenda da GP</button>
             </div>
           </div>
         </div>
@@ -192,6 +198,7 @@
       <section id="tab-prospeccao" class="tab-panel" role="tabpanel" aria-label="Prospecção de Palestrantes" hidden><div class="placeholder">Carregando…</div></section>
       <section id="tab-voluntarios" class="tab-panel" role="tabpanel" aria-label="Voluntários" hidden><div class="placeholder">Carregando…</div></section>
       <section id="tab-patrocinio" class="tab-panel" role="tabpanel" aria-label="Prospecção de Patrocínio" hidden><div class="placeholder">Carregando…</div></section>
+      <section id="tab-agenda" class="tab-panel" role="tabpanel" aria-label="Agenda da GP" hidden><div class="placeholder">Carregando…</div></section>
     </main>
   </div>
 
@@ -199,22 +206,23 @@
   <input type="file" id="import-file" hidden accept="application/json" />
 
   <!-- Camada central -->
-  <script src="js/app.js?v=2" defer></script>
+  <script src="js/app.js?v=4" defer></script>
 
   <!-- Módulos (preenchidos por outros agentes; ainda podem não existir) -->
-  <script src="js/visao-geral.js?v=4" defer></script>
+  <script src="js/visao-geral.js?v=7" defer></script>
   <script src="js/cronograma.js?v=2" defer></script>
   <script src="js/financeiro.js?v=5" defer></script>
   <script src="js/contratacoes.js?v=2" defer></script>
   <script src="js/disciplinas.js?v=2" defer></script>
   <script src="js/eap.js?v=2" defer></script>
   <script src="js/reunioes.js?v=2" defer></script>
-  <script src="js/equipe.js?v=2" defer></script>
+  <script src="js/equipe.js?v=3" defer></script>
   <script src="js/documentos.js?v=2" defer></script>
   <script src="js/relatorios.js?v=5" defer></script>
   <script src="js/palestrantes.js?v=1" defer></script>
   <script src="js/prospeccao.js?v=3" defer></script>
-  <script src="js/voluntarios.js?v=1" defer></script>
+  <script src="js/voluntarios.js?v=3" defer></script>
   <script src="js/patrocinio.js?v=2" defer></script>
+  <script src="js/agenda.js?v=1" defer></script>
 </body>
 </html>

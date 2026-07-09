@@ -8,12 +8,21 @@
    - CRUD completo (modal) persistido via Gestao.save().
 
    Contrato consumido (window.Gestao):
-     Gestao.data.voluntarios = { voluntarios:[{id,nome,funcao,telefone,email,dia,turno}] }
+     Gestao.data.voluntarios = { voluntarios:[{id,nome,funcao,telefone,email,
+                                               dia,turno,reservadoPor,reservadoEm}] }
+     Gestao.data.equipe      = { membros:[{id,nome,papel,...}] }  (só leitura)
      Gestao.uid(prefix) · Gestao.save() · Gestao.onTab(id, renderFn)
      Gestao.pageHeader(opts) · Gestao.headerStat(opts)
 
    dia: "13" | "14" | "ambos"
    turno: "manha" | "tarde" | "integral"
+
+   Reserva: um membro da equipe "recruta" um voluntário. O vínculo mora
+   AQUI (reservadoPor = id do membro), nunca em `equipe` — assim a escrita
+   fica contida no domínio `voluntarios` e o perfil de área `experiencia`
+   consegue executá-la. Gravar nos dois domínios faria o servidor descartar
+   em silêncio a metade fora da área (merge raso do PUT /api/estado).
+   A aba Equipe apenas LÊ esta lista para desenhar o organograma.
 
    Segurança: todo valor do usuário vai ao DOM via textContent /
    createElement / .value. Links são <a> com .href/.textContent.
@@ -60,6 +69,38 @@
     data.voluntarios = vol;
     if (window.Gestao) window.Gestao.data = data;
     return vol.voluntarios;
+  }
+
+  // Membros da equipe — leitura cross-domain (nunca escrevemos aqui),
+  // espelhando o getDisciplinas() que equipe.js usa para ler cronograma.
+  function getMembrosEquipe() {
+    var data = (window.Gestao && window.Gestao.data) || {};
+    var eqp = data.equipe || {};
+    return Array.isArray(eqp.membros) ? eqp.membros : [];
+  }
+
+  function findMembroEquipe(id) {
+    if (!id) return null;
+    var membros = getMembrosEquipe();
+    for (var i = 0; i < membros.length; i++) {
+      if (membros[i].id === id) return membros[i];
+    }
+    return null;
+  }
+
+  // Membro que reservou o voluntário, ou null. Um `reservadoPor` que não
+  // resolve (membro excluído) conta como vínculo órfão => voluntário livre.
+  function recrutadorDe(v) {
+    return v && v.reservadoPor ? findMembroEquipe(v.reservadoPor) : null;
+  }
+
+  // A aba pode ser editada pelo perfil atual? tabEditavel() respeita os
+  // perfis de área; readonly é o fallback para o modo vault.
+  function podeEditar() {
+    var G = window.Gestao;
+    if (!G) return true;
+    if (typeof G.tabEditavel === "function") return G.tabEditavel(TAB_ID);
+    return !G.readonly;
   }
 
   /* ============================================================
@@ -166,8 +207,32 @@
     );
     card.appendChild(contatos);
 
+    var recrutador = recrutadorDe(v);
+    if (recrutador) {
+      card.classList.add("is-reservado");
+      var reserva = el("div", "vol-card__reserva");
+      reserva.appendChild(el("span", "vol-card__reserva-rot", "Reservado por"));
+      reserva.appendChild(
+        el("span", "vol-card__reserva-nome", (recrutador.nome || "").trim() || "—")
+      );
+      card.appendChild(reserva);
+    }
+
     if (!window.Gestao || !window.Gestao.readonly) {
       var actions = el("div", "vol-card__actions");
+
+      if (podeEditar()) {
+        var reservaBtn = recrutador
+          ? el("button", "btn btn-ghost sm", "Liberar")
+          : el("button", "btn btn-ghost sm", "Reservar");
+        reservaBtn.type = "button";
+        reservaBtn.addEventListener("click", function () {
+          if (recrutador) liberar(v.id);
+          else openReserva(v.id);
+        });
+        actions.appendChild(reservaBtn);
+      }
+
       var edit = el("button", "btn btn-ghost sm", "Editar");
       edit.type = "button";
       edit.addEventListener("click", function () { openForm(v.id); });
@@ -234,6 +299,59 @@
     render();
   }
 
+  // Substitui o voluntário por uma cópia com o patch aplicado.
+  function patchVoluntario(id, patch) {
+    var list = getVoluntarios();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === id) {
+        list[i] = Object.assign({}, list[i], patch);
+        return list[i];
+      }
+    }
+    return null;
+  }
+
+  // Reserva exclusiva. A recheca acontece AQUI, na gravação, e não ao
+  // abrir o modal: o polling substitui Gestao.data inteiro entre as duas
+  // coisas, então outro usuário pode ter reservado nesse intervalo.
+  function reservar(volId, membroId) {
+    var v = findVoluntario(volId);
+    if (!v) return;
+
+    var atual = recrutadorDe(v);
+    if (atual) {
+      window.Gestao.toast(
+        "Voluntário já reservado por " + (atual.nome || "outro membro") + ".",
+        "error"
+      );
+      render();
+      return;
+    }
+
+    var membro = findMembroEquipe(membroId);
+    if (!membro) {
+      window.Gestao.toast("Selecione um membro da equipe válido.", "error");
+      return;
+    }
+
+    patchVoluntario(volId, {
+      reservadoPor: membroId,
+      reservadoEm: new Date().toISOString()
+    });
+    window.Gestao.save();
+    window.Gestao.toast("Voluntário reservado por " + membro.nome);
+    render();
+  }
+
+  function liberar(volId) {
+    var v = findVoluntario(volId);
+    if (!v) return;
+    patchVoluntario(volId, { reservadoPor: null, reservadoEm: null });
+    window.Gestao.save();
+    window.Gestao.toast("Reserva liberada");
+    render();
+  }
+
   function removeVoluntario(id, nome) {
     var label = nome && String(nome).trim() ? '"' + nome + '"' : "este voluntário";
     Gestao.confirm("Excluir " + label + "?", function () {
@@ -291,6 +409,75 @@
       sel.appendChild(o);
     });
     return sel;
+  }
+
+  /* ============================================================
+     Modal de reserva — escolhe o membro da equipe que recruta
+     ============================================================ */
+  function openReserva(volId) {
+    var v = findVoluntario(volId);
+    if (!v) return;
+
+    var membros = getMembrosEquipe();
+    if (!membros.length) {
+      window.Gestao.toast(
+        "Cadastre a equipe antes de reservar voluntários.",
+        "error"
+      );
+      return;
+    }
+
+    closeForm();
+    _backdrop = el("div", "vol-modal-backdrop");
+
+    var modal = el("div", "vol-modal");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-label", "Reservar voluntário");
+    modal.appendChild(el("h3", "section-title", "Reservar voluntário"));
+    modal.appendChild(
+      el(
+        "p",
+        "muted-text",
+        ((v.nome || "").trim() || "O voluntário") +
+          " ficará vinculado ao membro escolhido no organograma da aba Equipe."
+      )
+    );
+
+    var form = document.createElement("form");
+    form.className = "vol-form";
+
+    var opcoes = membros.map(function (m) {
+      var papel = (m.papel || "").trim();
+      return {
+        value: m.id,
+        label: ((m.nome || "").trim() || "Sem nome") + (papel ? " · " + papel : "")
+      };
+    });
+    var selMembro = makeSelect(opcoes, membros[0].id);
+    form.appendChild(field("Recrutado por *", selMembro, true));
+
+    var actions = el("div", "vol-form-actions");
+    var cancel = el("button", "btn", "Cancelar");
+    cancel.type = "button";
+    cancel.addEventListener("click", closeForm);
+    actions.appendChild(cancel);
+    var confirmar = el("button", "btn btn-primary", "Reservar");
+    confirmar.type = "submit";
+    actions.appendChild(confirmar);
+    form.appendChild(actions);
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      reservar(volId, selMembro.value);
+      closeForm();
+    });
+
+    modal.appendChild(form);
+    _backdrop.appendChild(modal);
+    document.body.appendChild(_backdrop);
+    document.addEventListener("keydown", onEscClose);
+    selMembro.focus();
   }
 
   function openForm(id) {
@@ -431,7 +618,7 @@
 
     var bar = el("div", "spread");
     bar.appendChild(
-      el("span", "muted-text", "Cadastre os voluntários e a função que irão exercer em cada dia do evento.")
+      el("span", "muted-text", "Cadastre os voluntários e a função que possuem disponibilidade de exercer em cada dia do evento.")
     );
     if (!window.Gestao || !window.Gestao.readonly) {
       var addBtn = el("button", "btn btn-primary sm", "+ Voluntário");

@@ -576,3 +576,60 @@
 
   .vg-legend { width: 100%; }
 }
+
+/* --- Aviso da próxima reunião geral (topo da Visão Geral) --- */
+.vg-aviso {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--purple);
+  background: linear-gradient(100deg, rgba(54, 23, 123, .06), var(--card-cream));
+}
+.vg-aviso__icone { font-size: 1.6rem; line-height: 1; }
+.vg-aviso__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.vg-aviso__tag {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--purple);
+}
+.vg-aviso__data {
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.vg-aviso__nota { font-size: .74rem; color: var(--muted); }
+.vg-aviso__prazo {
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--purple);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* Dia da reunião: laranja para saltar aos olhos. */
+.vg-aviso.is-hoje { border-left-color: var(--orange); }
+.vg-aviso.is-hoje .vg-aviso__tag { color: var(--orange); }
+.vg-aviso.is-hoje .vg-aviso__prazo { background: var(--orange); }
+
+@media (max-width: 580px) {
+  .vg-aviso { flex-wrap: wrap; gap: 10px; }
+  .vg-aviso__prazo { width: 100%; text-align: center; }
+}
+/* Horário da reunião: mesmo peso da data, na cor da marca. */
+.vg-aviso__hora { color: var(--purple); }
+.vg-aviso.is-hoje .vg-aviso__hora { color: var(--orange); }

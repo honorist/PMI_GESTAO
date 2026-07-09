@@ -260,3 +260,27 @@
 @media (max-width: 580px) {
   .vol-dia__head { flex-wrap: wrap; }
 }
+
+/* --- Reserva de voluntário (vínculo com um membro da equipe) --- */
+.vol-card.is-reservado {
+  border-left: 3px solid var(--purple);
+}
+.vol-card__reserva {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.vol-card__reserva-rot {
+  font-size: .66rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+.vol-card__reserva-nome {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--purple);
+}

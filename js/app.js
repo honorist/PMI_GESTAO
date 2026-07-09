@@ -177,8 +177,9 @@
     // --- Modo de operação ---
     // mode: 'vault' (estático, fallback) | 'backend' (servidor Node)
     mode: "vault",
-    role: null,          // 'master' | 'viewer' (só no modo backend)
-    readonly: false,     // true quando role !== 'master'
+    role: null,          // 'master' | 'viewer' | área (governanca/conteudo/experiencia)
+    readonly: false,     // true quando role === 'viewer' (só leitura total)
+    areaKeys: null,      // chaves editáveis do perfil de área (null = todas)
 
     fmtBRL: fmtBRL,
     fmtData: fmtData,
@@ -376,8 +377,10 @@
   }
 
   // Persistência no servidor (modo backend). Viewer não salva.
+  // Perfis de área salvam normalmente: o SERVIDOR aplica apenas as
+  // chaves permitidas do payload (merge raso), ignorando o resto.
   function saveBackend() {
-    if (Gestao.role !== "master") {
+    if (Gestao.role === "viewer" || !Gestao.role) {
       return false; // somente leitura — no-op silencioso
     }
     // Espelho offline opcional (não é a fonte da verdade).
@@ -390,34 +393,54 @@
     setSaveStatus("saving", "salvando…");
     if (_backendSaveTimer) clearTimeout(_backendSaveTimer);
     _backendSaveTimer = setTimeout(function () {
-      // Snapshot do que será enviado (evita corrida com edições novas).
-      var payload = JSON.stringify({ data: Gestao.data });
-      fetch("/api/estado", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: payload
-      })
-        .then(function (res) {
-          if (!res.ok) throw new Error("http " + res.status);
-          return res.json();
-        })
-        .then(function (out) {
-          // Atualiza a marca temporal para o polling não "ressincronizar"
-          // por cima da própria escrita do master.
-          if (out && out.updated_at) _lastUpdatedAt = out.updated_at;
-          setSaveStatus("idle", "salvo");
-          if (_saveTimer) clearTimeout(_saveTimer);
-          _saveTimer = setTimeout(function () {
-            setSaveStatus("idle", "salvo automaticamente");
-          }, 1500);
-        })
-        .catch(function (err) {
-          console.error("Falha ao salvar no servidor:", err);
-          setSaveStatus("error", "erro ao salvar");
-        });
+      // Zera antes de enviar: _backendSaveTimer sinaliza "escrita pendente"
+      // e é o que mantém o polling pausado enquanto o debounce corre.
+      _backendSaveTimer = null;
+      enviarEstado().catch(function () {
+        /* erro já reportado em enviarEstado */
+      });
     }, SAVE_DEBOUNCE_MS);
     return true;
+  }
+
+  // PUT do estado atual. Devolve a Promise para quem precisa esperar a
+  // gravação terminar (ex.: o logout não pode sair com save pendente).
+  function enviarEstado() {
+    // Snapshot do que será enviado (evita corrida com edições novas).
+    var payload = JSON.stringify({ data: Gestao.data });
+    return fetch("/api/estado", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: payload
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("http " + res.status);
+        return res.json();
+      })
+      .then(function (out) {
+        // Atualiza a marca temporal para o polling não "ressincronizar"
+        // por cima da própria escrita do master.
+        if (out && out.updated_at) _lastUpdatedAt = out.updated_at;
+        setSaveStatus("idle", "salvo");
+        if (_saveTimer) clearTimeout(_saveTimer);
+        _saveTimer = setTimeout(function () {
+          setSaveStatus("idle", "salvo automaticamente");
+        }, 1500);
+      })
+      .catch(function (err) {
+        console.error("Falha ao salvar no servidor:", err);
+        setSaveStatus("error", "erro ao salvar");
+        throw err;
+      });
+  }
+
+  // Antecipa um save em debounce. Resolve quando o estado estiver gravado.
+  function flushSaveBackend() {
+    if (!_backendSaveTimer) return Promise.resolve();
+    clearTimeout(_backendSaveTimer);
+    _backendSaveTimer = null;
+    return enviarEstado();
   }
 
   /* ============================================================
@@ -436,6 +459,43 @@
     }
   };
 
+  /* ---- Permissão de edição por aba (perfis de área) --------
+     Mapeia cada aba para a chave de domínio que ela edita.
+     Abas derivadas/agregadas (visão, disciplinas, relatórios)
+     não têm chave própria => só o master edita.               */
+  var TAB_KEYS = {
+    "tab-visao": null,
+    "tab-cronograma": "cronograma",
+    "tab-eap": "eap",
+    "tab-disciplinas": null,
+    "tab-financeiro": "financeiro",
+    "tab-contratacoes": "contratacoes",
+    "tab-palestrantes": "palestrantes",
+    "tab-prospeccao": "prospeccao",
+    "tab-patrocinio": "patrocinio",
+    "tab-equipe": "equipe",
+    "tab-voluntarios": "voluntarios",
+    "tab-reunioes": "reunioes",
+    "tab-documentos": "documentos",
+    "tab-relatorios": null,
+    "tab-metas": "metas",
+    "tab-checklist": "checklist"
+  };
+
+  // A aba pode ser editada pelo perfil atual?
+  // - modo vault: sempre (comportamento original);
+  // - master: sempre; viewer: nunca;
+  // - perfil de área: só se a chave da aba estiver em areaKeys.
+  function tabEditavel(id) {
+    if (Gestao.mode !== "backend") return true;
+    if (Gestao.role === "master") return true;
+    if (Gestao.role === "viewer" || !Gestao.role) return false;
+    var key = TAB_KEYS[id];
+    return !!(key && Gestao.areaKeys && Gestao.areaKeys.indexOf(key) !== -1);
+  }
+
+  Gestao.tabEditavel = tabEditavel;
+
   function renderTab(id) {
     var mount = document.getElementById(id);
     if (!mount) return;
@@ -443,9 +503,10 @@
     if (!fn) return; // módulo ainda não registrou — mantém placeholder
     try {
       fn(mount, Gestao.data);
-      // Modo backend + viewer: esconde controles de edição (heurística),
-      // sem precisar tocar em cada módulo.
-      if (Gestao.readonly) aplicarReadonly(mount);
+      // Esconde controles de edição (heurística) quando o perfil
+      // atual não pode editar esta aba — viewer em tudo; perfil de
+      // área nas abas fora do seu tema.
+      if (!tabEditavel(id)) aplicarReadonly(mount);
     } catch (e) {
       console.error("Erro ao renderizar aba " + id + ":", e);
       mount.innerHTML =
@@ -562,7 +623,11 @@
   // No modo backend, importar é privilégio do master.
   Gestao.importJSON = function importJSON(file) {
     return new Promise(function (resolve, reject) {
-      if (Gestao.readonly) {
+      // Import substitui o estado INTEIRO — no backend, só o master pode.
+      if (
+        Gestao.readonly ||
+        (Gestao.mode === "backend" && Gestao.role !== "master")
+      ) {
         reject(new Error("Sem permissão para importar (somente leitura)."));
         return;
       }
@@ -658,6 +723,14 @@
           .finally(function () {
             fileInput.value = ""; // permite reimportar o mesmo arquivo
           });
+      });
+    }
+
+    // Sair — revelado por aplicarRole(), só existe no modo backend.
+    var btnLogout = document.getElementById("btn-logout");
+    if (btnLogout) {
+      btnLogout.addEventListener("click", function () {
+        fazerLogout();
       });
     }
   }
@@ -872,22 +945,65 @@
     }, SYNC_INTERVAL_MS);
   }
 
+  // Rótulos amigáveis dos perfis (badge no cabeçalho).
+  var ROLE_LABELS = {
+    master: "Mestre",
+    viewer: "Visualização",
+    governanca: "Governança",
+    conteudo: "Conteúdo",
+    experiencia: "Experiência"
+  };
+
+  // Mostra/atualiza o badge do perfil logado ao lado do save-status.
+  function mostrarBadgeRole(role) {
+    var label = ROLE_LABELS[role] || role;
+    var badge = document.getElementById("role-badge");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.id = "role-badge";
+      badge.style.cssText =
+        "display:inline-flex;align-items:center;padding:3px 10px;" +
+        "border-radius:999px;font-size:12px;font-weight:700;" +
+        "background:#36177B;color:#fff;white-space:nowrap;";
+      var anchor = document.getElementById("save-status");
+      if (anchor && anchor.parentNode) {
+        anchor.parentNode.insertBefore(badge, anchor);
+      } else {
+        document.body.appendChild(badge);
+      }
+    }
+    badge.textContent = label;
+    badge.title =
+      role === "master"
+        ? "Perfil mestre: edita todas as seções"
+        : role === "viewer"
+        ? "Perfil de visualização: somente leitura"
+        : "Perfil " + label + ": edita apenas as seções do seu tema";
+  }
+
   // Aplica a role no estado do app e ajusta UI dependente.
-  function aplicarRole(role) {
+  // edita: array de chaves editáveis (perfis de área) ou null (master).
+  function aplicarRole(role, edita) {
     Gestao.role = role;
-    Gestao.readonly = role !== "master";
+    Gestao.areaKeys = Array.isArray(edita) ? edita : null;
+    Gestao.readonly = role === "viewer";
     if (Gestao.readonly) {
       document.body.classList.add("is-viewer");
-      var btnImport = document.getElementById("btn-import");
-      if (btnImport) btnImport.style.display = "none";
     } else {
       document.body.classList.remove("is-viewer");
     }
+    // Importar substitui o estado inteiro — visível só para o master.
+    var btnImport = document.getElementById("btn-import");
+    if (btnImport) btnImport.style.display = role === "master" ? "" : "none";
+    // Sair vale para qualquer perfil autenticado (só o backend tem sessão).
+    var btnLogout = document.getElementById("btn-logout");
+    if (btnLogout) btnLogout.hidden = false;
+    mostrarBadgeRole(role);
   }
 
   // Sobe o app no modo backend: já carrega, renderiza e inicia o sync.
-  function entrarBackend(role) {
-    aplicarRole(role);
+  function entrarBackend(role, edita) {
+    aplicarRole(role, edita);
     carregarEstadoBackend()
       .then(function () {
         Gestao.showTab(DEFAULT_TAB);
@@ -901,6 +1017,48 @@
         } else {
           setSaveStatus("error", "erro ao carregar");
         }
+      });
+  }
+
+  // Encerra a sessão: grava o que estiver pendente, derruba o cookie no
+  // servidor, limpa o espelho local e recarrega (o boot cai no login).
+  function fazerLogout() {
+    var btn = document.getElementById("btn-logout");
+    if (btn) btn.disabled = true;
+
+    if (_syncTimer) {
+      clearInterval(_syncTimer);
+      _syncTimer = null;
+    }
+    setSaveStatus("saving", "saindo…");
+
+    // Um save em debounce ainda não enviado se perderia no reload.
+    return flushSaveBackend()
+      .catch(function () {
+        /* falha de gravação já reportada — ainda assim encerra a sessão */
+      })
+      .then(function () {
+        return fetch("/api/logout", {
+          method: "POST",
+          credentials: "same-origin"
+        });
+      })
+      .then(function (res) {
+        if (!res.ok) throw new Error("http " + res.status);
+        // No modo backend o localStorage é só espelho, e guarda dados da
+        // área restrita: some com ele antes de liberar a máquina.
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch (e) {
+          /* storage indisponível: nada a limpar */
+        }
+        window.location.reload();
+      })
+      .catch(function (err) {
+        console.error("Falha ao encerrar a sessão:", err);
+        setSaveStatus("error", "erro ao sair");
+        if (btn) btn.disabled = false;
+        iniciarSync(); // a sessão continua viva: retoma o polling
       });
   }
 
@@ -938,7 +1096,7 @@
           // Sucesso: remove o login e libera o app conforme a role.
           g.overlay.parentNode &&
             g.overlay.parentNode.removeChild(g.overlay);
-          entrarBackend((out && out.role) || "viewer");
+          entrarBackend((out && out.role) || "viewer", out && out.edita);
         })
         .catch(function (err) {
           g.btn.disabled = false;
@@ -975,7 +1133,7 @@
           })
           .then(function (out) {
             if (out && out.role) {
-              entrarBackend(out.role);
+              entrarBackend(out.role, out.edita);
             } else {
               startBackendLogin();
             }

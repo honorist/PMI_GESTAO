@@ -292,3 +292,44 @@
 @media (max-width: 860px) {
   .eqp-form { grid-template-columns: 1fr; }
 }
+
+/* --- Voluntários reservados pendurados sob o membro recrutador --- */
+.eqp-obranch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+/* Pilha de voluntários + conector vertical vindo do membro acima. */
+.eqp-ovol {
+  position: relative;
+  width: 100%;
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.eqp-ovol::before {
+  content: "";
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  width: 2px;
+  height: 22px;
+  background: var(--line);
+  transform: translateX(-50%);
+}
+/* Nó de voluntário: tracejado, para distinguir de membro efetivo. */
+.eqp-onode--vol {
+  border-style: dashed;
+  border-top-width: 3px;
+  border-top-color: var(--muted);
+  background: var(--card-cream);
+}
+.eqp-onode__voltag {
+  font-size: .55rem;
+  margin-top: 4px;
+  padding: 1px 6px;
+}
+/* Nos níveis 1–3 o nó tem largura fixa; o ramo acompanha. */
+.eqp-oc__lvl .eqp-obranch { width: 168px; }
