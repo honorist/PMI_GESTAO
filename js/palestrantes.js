@@ -147,6 +147,76 @@
     return node;
   }
 
+  /* ---- Campo de texto simples num modal (label + input) ---- */
+  function campoTexto(body, labelTxt, valor, placeholder) {
+    var wrap = el("div", "spk-modal__field");
+    wrap.appendChild(el("label", null, labelTxt));
+    var inp = document.createElement("input");
+    inp.type = "text";
+    inp.value = valor || "";
+    inp.placeholder = placeholder || "";
+    wrap.appendChild(inp);
+    body.appendChild(wrap);
+    return inp;
+  }
+
+  /* ---- Campo de horário (label + input type=time) ---- */
+  function campoHora(body, labelTxt, valorHHMM) {
+    var wrap = el("div", "spk-modal__field");
+    wrap.appendChild(el("label", null, labelTxt));
+    var inp = document.createElement("input");
+    inp.type = "time";
+    inp.step = "60";
+    inp.value = valorHHMM || "";
+    wrap.appendChild(inp);
+    body.appendChild(wrap);
+    return inp;
+  }
+
+  /* ---- Parseia "HHhMM - HHhMM" (formato salvo) em minutos ---- */
+  function parseHorarioStorage(horarioStr) {
+    var partes = (horarioStr || "").split(" - ");
+    if (partes.length !== 2) return null;
+    var ini = partes[0].split("h");
+    var fim = partes[1].split("h");
+    if (ini.length !== 2 || fim.length !== 2) return null;
+    var inicio = parseInt(ini[0], 10) * 60 + parseInt(ini[1], 10);
+    var fimMin = parseInt(fim[0], 10) * 60 + parseInt(fim[1], 10);
+    if (isNaN(inicio) || isNaN(fimMin)) return null;
+    return { inicio: inicio, fim: fimMin };
+  }
+
+  /* ---- Parseia "HH:MM" (formato nativo do <input type=time>) em minutos ---- */
+  function parseHoraInput(hhmm) {
+    var partes = (hhmm || "").split(":");
+    if (partes.length !== 2) return null;
+    var min = parseInt(partes[0], 10) * 60 + parseInt(partes[1], 10);
+    return isNaN(min) ? null : min;
+  }
+
+  /* ---- Formata minutos de volta para "HHhMM - HHhMM" ---- */
+  function formatarHorario(iniMin, fimMin) {
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    function fmt(min) { return pad(Math.floor(min / 60)) + "h" + pad(min % 60); }
+    return fmt(iniMin) + " - " + fmt(fimMin);
+  }
+
+  /* ---- Duas faixas de horário (em minutos) se sobrepõem? ---- */
+  function faixasSobrepoem(iniA, fimA, iniB, fimB) {
+    return iniA < fimB && iniB < fimA;
+  }
+
+  /* ---- Primeira sessão do palco cujo horário conflita com [iniMin, fimMin) ---- */
+  function buscarConflito(palco, iniMin, fimMin) {
+    var sessoes = palco.sessoes || [];
+    for (var i = 0; i < sessoes.length; i++) {
+      var range = parseHorarioStorage(sessoes[i].horario);
+      if (!range) continue;
+      if (faixasSobrepoem(iniMin, fimMin, range.inicio, range.fim)) return sessoes[i];
+    }
+    return null;
+  }
+
   /* ---- Uma sessão está confirmada? (status explícito, com fallback legado) ---- */
   function estaConfirmada(s) {
     if (s.status) return s.status === "confirmado";
@@ -188,7 +258,7 @@
   }
 
   /* ---- Modal de edição ---- */
-  function abrirModal(sess, palcoNome, onSave, listaConfirmados) {
+  function abrirModal(sess, palcoNome, onSave, listaConfirmados, localAtualDoPalestrante) {
     listaConfirmados = listaConfirmados || [];
     var overlay = el("div", "spk-modal-overlay");
     var modal = el("div", "spk-modal");
@@ -201,24 +271,13 @@
 
     var body = el("div", "spk-modal__body");
 
-    function campoTexto(labelTxt, valor, placeholder) {
-      var wrap = el("div", "spk-modal__field");
-      wrap.appendChild(el("label", null, labelTxt));
-      var inp = document.createElement("input");
-      inp.type = "text";
-      inp.value = valor || "";
-      inp.placeholder = placeholder || "";
-      wrap.appendChild(inp);
-      body.appendChild(wrap);
-      return inp;
-    }
-
-    var inpTitulo = campoTexto("Título da sessão", sess.titulo, "Ex.: Keynote 3");
+    var inpTitulo = campoTexto(body, "Título da sessão", sess.titulo, "Ex.: Keynote 3");
 
     /* Palestrante só pode vir da lista de confirmados em Prospecção —
        não dá pra digitar um nome novo direto aqui. Sessões antigas com
        um nome que não está mais na lista ganham uma opção extra
-       "fora da lista", pra não perder o dado sem querer. */
+       "fora da lista", pra não perder o dado sem querer. Se a pessoa já
+       estiver escalada em outra sessão, o rótulo mostra onde. */
     var wrapPalestrante = el("div", "spk-modal__field");
     wrapPalestrante.appendChild(el("label", null, "Palestrante"));
     var selPalestrante = document.createElement("select");
@@ -247,13 +306,53 @@
       var opt = document.createElement("option");
       opt.value = String(idx);
       var rotulo = perfil.empresa ? (perfil.nome + " · " + perfil.empresa) : perfil.nome;
-      if (perfil._foraDaLista) rotulo += " (fora da lista de confirmados)";
+      if (perfil._foraDaLista) {
+        rotulo += " (fora da lista de confirmados)";
+      } else if (typeof localAtualDoPalestrante === "function") {
+        var ocupacao = localAtualDoPalestrante(perfil.nome);
+        if (ocupacao && ocupacao.sessId !== sess.id) {
+          rotulo += " (" + ocupacao.palco + " · " + ocupacao.horario + ")";
+        }
+      }
       opt.textContent = rotulo;
       selPalestrante.appendChild(opt);
     });
     if (idxAtual !== -1) selPalestrante.value = String(idxAtual);
     wrapPalestrante.appendChild(selPalestrante);
     body.appendChild(wrapPalestrante);
+
+    /* -- Preview só leitura do perfil (empresa/foto/LinkedIn vêm de Prospecção) -- */
+    var wrapPreview = el("div", "spk-modal__preview");
+    var previewFoto = document.createElement("img");
+    previewFoto.alt = "Foto";
+    previewFoto.style.cssText = "display:none;width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;";
+    wrapPreview.appendChild(previewFoto);
+    var previewTexto = el("span", "spk-modal__preview-texto", "");
+    wrapPreview.appendChild(previewTexto);
+    var previewLink = document.createElement("a");
+    previewLink.target = "_blank";
+    previewLink.rel = "noopener noreferrer";
+    previewLink.textContent = "LinkedIn ↗";
+    previewLink.style.cssText = "display:none;margin-left:8px;";
+    wrapPreview.appendChild(previewLink);
+    body.appendChild(wrapPreview);
+
+    function atualizarPreview(perfil) {
+      if (perfil && perfil.fotoDataUrl) {
+        previewFoto.src = perfil.fotoDataUrl;
+        previewFoto.style.display = "block";
+      } else {
+        previewFoto.style.display = "none";
+      }
+      previewTexto.textContent = perfil ? (perfil.empresa || "Sem empresa cadastrada em Prospecção") : "";
+      if (perfil && perfil.linkedin) {
+        previewLink.href = perfil.linkedin;
+        previewLink.style.display = "inline";
+      } else {
+        previewLink.style.display = "none";
+      }
+    }
+    atualizarPreview(idxAtual !== -1 ? opcoesPalestrante[idxAtual] : null);
 
     var wrapStatus = el("div", "spk-modal__field");
     wrapStatus.appendChild(el("label", null, "Status"));
@@ -268,8 +367,6 @@
       : ((sess.palestrante && sess.palestrante.trim()) ? "confirmado" : "a_definir");
     wrapStatus.appendChild(selStatus);
     body.appendChild(wrapStatus);
-
-    var inpEmpresa = campoTexto("Empresa / Organização", sess.empresa, "Ex.: PMI, CMPC, Gerdau…");
 
     var wrapTema = el("div", "spk-modal__field");
     wrapTema.appendChild(el("label", null, "Tema / Título da palestra"));
@@ -290,69 +387,15 @@
     wrapBio.appendChild(txtBio);
     body.appendChild(wrapBio);
 
-    /* -- LinkedIn -- */
-    var wrapLinkedin = el("div", "spk-modal__field");
-    wrapLinkedin.appendChild(el("label", null, "LinkedIn"));
-    var inpLinkedin = document.createElement("input");
-    inpLinkedin.type = "url";
-    inpLinkedin.value = sess.linkedin || "";
-    inpLinkedin.placeholder = "https://linkedin.com/in/...";
-    wrapLinkedin.appendChild(inpLinkedin);
-    body.appendChild(wrapLinkedin);
-
-    /* -- Foto -- */
-    var wrapFoto = el("div", "spk-modal__field");
-    wrapFoto.appendChild(el("label", null, "Foto (máx. 2 MB)"));
-    var fotoDataUrl = sess.fotoDataUrl || "";
-    var fotoPreview = document.createElement("img");
-    fotoPreview.alt = "Preview";
-    fotoPreview.style.cssText = "display:" + (fotoDataUrl ? "block" : "none") + ";width:60px;height:60px;border-radius:50%;object-fit:cover;margin:4px 0;";
-    if (fotoDataUrl) { fotoPreview.src = fotoDataUrl; }
-    wrapFoto.appendChild(fotoPreview);
-    var inpFoto = document.createElement("input");
-    inpFoto.type = "file";
-    inpFoto.accept = "image/*";
-    inpFoto.addEventListener("change", function () {
-      var file = inpFoto.files && inpFoto.files[0];
-      if (!file) { return; }
-      if (file.size > 2 * 1024 * 1024) {
-        if (window.Gestao && window.Gestao.toast) {
-          window.Gestao.toast("Foto muito grande (máx. 2 MB)", "error");
-        }
-        inpFoto.value = "";
-        return;
-      }
-      var reader = new FileReader();
-      reader.onload = function (ev) {
-        fotoDataUrl = ev.target.result;
-        fotoPreview.src = fotoDataUrl;
-        fotoPreview.style.display = "block";
-      };
-      reader.readAsDataURL(file);
-    });
-    wrapFoto.appendChild(inpFoto);
-    body.appendChild(wrapFoto);
-
     selPalestrante.addEventListener("change", function () {
       if (selPalestrante.value === "") {
-        inpEmpresa.value = "";
-        inpLinkedin.value = "";
-        fotoDataUrl = "";
-        fotoPreview.style.display = "none";
+        atualizarPreview(null);
         selStatus.value = "a_definir";
         return;
       }
       var perfil = opcoesPalestrante[Number(selPalestrante.value)];
       if (!perfil) return;
-      inpEmpresa.value = perfil.empresa || "";
-      inpLinkedin.value = perfil.linkedin || "";
-      fotoDataUrl = perfil.fotoDataUrl || "";
-      if (fotoDataUrl) {
-        fotoPreview.src = fotoDataUrl;
-        fotoPreview.style.display = "block";
-      } else {
-        fotoPreview.style.display = "none";
-      }
+      atualizarPreview(perfil);
       selStatus.value = "confirmado";
     });
 
@@ -380,18 +423,99 @@
         titulo:      inpTitulo.value.trim() || sess.titulo,
         palestrante: perfilEscolhido ? perfilEscolhido.nome : "",
         status:      selStatus.value,
-        empresa:     inpEmpresa.value.trim(),
+        empresa:     perfilEscolhido ? (perfilEscolhido.empresa || "") : "",
         tema:        txtTema.value.trim(),
         bio:         txtBio.value.trim(),
-        linkedin:    inpLinkedin.value.trim(),
-        fotoDataUrl: fotoDataUrl
+        linkedin:    perfilEscolhido ? (perfilEscolhido.linkedin || "") : "",
+        fotoDataUrl: perfilEscolhido ? (perfilEscolhido.fotoDataUrl || "") : ""
       });
       fechar();
     });
   }
 
+  /* ---- Modal: novo horário para um palco ---- */
+  function abrirModalNovoHorario(palco, onAdd) {
+    var overlay = el("div", "spk-modal-overlay");
+    var modal = el("div", "spk-modal");
+    overlay.appendChild(modal);
+
+    var head = el("div", "spk-modal__head");
+    head.appendChild(el("h3", null, "Novo horário"));
+    head.appendChild(el("p", null, palco.nome));
+    modal.appendChild(head);
+
+    var body = el("div", "spk-modal__body");
+
+    var inpTitulo = campoTexto(body, "Título da sessão", "", "Ex.: Sessão paralela C1");
+
+    var wrapTipo = el("div", "spk-modal__field");
+    wrapTipo.appendChild(el("label", null, "Tipo"));
+    var selTipo = document.createElement("select");
+    [
+      { value: "sessao", label: "Sessão" },
+      { value: "keynote", label: "Keynote" },
+      { value: "especial", label: "Especial" }
+    ].forEach(function (o) {
+      var opt = document.createElement("option");
+      opt.value = o.value;
+      opt.textContent = o.label;
+      selTipo.appendChild(opt);
+    });
+    wrapTipo.appendChild(selTipo);
+    body.appendChild(wrapTipo);
+
+    var inpInicio = campoHora(body, "Início", "");
+    var inpFim = campoHora(body, "Fim", "");
+
+    var erroEl = el("p", "spk-field-hint spk-field-hint--error", "");
+    erroEl.style.display = "none";
+    body.appendChild(erroEl);
+
+    function mostrarErro(msg) {
+      erroEl.textContent = msg;
+      erroEl.style.display = "block";
+    }
+
+    modal.appendChild(body);
+
+    var foot = el("div", "spk-modal__foot");
+    var btnCancel = el("button", "btn sm", "Cancelar");
+    btnCancel.type = "button";
+    var btnSave = el("button", "btn sm btn-primary", "Adicionar");
+    btnSave.type = "button";
+    foot.appendChild(btnCancel);
+    foot.appendChild(btnSave);
+    modal.appendChild(foot);
+
+    document.body.appendChild(overlay);
+    inpTitulo.focus();
+
+    function fechar() { document.body.removeChild(overlay); }
+
+    btnCancel.addEventListener("click", fechar);
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) fechar(); });
+    btnSave.addEventListener("click", function () {
+      var titulo = inpTitulo.value.trim();
+      if (!titulo) { mostrarErro("Informe um título para a sessão."); return; }
+
+      var iniMin = parseHoraInput(inpInicio.value);
+      var fimMin = parseHoraInput(inpFim.value);
+      if (iniMin === null || fimMin === null) { mostrarErro("Informe o horário de início e de fim."); return; }
+      if (fimMin <= iniMin) { mostrarErro("O horário de fim deve ser depois do início."); return; }
+
+      var conflito = buscarConflito(palco, iniMin, fimMin);
+      if (conflito) {
+        mostrarErro('Conflita com "' + conflito.titulo + '" (' + conflito.horario + ').');
+        return;
+      }
+
+      onAdd({ titulo: titulo, tipo: selTipo.value, iniMin: iniMin, fimMin: fimMin });
+      fechar();
+    });
+  }
+
   /* ---- Linha de sessão ---- */
-  function buildSessao(sess, palcoNome, isMaster, onEdit, onSwap, listaConfirmados) {
+  function buildSessao(sess, palcoNome, isMaster, onEdit, onSwap, onRemove, listaConfirmados, localAtualDoPalestrante) {
     var tipo = sess.tipo || "sessao";
     var row = el("div", "spk-sess spk-sess--" + tipo);
 
@@ -442,26 +566,42 @@
     var confirmada = estaConfirmada(sess);
     var speakerDiv = el("div", "spk-sess__speaker" + (temPalestrante ? "" : " is-empty"));
 
+    /* Empresa/LinkedIn/Foto vêm ao vivo do perfil confirmado em
+       Prospecção (por nome); sessão antiga sem correspondência cai no
+       valor já gravado nela mesma, sem perder dado. */
+    var perfilExibir = null;
+    if (temPalestrante) {
+      for (var pi = 0; pi < (listaConfirmados || []).length; pi++) {
+        if (listaConfirmados[pi].nome.toLowerCase() === sess.palestrante.trim().toLowerCase()) {
+          perfilExibir = listaConfirmados[pi];
+          break;
+        }
+      }
+    }
+    var empresaExibir  = perfilExibir ? perfilExibir.empresa  : (sess.empresa  || "");
+    var linkedinExibir = perfilExibir ? perfilExibir.linkedin : (sess.linkedin || "");
+    var fotoExibir     = perfilExibir ? perfilExibir.fotoDataUrl : (sess.fotoDataUrl || "");
+
     if (temPalestrante) {
       if (!confirmada) {
         speakerDiv.appendChild(el("span", "spk-status-badge spk-status-badge--" + sess.status, STATUS[sess.status] ? STATUS[sess.status].label : "Convidado"));
       }
-      if (sess.fotoDataUrl) {
-        var fotoEl = document.createElement("img");
-        fotoEl.src = sess.fotoDataUrl;
-        fotoEl.alt = sess.palestrante;
-        fotoEl.style.cssText = "width:36px;height:36px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;flex-shrink:0;";
-        speakerDiv.appendChild(fotoEl);
-      }
       speakerDiv.appendChild(el("span", null, sess.palestrante));
-      if (sess.linkedin) {
+      if (linkedinExibir) {
         var lkEl = document.createElement("a");
-        lkEl.href = sess.linkedin;
+        lkEl.href = linkedinExibir;
         lkEl.target = "_blank";
         lkEl.rel = "noopener noreferrer";
         lkEl.textContent = " 🔗";
         lkEl.style.cssText = "margin-left:4px;text-decoration:none;";
         speakerDiv.appendChild(lkEl);
+      }
+      if (fotoExibir) {
+        var fotoEl = document.createElement("img");
+        fotoEl.src = fotoExibir;
+        fotoEl.alt = sess.palestrante;
+        fotoEl.style.cssText = "width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;";
+        speakerDiv.appendChild(fotoEl);
       }
     } else {
       speakerDiv.textContent = "(a definir)";
@@ -473,8 +613,8 @@
       body.appendChild(el("p", "spk-sess__bio", bioTxt));
     }
 
-    if (temPalestrante && sess.empresa) {
-      body.appendChild(el("div", "spk-sess__empresa", sess.empresa));
+    if (temPalestrante && empresaExibir) {
+      body.appendChild(el("div", "spk-sess__empresa", empresaExibir));
     }
     if (temPalestrante && sess.tema) {
       body.appendChild(el("div", "spk-sess__tema", "“" + sess.tema + "”"));
@@ -487,9 +627,19 @@
       var btnEdit = el("button", "btn sm", "Editar");
       btnEdit.type = "button";
       btnEdit.addEventListener("click", function () {
-        abrirModal(sess, palcoNome, function (vals) { onEdit(sess.id, vals); }, listaConfirmados);
+        abrirModal(sess, palcoNome, function (vals) { onEdit(sess.id, vals); }, listaConfirmados, localAtualDoPalestrante);
       });
       actions.appendChild(btnEdit);
+
+      var btnRemover = el("button", "btn sm btn-danger", "Remover");
+      btnRemover.type = "button";
+      btnRemover.addEventListener("click", function () {
+        window.Gestao.confirm('Remover "' + sess.titulo + '" (' + sess.horario + ')?', function () {
+          onRemove(sess.id);
+        });
+      });
+      actions.appendChild(btnRemover);
+
       row.appendChild(actions);
     }
 
@@ -497,7 +647,7 @@
   }
 
   /* ---- Card de um palco ---- */
-  function buildCard(palco, isMaster, onEdit, onSwap, listaConfirmados) {
+  function buildCard(palco, isMaster, onEdit, onSwap, onAdd, onRemove, listaConfirmados, localAtualDoPalestrante) {
     var conf  = confirmados(palco);
     var total = (palco.sessoes || []).length;
 
@@ -510,8 +660,19 @@
     card.appendChild(head);
 
     (palco.sessoes || []).forEach(function (sess) {
-      card.appendChild(buildSessao(sess, palco.nome, isMaster, onEdit, onSwap, listaConfirmados));
+      card.appendChild(buildSessao(sess, palco.nome, isMaster, onEdit, onSwap, onRemove, listaConfirmados, localAtualDoPalestrante));
     });
+
+    if (isMaster) {
+      var addRow = el("div", "spk-card__add-row");
+      var btnAdicionar = el("button", "btn btn-primary sm", "+ Adicionar horário");
+      btnAdicionar.type = "button";
+      btnAdicionar.addEventListener("click", function () {
+        abrirModalNovoHorario(palco, function (vals) { onAdd(palco.id, vals); });
+      });
+      addRow.appendChild(btnAdicionar);
+      card.appendChild(addRow);
+    }
 
     return card;
   }
@@ -615,11 +776,76 @@
       render(mount, data);
     }
 
+    function onAdd(palcoId, vals) {
+      var palco = null;
+      palcos.forEach(function (p) { if (p.id === palcoId) palco = p; });
+      if (!palco) return;
+
+      var novaSessao = {
+        id: window.Gestao.uid("sess"),
+        horario: formatarHorario(vals.iniMin, vals.fimMin),
+        titulo: vals.titulo,
+        tipo: vals.tipo,
+        palestrante: "",
+        status: "a_definir",
+        empresa: "",
+        tema: "",
+        bio: "",
+        linkedin: "",
+        fotoDataUrl: ""
+      };
+      palco.sessoes = palco.sessoes || [];
+      palco.sessoes.push(novaSessao);
+      palco.sessoes.sort(function (a, b) {
+        var ra = parseHorarioStorage(a.horario), rb = parseHorarioStorage(b.horario);
+        return (ra ? ra.inicio : 0) - (rb ? rb.inicio : 0);
+      });
+
+      data.palestrantes = plData;
+      window.Gestao.save();
+      window.Gestao.toast("Horário adicionado");
+      render(mount, data);
+    }
+
+    function onRemove(sessId) {
+      var removeu = false;
+      palcos.forEach(function (palco) {
+        var idx = -1;
+        (palco.sessoes || []).forEach(function (s, i) { if (s.id === sessId) idx = i; });
+        if (idx !== -1) {
+          palco.sessoes.splice(idx, 1);
+          removeu = true;
+        }
+      });
+      if (!removeu) return;
+
+      data.palestrantes = plData;
+      window.Gestao.save();
+      window.Gestao.toast("Horário removido");
+      render(mount, data);
+    }
+
+    /* Onde (palco/horário) uma pessoa já está escalada, se estiver */
+    function localAtualDoPalestrante(nome) {
+      var alvo = (nome || "").trim().toLowerCase();
+      if (!alvo) return null;
+      for (var pi = 0; pi < palcos.length; pi++) {
+        var p = palcos[pi];
+        for (var si = 0; si < (p.sessoes || []).length; si++) {
+          var s = p.sessoes[si];
+          if (s.palestrante && s.palestrante.trim().toLowerCase() === alvo) {
+            return { sessId: s.id, palco: p.nome, horario: s.horario };
+          }
+        }
+      }
+      return null;
+    }
+
     var listaConfirmados = listarConfirmadosProspeccao(data);
 
     var grid = el("div", "spk-grid");
     palcos.forEach(function (palco) {
-      grid.appendChild(buildCard(palco, isMaster, onEdit, onSwap, listaConfirmados));
+      grid.appendChild(buildCard(palco, isMaster, onEdit, onSwap, onAdd, onRemove, listaConfirmados, localAtualDoPalestrante));
     });
     mount.appendChild(grid);
 
