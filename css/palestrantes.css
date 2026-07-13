@@ -151,6 +151,18 @@
   font-style: italic;
 }
 
+.spk-sess__foto {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  align-self: center;
+  margin-left: auto;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(36,32,22,0.15);
+}
+
 .spk-sess__actions {
   flex-shrink: 0;
   opacity: 0;

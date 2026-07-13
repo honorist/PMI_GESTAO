@@ -257,8 +257,14 @@
     return lista;
   }
 
+  /* ---- Formata minutos para "HH:MM" (valor do <input type=time>) ---- */
+  function minutosParaInput(min) {
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    return pad(Math.floor(min / 60)) + ":" + pad(min % 60);
+  }
+
   /* ---- Modal de edição ---- */
-  function abrirModal(sess, palcoNome, onSave, listaConfirmados, localAtualDoPalestrante) {
+  function abrirModal(sess, palco, onSave, listaConfirmados, localAtualDoPalestrante) {
     listaConfirmados = listaConfirmados || [];
     var overlay = el("div", "spk-modal-overlay");
     var modal = el("div", "spk-modal");
@@ -266,12 +272,16 @@
 
     var head = el("div", "spk-modal__head");
     head.appendChild(el("h3", null, sess.titulo));
-    head.appendChild(el("p", null, palcoNome + " · " + sess.horario));
+    head.appendChild(el("p", null, palco.nome + " · " + sess.horario));
     modal.appendChild(head);
 
     var body = el("div", "spk-modal__body");
 
     var inpTitulo = campoTexto(body, "Título da sessão", sess.titulo, "Ex.: Keynote 3");
+
+    var rangeAtual = parseHorarioStorage(sess.horario);
+    var inpInicio = campoHora(body, "Início", rangeAtual ? minutosParaInput(rangeAtual.inicio) : "");
+    var inpFim    = campoHora(body, "Fim",    rangeAtual ? minutosParaInput(rangeAtual.fim) : "");
 
     /* Palestrante só pode vir da lista de confirmados em Prospecção —
        não dá pra digitar um nome novo direto aqui. Sessões antigas com
@@ -399,6 +409,15 @@
       selStatus.value = "confirmado";
     });
 
+    var erroEl = el("p", "spk-field-hint spk-field-hint--error", "");
+    erroEl.style.display = "none";
+    body.appendChild(erroEl);
+
+    function mostrarErro(msg) {
+      erroEl.textContent = msg;
+      erroEl.style.display = "block";
+    }
+
     modal.appendChild(body);
 
     var foot = el("div", "spk-modal__foot");
@@ -418,8 +437,22 @@
     btnCancel.addEventListener("click", fechar);
     overlay.addEventListener("click", function (e) { if (e.target === overlay) fechar(); });
     btnSave.addEventListener("click", function () {
+      var horarioNovo = sess.horario;
+      if (inpInicio.value || inpFim.value) {
+        var iniMin = parseHoraInput(inpInicio.value);
+        var fimMin = parseHoraInput(inpFim.value);
+        if (iniMin === null || fimMin === null) { mostrarErro("Informe o horário de início e de fim."); return; }
+        if (fimMin <= iniMin) { mostrarErro("O horário de fim deve ser depois do início."); return; }
+        var conflito = buscarConflito(palco, iniMin, fimMin);
+        if (conflito && conflito.id !== sess.id) {
+          mostrarErro('Conflita com "' + conflito.titulo + '" (' + conflito.horario + ').');
+          return;
+        }
+        horarioNovo = formatarHorario(iniMin, fimMin);
+      }
       var perfilEscolhido = selPalestrante.value !== "" ? opcoesPalestrante[Number(selPalestrante.value)] : null;
       onSave({
+        horario:     horarioNovo,
         titulo:      inpTitulo.value.trim() || sess.titulo,
         palestrante: perfilEscolhido ? perfilEscolhido.nome : "",
         status:      selStatus.value,
@@ -515,7 +548,7 @@
   }
 
   /* ---- Linha de sessão ---- */
-  function buildSessao(sess, palcoNome, isMaster, onEdit, onSwap, onRemove, listaConfirmados, localAtualDoPalestrante) {
+  function buildSessao(sess, palco, isMaster, onEdit, onSwap, onRemove, listaConfirmados, localAtualDoPalestrante) {
     var tipo = sess.tipo || "sessao";
     var row = el("div", "spk-sess spk-sess--" + tipo);
 
@@ -596,13 +629,6 @@
         lkEl.style.cssText = "margin-left:4px;text-decoration:none;";
         speakerDiv.appendChild(lkEl);
       }
-      if (fotoExibir) {
-        var fotoEl = document.createElement("img");
-        fotoEl.src = fotoExibir;
-        fotoEl.alt = sess.palestrante;
-        fotoEl.style.cssText = "width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;";
-        speakerDiv.appendChild(fotoEl);
-      }
     } else {
       speakerDiv.textContent = "(a definir)";
     }
@@ -622,12 +648,20 @@
 
     row.appendChild(body);
 
+    if (temPalestrante && fotoExibir) {
+      var fotoEl = document.createElement("img");
+      fotoEl.src = fotoExibir;
+      fotoEl.alt = sess.palestrante;
+      fotoEl.className = "spk-sess__foto";
+      row.appendChild(fotoEl);
+    }
+
     if (isMaster) {
       var actions = el("div", "spk-sess__actions");
       var btnEdit = el("button", "btn sm", "Editar");
       btnEdit.type = "button";
       btnEdit.addEventListener("click", function () {
-        abrirModal(sess, palcoNome, function (vals) { onEdit(sess.id, vals); }, listaConfirmados, localAtualDoPalestrante);
+        abrirModal(sess, palco, function (vals) { onEdit(sess.id, vals); }, listaConfirmados, localAtualDoPalestrante);
       });
       actions.appendChild(btnEdit);
 
@@ -660,7 +694,7 @@
     card.appendChild(head);
 
     (palco.sessoes || []).forEach(function (sess) {
-      card.appendChild(buildSessao(sess, palco.nome, isMaster, onEdit, onSwap, onRemove, listaConfirmados, localAtualDoPalestrante));
+      card.appendChild(buildSessao(sess, palco, isMaster, onEdit, onSwap, onRemove, listaConfirmados, localAtualDoPalestrante));
     });
 
     if (isMaster) {
@@ -734,8 +768,13 @@
 
     function onEdit(sessId, vals) {
       palcos.forEach(function (palco) {
+        var mudouHorario = false;
         (palco.sessoes || []).forEach(function (s) {
           if (s.id === sessId) {
+            if (vals.horario && vals.horario !== s.horario) {
+              s.horario = vals.horario;
+              mudouHorario = true;
+            }
             s.titulo       = vals.titulo;
             s.palestrante  = vals.palestrante;
             s.status       = vals.status;
@@ -746,6 +785,12 @@
             s.fotoDataUrl  = vals.fotoDataUrl;
           }
         });
+        if (mudouHorario) {
+          palco.sessoes.sort(function (a, b) {
+            var ra = parseHorarioStorage(a.horario), rb = parseHorarioStorage(b.horario);
+            return (ra ? ra.inicio : 0) - (rb ? rb.inicio : 0);
+          });
+        }
       });
       data.palestrantes = plData;
       window.Gestao.save();
