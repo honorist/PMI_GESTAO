@@ -6,9 +6,13 @@
 /* ---- Layout ---- */
 .spk-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 24px;
   margin-top: 24px;
+}
+
+@media (max-width: 1200px) {
+  .spk-grid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 860px) {
@@ -51,6 +55,11 @@
   white-space: nowrap;
 }
 
+/* ---- Palco "GP com Elas" (rosa) ---- */
+.spk-card[data-cor="rosa"] .spk-card__head {
+  background: #C2185B;
+}
+
 /* ---- Linhas de sessão ---- */
 .spk-sess {
   border-bottom: 1px solid #F0EBE3;
@@ -62,8 +71,34 @@
 
 .spk-sess:last-child { border-bottom: none; }
 
+.spk-sess--dragging { opacity: 0.4; }
+
+.spk-sess--dragover {
+  outline: 2px dashed #36177B;
+  outline-offset: -2px;
+  background: #F6F4EF;
+}
+
+.spk-sess__handle {
+  cursor: grab;
+  color: #BDB3A3;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 2px;
+  align-self: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+  user-select: none;
+}
+
+.spk-sess:hover .spk-sess__handle { opacity: 1; }
+
+.spk-sess__handle:active { cursor: grabbing; }
+
 .spk-sess--keynote { background: #FAF8FF; }
 .spk-sess--especial { background: #FFFBF5; }
+
+.spk-card[data-cor="rosa"] .spk-sess { background: #FFF5F8; }
 
 .spk-sess__time {
   font-size: 12px;
@@ -227,7 +262,8 @@
 }
 
 .spk-modal__field input,
-.spk-modal__field textarea {
+.spk-modal__field textarea,
+.spk-modal__field select {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid #D4C8AF;
@@ -242,11 +278,28 @@
 }
 
 .spk-modal__field input:focus,
-.spk-modal__field textarea:focus {
+.spk-modal__field textarea:focus,
+.spk-modal__field select:focus {
   outline: none;
   border-color: #36177B;
   background: #fff;
 }
+
+/* ---- Badge de status (Convidado, aguardando confirmação) ---- */
+.spk-status-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.spk-status-badge--convidado { background: #FEF3E2; color: #B06A00; }
+.spk-status-badge--a_definir { background: #F0EBE3; color: #9A8E76; }
 
 .spk-modal__foot {
   padding: 16px 24px;
@@ -273,56 +326,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-.spk-votacao-acoes {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.spk-btn-zerar {
-  background: rgba(255,255,255,0.12) !important;
-  color: #FCA5A5 !important;
-  border: 1px solid rgba(252,165,165,0.35) !important;
-}
-
-.spk-btn-zerar:hover {
-  background: rgba(239,68,68,0.25) !important;
-  color: #fff !important;
-}
-
-.spk-btn-danger {
-  background: #B91C1C !important;
-  color: #fff !important;
-  border: none !important;
-}
-
-.spk-btn-danger:hover:not(:disabled) {
-  background: #991B1B !important;
-}
-
-.spk-votacao-confirm {
-  background: #1e0a0a;
-  border-top: 1px solid rgba(239,68,68,0.3);
-  padding: 10px 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.spk-confirm-msg {
-  flex: 1;
-  font-size: 13px;
-  font-weight: 600;
-  color: #FCA5A5;
-}
-
-.spk-confirm-msg--alerta {
-  color: #FCA5A5;
-  font-weight: 700;
 }
 
 .spk-votacao-titulo {

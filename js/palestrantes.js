@@ -19,6 +19,14 @@
     "family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&" +
     "family=Manrope:wght@400;500;600;700&display=swap";
 
+  /* ---- Status de confirmação da sessão ---- */
+  var STATUS = {
+    a_definir: { label: "A definir" },
+    convidado: { label: "Convidado" },
+    confirmado: { label: "Confirmado" }
+  };
+  var STATUS_ORDER = ["a_definir", "convidado", "confirmado"];
+
   /* ---- Dados padrão dos palcos (usados quando o banco não tem ainda) ---- */
   var PALCOS_DEFAULT = [
     {
@@ -45,6 +53,20 @@
         { id: "pmo3",  horario: "15h10 - 15h30", titulo: "Melhores do Ano – PMO · Apresentação 3",     tipo: "especial", palestrante: "", empresa: "", tema: "" },
         { id: "b4",    horario: "16h00 - 17h00", titulo: "Sessão paralela B4",                          tipo: "sessao",   palestrante: "", empresa: "", tema: "" },
         { id: "prem",  horario: "17h00 - 18h00", titulo: "Premiação",                                   tipo: "especial", palestrante: "", empresa: "", tema: "" }
+      ]
+    },
+    {
+      id: "gp_elas", nome: "GP com Elas", cor: "rosa",
+      sessoes: [
+        { id: "gp1", horario: "10h00 - 10h20", titulo: "Sessão GP com Elas 1", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
+        { id: "gp2", horario: "10h20 - 10h40", titulo: "Sessão GP com Elas 2", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
+        { id: "gp3", horario: "10h40 - 11h00", titulo: "Sessão GP com Elas 3", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
+        { id: "gp4", horario: "11h00 - 12h00", titulo: "Sessão GP com Elas 4", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
+        { id: "gp5", horario: "14h30 - 14h50", titulo: "Sessão GP com Elas 5", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
+        { id: "gp6", horario: "14h50 - 15h10", titulo: "Sessão GP com Elas 6", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
+        { id: "gp7", horario: "15h10 - 15h30", titulo: "Sessão GP com Elas 7", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
+        { id: "gp8", horario: "16h00 - 17h00", titulo: "Sessão GP com Elas 8", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
+        { id: "gp9", horario: "17h00 - 18h00", titulo: "Sessão GP com Elas 9", tipo: "sessao", palestrante: "", empresa: "", tema: "" }
       ]
     }
   ];
@@ -78,6 +100,31 @@
     return mudou;
   }
 
+  /* ---- Migração: adiciona o palco "GP com Elas" se ainda não existir ---- */
+  function migrarPalcoGpElas(palcos) {
+    var jaTem = palcos.some(function (p) { return p.id === "gp_elas"; });
+    if (jaTem) return false;
+    var novoPalco = JSON.parse(JSON.stringify(PALCOS_DEFAULT[PALCOS_DEFAULT.length - 1]));
+    palcos.push(novoPalco);
+    return true;
+  }
+
+  /* ---- Migração: dá um status explícito a sessões que não têm ---- */
+  function migrarStatus(palcos) {
+    var mudou = false;
+    for (var i = 0; i < palcos.length; i++) {
+      var sessoes = palcos[i].sessoes || [];
+      for (var j = 0; j < sessoes.length; j++) {
+        var s = sessoes[j];
+        if (!s.status || !STATUS[s.status]) {
+          s.status = (s.palestrante && s.palestrante.trim()) ? "confirmado" : "a_definir";
+          mudou = true;
+        }
+      }
+    }
+    return mudou;
+  }
+
   /* ---- Injeção de estilos (uma vez) ---- */
   function ensureStyles() {
     if (!document.getElementById("spk-fonts")) {
@@ -100,9 +147,15 @@
     return node;
   }
 
+  /* ---- Uma sessão está confirmada? (status explícito, com fallback legado) ---- */
+  function estaConfirmada(s) {
+    if (s.status) return s.status === "confirmado";
+    return !!(s.palestrante && s.palestrante.trim());
+  }
+
   /* ---- Contar confirmados num palco ---- */
   function confirmados(palco) {
-    return (palco.sessoes || []).filter(function (s) { return s.palestrante && s.palestrante.trim(); }).length;
+    return (palco.sessoes || []).filter(estaConfirmada).length;
   }
 
   /* ---- Conta total de slots e confirmados nos dois palcos ---- */
@@ -111,7 +164,7 @@
     (palcos || []).forEach(function (p) {
       (p.sessoes || []).forEach(function (s) {
         total++;
-        if (s.palestrante && s.palestrante.trim()) conf++;
+        if (estaConfirmada(s)) conf++;
       });
     });
     return { total: total, confirmados: conf, faltam: total - conf };
@@ -142,7 +195,22 @@
       return inp;
     }
 
-    var inpNome    = campoTexto("Palestrante", sess.palestrante, "Nome do palestrante");
+    var inpNome = campoTexto("Palestrante", sess.palestrante, "Nome do palestrante");
+
+    var wrapStatus = el("div", "spk-modal__field");
+    wrapStatus.appendChild(el("label", null, "Status"));
+    var selStatus = document.createElement("select");
+    STATUS_ORDER.forEach(function (key) {
+      var opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = STATUS[key].label;
+      selStatus.appendChild(opt);
+    });
+    selStatus.value = (sess.status && STATUS[sess.status]) ? sess.status
+      : ((sess.palestrante && sess.palestrante.trim()) ? "confirmado" : "a_definir");
+    wrapStatus.appendChild(selStatus);
+    body.appendChild(wrapStatus);
+
     var inpEmpresa = campoTexto("Empresa / Organização", sess.empresa, "Ex.: PMI, CMPC, Gerdau…");
 
     var wrapTema = el("div", "spk-modal__field");
@@ -228,6 +296,7 @@
     btnSave.addEventListener("click", function () {
       onSave({
         palestrante: inpNome.value.trim(),
+        status:      selStatus.value,
         empresa:     inpEmpresa.value.trim(),
         tema:        txtTema.value.trim(),
         bio:         txtBio.value.trim(),
@@ -239,9 +308,42 @@
   }
 
   /* ---- Linha de sessão ---- */
-  function buildSessao(sess, palcoNome, isMaster, onEdit) {
+  function buildSessao(sess, palcoNome, isMaster, onEdit, onSwap) {
     var tipo = sess.tipo || "sessao";
     var row = el("div", "spk-sess spk-sess--" + tipo);
+
+    if (isMaster) {
+      /* Arrastar o "⠿" move o palestrante (e seus dados) desta sessão
+         para a sessão onde for solto — troca de horário e/ou palco. */
+      var handle = el("span", "spk-sess__handle", "⠿");
+      handle.title = "Arraste para mudar de horário ou palco";
+      handle.draggable = true;
+      handle.addEventListener("dragstart", function (e) {
+        e.dataTransfer.setData("text/plain", sess.id);
+        e.dataTransfer.effectAllowed = "move";
+        row.classList.add("spk-sess--dragging");
+      });
+      handle.addEventListener("dragend", function () {
+        row.classList.remove("spk-sess--dragging");
+      });
+      row.appendChild(handle);
+
+      row.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        row.classList.add("spk-sess--dragover");
+      });
+      row.addEventListener("dragleave", function () {
+        row.classList.remove("spk-sess--dragover");
+      });
+      row.addEventListener("drop", function (e) {
+        e.preventDefault();
+        row.classList.remove("spk-sess--dragover");
+        var origemId = e.dataTransfer.getData("text/plain");
+        if (!origemId || origemId === sess.id) return;
+        onSwap(origemId, sess.id);
+      });
+    }
 
     row.appendChild(el("div", "spk-sess__time", sess.horario));
 
@@ -254,9 +356,13 @@
     body.appendChild(el("div", "spk-sess__titulo", sess.titulo));
 
     var temPalestrante = sess.palestrante && sess.palestrante.trim();
+    var confirmada = estaConfirmada(sess);
     var speakerDiv = el("div", "spk-sess__speaker" + (temPalestrante ? "" : " is-empty"));
 
     if (temPalestrante) {
+      if (!confirmada) {
+        speakerDiv.appendChild(el("span", "spk-status-badge spk-status-badge--" + sess.status, STATUS[sess.status] ? STATUS[sess.status].label : "Convidado"));
+      }
       if (sess.fotoDataUrl) {
         var fotoEl = document.createElement("img");
         fotoEl.src = sess.fotoDataUrl;
@@ -308,11 +414,12 @@
   }
 
   /* ---- Card de um palco ---- */
-  function buildCard(palco, isMaster, onEdit) {
+  function buildCard(palco, isMaster, onEdit, onSwap) {
     var conf  = confirmados(palco);
     var total = (palco.sessoes || []).length;
 
     var card = el("div", "spk-card");
+    card.setAttribute("data-cor", palco.cor || "roxo");
 
     var head = el("div", "spk-card__head");
     head.appendChild(el("h2", "spk-card__title", palco.nome || "Palco"));
@@ -320,7 +427,7 @@
     card.appendChild(head);
 
     (palco.sessoes || []).forEach(function (sess) {
-      card.appendChild(buildSessao(sess, palco.nome, isMaster, onEdit));
+      card.appendChild(buildSessao(sess, palco.nome, isMaster, onEdit, onSwap));
     });
 
     return card;
@@ -338,13 +445,19 @@
     /* Banco existente sem palestrantes: auto-inicializa e salva */
     if (!palcos) {
       palcos = JSON.parse(JSON.stringify(PALCOS_DEFAULT));
+      migrarStatus(palcos);
       plData.palcos = palcos;
       data.palestrantes = plData;
       if (window.Gestao && window.Gestao.save) window.Gestao.save();
-    } else if (migrarMelhoresDoAno(palcos)) {
-      /* Banco com sessões legadas b1/b3: migra para slots de 20 min e salva */
-      data.palestrantes = plData;
-      if (window.Gestao && window.Gestao.save) window.Gestao.save();
+    } else {
+      var precisaSalvar = false;
+      if (migrarMelhoresDoAno(palcos)) precisaSalvar = true;
+      if (migrarPalcoGpElas(palcos)) precisaSalvar = true;
+      if (migrarStatus(palcos)) precisaSalvar = true;
+      if (precisaSalvar) {
+        data.palestrantes = plData;
+        if (window.Gestao && window.Gestao.save) window.Gestao.save();
+      }
     }
 
     var t = totais(palcos);
@@ -380,6 +493,7 @@
         (palco.sessoes || []).forEach(function (s) {
           if (s.id === sessId) {
             s.palestrante  = vals.palestrante;
+            s.status       = vals.status;
             s.empresa      = vals.empresa;
             s.tema         = vals.tema;
             s.bio          = vals.bio;
@@ -394,9 +508,32 @@
       render(mount, data);
     }
 
+    var CAMPOS_PALESTRANTE = ["palestrante", "status", "empresa", "tema", "bio", "linkedin", "fotoDataUrl"];
+
+    function onSwap(origemId, destId) {
+      var origem = null, destino = null;
+      palcos.forEach(function (palco) {
+        (palco.sessoes || []).forEach(function (s) {
+          if (s.id === origemId) origem = s;
+          if (s.id === destId) destino = s;
+        });
+      });
+      if (!origem || !destino) return;
+
+      var tmp = {};
+      CAMPOS_PALESTRANTE.forEach(function (c) { tmp[c] = origem[c]; });
+      CAMPOS_PALESTRANTE.forEach(function (c) { origem[c] = destino[c]; });
+      CAMPOS_PALESTRANTE.forEach(function (c) { destino[c] = tmp[c]; });
+
+      data.palestrantes = plData;
+      window.Gestao.save();
+      window.Gestao.toast("Palestrante movido");
+      render(mount, data);
+    }
+
     var grid = el("div", "spk-grid");
     palcos.forEach(function (palco) {
-      grid.appendChild(buildCard(palco, isMaster, onEdit));
+      grid.appendChild(buildCard(palco, isMaster, onEdit, onSwap));
     });
     mount.appendChild(grid);
 
