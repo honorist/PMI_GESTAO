@@ -27,7 +27,7 @@
     var link = document.createElement("link");
     link.id = "prosp-css";
     link.rel = "stylesheet";
-    link.href = "css/prospeccao.css?v=4";
+    link.href = "css/prospeccao.css?v=5";
     document.head.appendChild(link);
   }
 
@@ -120,7 +120,7 @@
     palcos.forEach(function (p) {
       (p.sessoes || []).forEach(function (s) {
         if (s.palestrante && s.palestrante.trim().toLowerCase() === alvo) {
-          res.push({ palco: p.nome || "Palco", horario: s.horario || "" });
+          res.push({ palco: p.nome || "Palco", horario: s.horario || "", cor: p.cor || "" });
         }
       });
     });
@@ -184,7 +184,8 @@
       var escaladas = sessoesEscaladas(c.nome);
       if (escaladas.length) {
         card.classList.add("prosp-card--escalado");
-        var ribbon = el("div", "prosp-ribbon");
+        var ribbon = el("div", "prosp-ribbon" +
+          (escaladas[0].cor === "rosa" ? " prosp-ribbon--rosa" : ""));
         ribbon.appendChild(el("span", "prosp-ribbon__palco", escaladas[0].palco));
         var horaTxt = escaladas[0].horario +
           (escaladas.length > 1 ? " +" + (escaladas.length - 1) : "");

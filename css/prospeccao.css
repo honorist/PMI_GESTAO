@@ -176,6 +176,12 @@
   line-height: 1.15;
 }
 
+/* Variante rosa: sessão no palco "GP com Elas" */
+.prosp-ribbon--rosa {
+  background: linear-gradient(135deg, #C2185B, #E91E63);
+  box-shadow: 0 2px 8px rgba(194, 24, 91, 0.35);
+}
+
 .prosp-ribbon__palco {
   font-size: 0.58rem;
   font-weight: 800;
