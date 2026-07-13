@@ -300,9 +300,9 @@
     fileInput.addEventListener("change", function () {
       var file = fileInput.files[0];
       if (!file) return;
-      if (file.size > 500 * 1024) {
+      if (file.size > 2 * 1024 * 1024) {
         var warn = el("p", "prosp-field__hint prosp-field__hint--error",
-          "Foto muito grande (máx 500 KB). Redimensione a imagem antes de enviar.");
+          "Foto muito grande (máx 2 MB). Redimensione a imagem antes de enviar.");
         fotoSection.appendChild(warn);
         fileInput.value = "";
         setTimeout(function () {

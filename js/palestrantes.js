@@ -170,27 +170,19 @@
     return { total: total, confirmados: conf, faltam: total - conf };
   }
 
-  /* ---- Perfis únicos de palestrantes já confirmados (para autofill) ---- */
-  function listarConfirmados(palcos) {
-    var vistos = {};
-    var lista = [];
-    (palcos || []).forEach(function (palco) {
-      (palco.sessoes || []).forEach(function (s) {
-        if (s.status !== "confirmado") return;
-        var nome = (s.palestrante || "").trim();
-        if (!nome) return;
-        var chave = nome.toLowerCase();
-        if (vistos[chave]) return;
-        vistos[chave] = true;
-        lista.push({
-          nome: nome,
-          empresa: s.empresa || "",
-          bio: s.bio || "",
-          linkedin: s.linkedin || "",
-          fotoDataUrl: s.fotoDataUrl || ""
-        });
+  /* ---- Palestrantes confirmados na aba Prospecção (única fonte válida) ---- */
+  function listarConfirmadosProspeccao(data) {
+    var candidatos = (data && data.prospeccao && data.prospeccao.candidatos) || [];
+    var lista = candidatos
+      .filter(function (c) { return c.status === "confirmado" && c.nome && c.nome.trim(); })
+      .map(function (c) {
+        return {
+          nome: c.nome.trim(),
+          empresa: c.empresa || "",
+          linkedin: c.linkedin || "",
+          fotoDataUrl: c.foto || ""
+        };
       });
-    });
     lista.sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }); });
     return lista;
   }
@@ -221,23 +213,47 @@
       return inp;
     }
 
-    var wrapConfirmados = el("div", "spk-modal__field");
-    wrapConfirmados.appendChild(el("label", null, "Selecionar já confirmado"));
-    var selConfirmados = document.createElement("select");
-    var optPlaceholder = document.createElement("option");
-    optPlaceholder.value = "";
-    optPlaceholder.textContent = "— Escolher entre os confirmados —";
-    selConfirmados.appendChild(optPlaceholder);
-    listaConfirmados.forEach(function (perfil, idx) {
+    var inpTitulo = campoTexto("Título da sessão", sess.titulo, "Ex.: Keynote 3");
+
+    /* Palestrante só pode vir da lista de confirmados em Prospecção —
+       não dá pra digitar um nome novo direto aqui. Sessões antigas com
+       um nome que não está mais na lista ganham uma opção extra
+       "fora da lista", pra não perder o dado sem querer. */
+    var wrapPalestrante = el("div", "spk-modal__field");
+    wrapPalestrante.appendChild(el("label", null, "Palestrante"));
+    var selPalestrante = document.createElement("select");
+    var optVazio = document.createElement("option");
+    optVazio.value = "";
+    optVazio.textContent = "— Nenhum / a definir —";
+    selPalestrante.appendChild(optVazio);
+
+    var nomeAtual = (sess.palestrante || "").trim();
+    var opcoesPalestrante = listaConfirmados.slice();
+    var idxAtual = -1;
+    for (var oi = 0; oi < opcoesPalestrante.length; oi++) {
+      if (opcoesPalestrante[oi].nome.toLowerCase() === nomeAtual.toLowerCase()) { idxAtual = oi; break; }
+    }
+    if (nomeAtual && idxAtual === -1) {
+      opcoesPalestrante = [{
+        nome: nomeAtual,
+        empresa: sess.empresa || "",
+        linkedin: sess.linkedin || "",
+        fotoDataUrl: sess.fotoDataUrl || "",
+        _foraDaLista: true
+      }].concat(opcoesPalestrante);
+      idxAtual = 0;
+    }
+    opcoesPalestrante.forEach(function (perfil, idx) {
       var opt = document.createElement("option");
       opt.value = String(idx);
-      opt.textContent = perfil.empresa ? (perfil.nome + " · " + perfil.empresa) : perfil.nome;
-      selConfirmados.appendChild(opt);
+      var rotulo = perfil.empresa ? (perfil.nome + " · " + perfil.empresa) : perfil.nome;
+      if (perfil._foraDaLista) rotulo += " (fora da lista de confirmados)";
+      opt.textContent = rotulo;
+      selPalestrante.appendChild(opt);
     });
-    wrapConfirmados.appendChild(selConfirmados);
-    body.appendChild(wrapConfirmados);
-
-    var inpNome = campoTexto("Palestrante", sess.palestrante, "Nome do palestrante");
+    if (idxAtual !== -1) selPalestrante.value = String(idxAtual);
+    wrapPalestrante.appendChild(selPalestrante);
+    body.appendChild(wrapPalestrante);
 
     var wrapStatus = el("div", "spk-modal__field");
     wrapStatus.appendChild(el("label", null, "Status"));
@@ -317,13 +333,18 @@
     wrapFoto.appendChild(inpFoto);
     body.appendChild(wrapFoto);
 
-    selConfirmados.addEventListener("change", function () {
-      if (selConfirmados.value === "") return;
-      var perfil = listaConfirmados[Number(selConfirmados.value)];
+    selPalestrante.addEventListener("change", function () {
+      if (selPalestrante.value === "") {
+        inpEmpresa.value = "";
+        inpLinkedin.value = "";
+        fotoDataUrl = "";
+        fotoPreview.style.display = "none";
+        selStatus.value = "a_definir";
+        return;
+      }
+      var perfil = opcoesPalestrante[Number(selPalestrante.value)];
       if (!perfil) return;
-      inpNome.value = perfil.nome;
       inpEmpresa.value = perfil.empresa || "";
-      txtBio.value = perfil.bio || "";
       inpLinkedin.value = perfil.linkedin || "";
       fotoDataUrl = perfil.fotoDataUrl || "";
       if (fotoDataUrl) {
@@ -347,15 +368,17 @@
     modal.appendChild(foot);
 
     document.body.appendChild(overlay);
-    inpNome.focus();
+    selPalestrante.focus();
 
     function fechar() { document.body.removeChild(overlay); }
 
     btnCancel.addEventListener("click", fechar);
     overlay.addEventListener("click", function (e) { if (e.target === overlay) fechar(); });
     btnSave.addEventListener("click", function () {
+      var perfilEscolhido = selPalestrante.value !== "" ? opcoesPalestrante[Number(selPalestrante.value)] : null;
       onSave({
-        palestrante: inpNome.value.trim(),
+        titulo:      inpTitulo.value.trim() || sess.titulo,
+        palestrante: perfilEscolhido ? perfilEscolhido.nome : "",
         status:      selStatus.value,
         empresa:     inpEmpresa.value.trim(),
         tema:        txtTema.value.trim(),
@@ -552,6 +575,7 @@
       palcos.forEach(function (palco) {
         (palco.sessoes || []).forEach(function (s) {
           if (s.id === sessId) {
+            s.titulo       = vals.titulo;
             s.palestrante  = vals.palestrante;
             s.status       = vals.status;
             s.empresa      = vals.empresa;
@@ -591,7 +615,7 @@
       render(mount, data);
     }
 
-    var listaConfirmados = listarConfirmados(palcos);
+    var listaConfirmados = listarConfirmadosProspeccao(data);
 
     var grid = el("div", "spk-grid");
     palcos.forEach(function (palco) {
