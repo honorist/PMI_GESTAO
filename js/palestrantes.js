@@ -170,8 +170,34 @@
     return { total: total, confirmados: conf, faltam: total - conf };
   }
 
+  /* ---- Perfis únicos de palestrantes já confirmados (para autofill) ---- */
+  function listarConfirmados(palcos) {
+    var vistos = {};
+    var lista = [];
+    (palcos || []).forEach(function (palco) {
+      (palco.sessoes || []).forEach(function (s) {
+        if (s.status !== "confirmado") return;
+        var nome = (s.palestrante || "").trim();
+        if (!nome) return;
+        var chave = nome.toLowerCase();
+        if (vistos[chave]) return;
+        vistos[chave] = true;
+        lista.push({
+          nome: nome,
+          empresa: s.empresa || "",
+          bio: s.bio || "",
+          linkedin: s.linkedin || "",
+          fotoDataUrl: s.fotoDataUrl || ""
+        });
+      });
+    });
+    lista.sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }); });
+    return lista;
+  }
+
   /* ---- Modal de edição ---- */
-  function abrirModal(sess, palcoNome, onSave) {
+  function abrirModal(sess, palcoNome, onSave, listaConfirmados) {
+    listaConfirmados = listaConfirmados || [];
     var overlay = el("div", "spk-modal-overlay");
     var modal = el("div", "spk-modal");
     overlay.appendChild(modal);
@@ -194,6 +220,22 @@
       body.appendChild(wrap);
       return inp;
     }
+
+    var wrapConfirmados = el("div", "spk-modal__field");
+    wrapConfirmados.appendChild(el("label", null, "Selecionar já confirmado"));
+    var selConfirmados = document.createElement("select");
+    var optPlaceholder = document.createElement("option");
+    optPlaceholder.value = "";
+    optPlaceholder.textContent = "— Escolher entre os confirmados —";
+    selConfirmados.appendChild(optPlaceholder);
+    listaConfirmados.forEach(function (perfil, idx) {
+      var opt = document.createElement("option");
+      opt.value = String(idx);
+      opt.textContent = perfil.empresa ? (perfil.nome + " · " + perfil.empresa) : perfil.nome;
+      selConfirmados.appendChild(opt);
+    });
+    wrapConfirmados.appendChild(selConfirmados);
+    body.appendChild(wrapConfirmados);
 
     var inpNome = campoTexto("Palestrante", sess.palestrante, "Nome do palestrante");
 
@@ -244,7 +286,7 @@
 
     /* -- Foto -- */
     var wrapFoto = el("div", "spk-modal__field");
-    wrapFoto.appendChild(el("label", null, "Foto (máx. 300 KB)"));
+    wrapFoto.appendChild(el("label", null, "Foto (máx. 2 MB)"));
     var fotoDataUrl = sess.fotoDataUrl || "";
     var fotoPreview = document.createElement("img");
     fotoPreview.alt = "Preview";
@@ -257,9 +299,9 @@
     inpFoto.addEventListener("change", function () {
       var file = inpFoto.files && inpFoto.files[0];
       if (!file) { return; }
-      if (file.size > 300 * 1024) {
+      if (file.size > 2 * 1024 * 1024) {
         if (window.Gestao && window.Gestao.toast) {
-          window.Gestao.toast("Foto muito grande (máx. 300 KB)", "error");
+          window.Gestao.toast("Foto muito grande (máx. 2 MB)", "error");
         }
         inpFoto.value = "";
         return;
@@ -274,6 +316,24 @@
     });
     wrapFoto.appendChild(inpFoto);
     body.appendChild(wrapFoto);
+
+    selConfirmados.addEventListener("change", function () {
+      if (selConfirmados.value === "") return;
+      var perfil = listaConfirmados[Number(selConfirmados.value)];
+      if (!perfil) return;
+      inpNome.value = perfil.nome;
+      inpEmpresa.value = perfil.empresa || "";
+      txtBio.value = perfil.bio || "";
+      inpLinkedin.value = perfil.linkedin || "";
+      fotoDataUrl = perfil.fotoDataUrl || "";
+      if (fotoDataUrl) {
+        fotoPreview.src = fotoDataUrl;
+        fotoPreview.style.display = "block";
+      } else {
+        fotoPreview.style.display = "none";
+      }
+      selStatus.value = "confirmado";
+    });
 
     modal.appendChild(body);
 
@@ -308,7 +368,7 @@
   }
 
   /* ---- Linha de sessão ---- */
-  function buildSessao(sess, palcoNome, isMaster, onEdit, onSwap) {
+  function buildSessao(sess, palcoNome, isMaster, onEdit, onSwap, listaConfirmados) {
     var tipo = sess.tipo || "sessao";
     var row = el("div", "spk-sess spk-sess--" + tipo);
 
@@ -404,7 +464,7 @@
       var btnEdit = el("button", "btn sm", "Editar");
       btnEdit.type = "button";
       btnEdit.addEventListener("click", function () {
-        abrirModal(sess, palcoNome, function (vals) { onEdit(sess.id, vals); });
+        abrirModal(sess, palcoNome, function (vals) { onEdit(sess.id, vals); }, listaConfirmados);
       });
       actions.appendChild(btnEdit);
       row.appendChild(actions);
@@ -414,7 +474,7 @@
   }
 
   /* ---- Card de um palco ---- */
-  function buildCard(palco, isMaster, onEdit, onSwap) {
+  function buildCard(palco, isMaster, onEdit, onSwap, listaConfirmados) {
     var conf  = confirmados(palco);
     var total = (palco.sessoes || []).length;
 
@@ -427,7 +487,7 @@
     card.appendChild(head);
 
     (palco.sessoes || []).forEach(function (sess) {
-      card.appendChild(buildSessao(sess, palco.nome, isMaster, onEdit, onSwap));
+      card.appendChild(buildSessao(sess, palco.nome, isMaster, onEdit, onSwap, listaConfirmados));
     });
 
     return card;
@@ -463,8 +523,8 @@
     var t = totais(palcos);
 
     mount.appendChild(window.Gestao.pageHeader({
-      eyebrow: "PALESTRANTES · SUMMIT POA PMIRS 2026",
-      title: "Palestrantes",
+      eyebrow: "PALESTRAS · SUMMIT POA PMIRS 2026",
+      title: "Palestras",
       subtitle: t.confirmados + " confirmados · " + t.faltam + " a definir · " + t.total + " sessões"
     }));
 
@@ -531,9 +591,11 @@
       render(mount, data);
     }
 
+    var listaConfirmados = listarConfirmados(palcos);
+
     var grid = el("div", "spk-grid");
     palcos.forEach(function (palco) {
-      grid.appendChild(buildCard(palco, isMaster, onEdit, onSwap));
+      grid.appendChild(buildCard(palco, isMaster, onEdit, onSwap, listaConfirmados));
     });
     mount.appendChild(grid);
 

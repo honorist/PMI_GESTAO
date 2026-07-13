@@ -377,7 +377,18 @@
     var inpArea     = inp(c.area, "ex.: Agilidade, PMO, IA, Liderança");
     var inpLinkedin = inp(c.linkedin, "https://linkedin.com/in/...");
     var inpVideo    = inp(c.videoRef, "https://youtube.com/... (palestra anterior)");
-    var inpDisp     = inp(c.disponibilidade, "ex.: 13 nov (manhã), ambos os dias");
+    var DISPONIBILIDADE_OPCOES = [
+      { value: "Dia 13", label: "Dia 13" },
+      { value: "Dia 14", label: "Dia 14" },
+      { value: "Ambos os dias (13 e 14)", label: "Ambos os dias (13 e 14)" }
+    ];
+    var dispAtual = c.disponibilidade || "";
+    var dispOpcoes = DISPONIBILIDADE_OPCOES.slice();
+    if (dispAtual && dispOpcoes.every(function (o) { return o.value !== dispAtual; })) {
+      dispOpcoes = [{ value: dispAtual, label: dispAtual }].concat(dispOpcoes);
+    }
+    dispOpcoes = [{ value: "", label: "— Selecionar —" }].concat(dispOpcoes);
+    var selDisp = sel(dispOpcoes, dispAtual);
     var inpCache    = inp(c.cache != null ? String(c.cache) : "", "0 = voluntário", "number");
     inpCache.min = "0";
     var inpIndicado = inp(c.indicadoPor, "Quem trouxe o nome");
@@ -400,7 +411,7 @@
     grid.appendChild(field("Área de expertise", inpArea));
     grid.appendChild(field("LinkedIn", inpLinkedin));
     grid.appendChild(field("Vídeo de referência", inpVideo));
-    grid.appendChild(field("Disponibilidade", inpDisp));
+    grid.appendChild(field("Disponibilidade", selDisp));
     grid.appendChild(field("Cachê estimado (R$)", inpCache, "Deixe vazio se voluntário"));
     grid.appendChild(field("Indicado por", inpIndicado));
     grid.appendChild(field("Formato", selFormato));
@@ -620,7 +631,7 @@
         area:            inpArea.value.trim(),
         linkedin:        inpLinkedin.value.trim(),
         videoRef:        inpVideo.value.trim(),
-        disponibilidade: inpDisp.value.trim(),
+        disponibilidade: selDisp.value,
         cache:           (cacheNum === null || isNaN(cacheNum)) ? null : cacheNum,
         indicadoPor:     inpIndicado.value.trim(),
         formato:         selFormato.value,
@@ -899,10 +910,14 @@
     toolbar.appendChild(toolbarRight);
     mount.appendChild(toolbar);
 
-    /* Grid */
+    /* Grid — sempre em ordem alfabética por nome */
     var filtrados = filtroAtivo === "todos"
       ? candidatos
       : candidatos.filter(function (c) { return c.status === filtroAtivo; });
+
+    filtrados = filtrados.slice().sort(function (a, b) {
+      return (a.nome || "").localeCompare(b.nome || "", "pt-BR", { sensitivity: "base" });
+    });
 
     if (!filtrados.length) {
       var emptyEl;
