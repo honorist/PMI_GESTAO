@@ -27,7 +27,7 @@
     var link = document.createElement("link");
     link.id = "prosp-css";
     link.rel = "stylesheet";
-    link.href = "css/prospeccao.css?v=3";
+    link.href = "css/prospeccao.css?v=4";
     document.head.appendChild(link);
   }
 
@@ -181,10 +181,16 @@
     body.appendChild(badge);
 
     if (c.status === "confirmado") {
-      sessoesEscaladas(c.nome).forEach(function (e) {
-        body.appendChild(el("p", "prosp-card__escalado",
-          "🎤 " + e.palco + " · " + e.horario));
-      });
+      var escaladas = sessoesEscaladas(c.nome);
+      if (escaladas.length) {
+        card.classList.add("prosp-card--escalado");
+        var ribbon = el("div", "prosp-ribbon");
+        ribbon.appendChild(el("span", "prosp-ribbon__palco", escaladas[0].palco));
+        var horaTxt = escaladas[0].horario +
+          (escaladas.length > 1 ? " +" + (escaladas.length - 1) : "");
+        ribbon.appendChild(el("span", "prosp-ribbon__hora", horaTxt));
+        card.appendChild(ribbon);
+      }
     }
 
     body.appendChild(el("h3", "prosp-card__nome", c.nome || "—"));

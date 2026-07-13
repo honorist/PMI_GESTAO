@@ -154,13 +154,38 @@
   text-align: center;
 }
 
-/* Palco/horário onde o confirmado já está escalado (aba Palestras) */
-.prosp-card__escalado {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--purple);
-  margin: 4px 0 0;
+/* Faixa diagonal no canto: palco/horário do confirmado já escalado */
+.prosp-card--escalado { overflow: hidden; }
+
+.prosp-ribbon {
+  position: absolute;
+  top: 26px;
+  left: -46px;
+  width: 190px;
+  transform: rotate(-45deg);
+  background: linear-gradient(135deg, #36177B, #5B32C7);
+  color: #fff;
   text-align: center;
+  padding: 5px 0;
+  box-shadow: 0 2px 8px rgba(54, 23, 123, 0.35);
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.prosp-ribbon__palco {
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.prosp-ribbon__hora {
+  font-size: 0.66rem;
+  font-weight: 700;
 }
 
 /* Badge de status */
