@@ -27,7 +27,7 @@
     var link = document.createElement("link");
     link.id = "prosp-css";
     link.rel = "stylesheet";
-    link.href = "css/prospeccao.css?v=2";
+    link.href = "css/prospeccao.css?v=3";
     document.head.appendChild(link);
   }
 
@@ -108,6 +108,26 @@
   }
 
   /* ============================================================
+     Sessões da aba Palestras onde o candidato já está escalado
+     (match por nome, caso-insensível)
+     ============================================================ */
+  function sessoesEscaladas(nome) {
+    var alvo = String(nome || "").trim().toLowerCase();
+    if (!alvo) return [];
+    var g = window.Gestao;
+    var palcos = (g && g.data && g.data.palestrantes && g.data.palestrantes.palcos) || [];
+    var res = [];
+    palcos.forEach(function (p) {
+      (p.sessoes || []).forEach(function (s) {
+        if (s.palestrante && s.palestrante.trim().toLowerCase() === alvo) {
+          res.push({ palco: p.nome || "Palco", horario: s.horario || "" });
+        }
+      });
+    });
+    return res;
+  }
+
+  /* ============================================================
      Estrelas estáticas (exibição nos cards)
      ============================================================ */
   function renderStarsStatic(rating) {
@@ -159,6 +179,13 @@
     badge.style.color       = st.cor;
     badge.style.borderColor = st.cor + "40";
     body.appendChild(badge);
+
+    if (c.status === "confirmado") {
+      sessoesEscaladas(c.nome).forEach(function (e) {
+        body.appendChild(el("p", "prosp-card__escalado",
+          "🎤 " + e.palco + " · " + e.horario));
+      });
+    }
 
     body.appendChild(el("h3", "prosp-card__nome", c.nome || "—"));
 

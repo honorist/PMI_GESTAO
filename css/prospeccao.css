@@ -154,6 +154,15 @@
   text-align: center;
 }
 
+/* Palco/horário onde o confirmado já está escalado (aba Palestras) */
+.prosp-card__escalado {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--purple);
+  margin: 4px 0 0;
+  text-align: center;
+}
+
 /* Badge de status */
 .prosp-badge {
   display: inline-block;
