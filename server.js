@@ -17,8 +17,10 @@
 
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const express = require("express");
 const cookieParser = require("cookie-parser");
+const multer = require("multer");
 const { Pool } = require("pg");
 
 /* ============================================================
@@ -38,6 +40,10 @@ const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 // PUT e pode conter anexos em base64 (fotos + PDFs/materiais dos
 // palestrantes), por isso o teto é generoso (20 MB) mas ainda bloqueia abusos.
 const BODY_LIMIT = "20mb";
+
+// Tamanho máximo de um anexo enviado via /api/anexos (multipart, fora
+// do corpo JSON acima — guardado em tabela própria, não no estado).
+const ANEXO_LIMIT_BYTES = 15 * 1024 * 1024; // 15 MB
 
 // Porta (Railway injeta PORT; cai para 3000 em dev).
 const PORT = process.env.PORT || 3000;
@@ -166,6 +172,20 @@ const CREATE_VOTOS_SQL = `
   );
 `;
 
+// Anexos (arquivos) enviados pela aba Documentos — guardados à parte
+// do JSONB de "estado" (que só referencia { id, nome, tamanho }), para
+// não inflar o corpo/registro reenviado a cada save de qualquer aba.
+const CREATE_ANEXOS_SQL = `
+  create table if not exists anexos (
+    id        text primary key,
+    nome      text not null,
+    mime      text not null,
+    tamanho   int not null,
+    dados     bytea not null,
+    criado_em timestamptz not null default now()
+  );
+`;
+
 // Decifra ../data/vault.enc (AES-256-GCM, chave PBKDF2) com a senha de
 // seed. Usado quando o repo só tem o vault cifrado (sem JSON em claro).
 //
@@ -244,6 +264,7 @@ async function migrarESemear() {
   if (!pool) return;
   await pool.query(CREATE_TABLE_SQL);
   await pool.query(CREATE_VOTOS_SQL);
+  await pool.query(CREATE_ANEXOS_SQL);
 
   const { rows } = await pool.query(
     "select data from estado where id = 1"
@@ -326,6 +347,13 @@ function exigeMaster(req, res, next) {
   req.role = role;
   next();
 }
+
+// Upload de anexos: guarda em memória só até gravar no Postgres
+// (não vai pro disco — Railway não tem disco persistente).
+const uploadAnexo = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: ANEXO_LIMIT_BYTES }
+});
 
 // Comparação de senha em tempo (quase) constante p/ evitar timing.
 function senhaConfere(informada, esperada) {
@@ -477,6 +505,67 @@ app.put("/api/estado", exigeSessao, async (req, res) => {
 });
 
 /* ============================================================
+   Rotas de anexos (arquivos da aba Documentos)
+   ------------------------------------------------------------
+   Os bytes ficam na tabela "anexos", fora do JSONB de "estado":
+   o registro do documento guarda só { id, nome, tamanho }.
+   ============================================================ */
+
+// POST /api/anexos (multipart, campo "arquivo") -> { id, nome, tamanho }.
+// Só master (troca de anexo é ação de master, não de perfil de área).
+app.post(
+  "/api/anexos",
+  exigeMaster,
+  (req, res, next) => {
+    uploadAnexo.single("arquivo")(req, res, (err) => {
+      if (err) return next(err);
+      next();
+    });
+  },
+  async (req, res) => {
+    if (!pool) return res.status(503).json({ error: "sem_banco" });
+    if (!req.file) return res.status(400).json({ error: "arquivo_obrigatorio" });
+
+    const id = "anx_" + crypto.randomBytes(12).toString("hex");
+    try {
+      await pool.query(
+        `insert into anexos (id, nome, mime, tamanho, dados)
+         values ($1, $2, $3, $4, $5)`,
+        [id, req.file.originalname, req.file.mimetype, req.file.size, req.file.buffer]
+      );
+      return res.json({ id, nome: req.file.originalname, tamanho: req.file.size });
+    } catch (e) {
+      console.error("[POST /api/anexos] erro:", e.message);
+      return res.status(500).json({ error: "erro_interno" });
+    }
+  }
+);
+
+// GET /api/anexos/:id -> bytes do arquivo (qualquer sessão válida lê).
+app.get("/api/anexos/:id", exigeSessao, async (req, res) => {
+  if (!pool) return res.status(503).json({ error: "sem_banco" });
+  try {
+    const { rows } = await pool.query(
+      "select nome, mime, dados from anexos where id = $1",
+      [req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: "nao_encontrado" });
+
+    const a = rows[0];
+    const nomeSeguro = encodeURIComponent(a.nome || "anexo");
+    res.setHeader("Content-Type", a.mime || "application/octet-stream");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${nomeSeguro}"; filename*=UTF-8''${nomeSeguro}`
+    );
+    return res.send(a.dados);
+  } catch (e) {
+    console.error("[GET /api/anexos/:id] erro:", e.message);
+    return res.status(500).json({ error: "erro_interno" });
+  }
+});
+
+/* ============================================================
    Rotas de votação (públicas — sem autenticação)
    ============================================================ */
 
@@ -609,6 +698,9 @@ app.use(
 app.use((err, _req, res, _next) => {
   if (err && err.type === "entity.too.large") {
     return res.status(413).json({ error: "corpo_muito_grande" });
+  }
+  if (err && err.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({ error: "arquivo_muito_grande" });
   }
   console.error("[erro]", err && err.message);
   if (res.headersSent) return;

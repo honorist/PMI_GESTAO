@@ -170,8 +170,16 @@
       );
     }
 
-    // Anexo (arquivo) — link de download a partir do dataUrl salvo.
-    if (d.anexo && d.anexo.dataUrl) {
+    // Anexo (arquivo) — link de download.
+    // `id`: arquivo hospedado no servidor (rota /api/anexos/:id).
+    // `dataUrl`: legado do modo vault (arquivo embutido como base64).
+    if (d.anexo && d.anexo.id) {
+      var anexoLinkSrv = el("a", "doc-card__anexo", "📎 " + (d.anexo.nome || "Baixar anexo"));
+      anexoLinkSrv.href = "/api/anexos/" + encodeURIComponent(d.anexo.id);
+      anexoLinkSrv.target = "_blank";
+      anexoLinkSrv.rel = "noopener noreferrer";
+      card.appendChild(anexoLinkSrv);
+    } else if (d.anexo && d.anexo.dataUrl) {
       var anexoLink = el("a", "doc-card__anexo", "📎 " + (d.anexo.nome || "Baixar anexo"));
       anexoLink.href = d.anexo.dataUrl;
       anexoLink.download = d.anexo.nome || "anexo";
@@ -321,13 +329,26 @@
     inUrl.placeholder = "https://… (opcional se anexar arquivo)";
     form.appendChild(field("URL (http/https)", inUrl, true));
 
-    // Anexo (arquivo) — guardado como dataUrl no localStorage (máx. 1,5 MB).
+    // Anexo (arquivo).
+    // Modo backend: upload direto pro servidor (rota /api/anexos, até 15 MB;
+    // ação de master — perfis de área recebem 403 do servidor ao tentar).
+    // Modo vault (estático, sem servidor): embutido como dataUrl (até 1,5 MB),
+    // comportamento original preservado como fallback.
+    var usaBackend = window.Gestao && window.Gestao.mode === "backend";
+    var LIMITE_BACKEND = 15 * 1024 * 1024;
+    var LIMITE_VAULT = 1.5 * 1024 * 1024;
+
     var anexoAtual = existing && existing.anexo ? existing.anexo : null;
+    var anexoEnviando = false;
     var inArquivo = makeInput("file");
     var arquivoField = field("Anexo (arquivo)", inArquivo, true);
     var anexoInfo = el("div", "doc-anexo-info");
     function pintaAnexo() {
       clear(anexoInfo);
+      if (anexoEnviando) {
+        anexoInfo.appendChild(el("span", "muted-text", "Enviando…"));
+        return;
+      }
       if (anexoAtual && anexoAtual.nome) {
         anexoInfo.appendChild(el("span", "muted-text", "Anexado: " + anexoAtual.nome + "  "));
         var rm = el("button", "btn btn-ghost sm", "remover");
@@ -343,8 +364,40 @@
     inArquivo.addEventListener("change", function () {
       var f = inArquivo.files && inArquivo.files[0];
       if (!f) return;
-      if (f.size > 1.5 * 1024 * 1024) {
-        erro.textContent = "Arquivo muito grande (máx. 1,5 MB para anexar no navegador).";
+
+      if (usaBackend) {
+        if (f.size > LIMITE_BACKEND) {
+          erro.textContent = "Arquivo muito grande (máx. 15 MB).";
+          inArquivo.value = "";
+          return;
+        }
+        var fd = new FormData();
+        fd.append("arquivo", f);
+        anexoEnviando = true;
+        erro.textContent = "";
+        pintaAnexo();
+        fetch("/api/anexos", { method: "POST", credentials: "same-origin", body: fd })
+          .then(function (res) {
+            if (!res.ok) throw new Error("http " + res.status);
+            return res.json();
+          })
+          .then(function (out) {
+            anexoAtual = { id: out.id, nome: out.nome, tamanho: out.tamanho };
+            anexoEnviando = false;
+            pintaAnexo();
+          })
+          .catch(function () {
+            anexoEnviando = false;
+            erro.textContent = "Falha ao enviar o arquivo (verifique se você está logado como master).";
+            inArquivo.value = "";
+            pintaAnexo();
+          });
+        return;
+      }
+
+      // Modo vault (sem servidor): embute como base64, limite menor.
+      if (f.size > LIMITE_VAULT) {
+        erro.textContent = "Arquivo muito grande (máx. 1,5 MB neste modo).";
         inArquivo.value = "";
         return;
       }
@@ -386,6 +439,10 @@
 
     form.addEventListener("submit", function (e) {
       e.preventDefault();
+      if (anexoEnviando) {
+        erro.textContent = "Aguarde o envio do anexo terminar.";
+        return;
+      }
       var titulo = inTitulo.value.trim();
       var url = inUrl.value.trim();
 
