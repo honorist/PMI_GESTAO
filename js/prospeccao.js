@@ -139,6 +139,17 @@
   }
 
   /* ============================================================
+     WhatsApp: normaliza para link wa.me (só dígitos; assume DDI 55
+     quando o número vem sem código do país)
+     ============================================================ */
+  function waLink(whatsapp) {
+    var digits = String(whatsapp || "").replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.length === 10 || digits.length === 11) digits = "55" + digits;
+    return "https://wa.me/" + digits;
+  }
+
+  /* ============================================================
      Iniciais do candidato (fallback quando não há foto)
      ============================================================ */
   function initials(nome) {
@@ -213,7 +224,7 @@
     body.appendChild(renderStarsStatic(c.avaliacaoComite));
 
     /* Links rápidos */
-    if (c.linkedin || c.videoRef) {
+    if (c.linkedin || c.videoRef || c.email || c.whatsapp) {
       var linksRow = el("div", "prosp-card__links");
       if (c.linkedin) {
         var la = el("a", "prosp-link", "LinkedIn");
@@ -221,6 +232,20 @@
         la.target = "_blank";
         la.rel = "noopener noreferrer";
         linksRow.appendChild(la);
+      }
+      if (c.email) {
+        var ea = el("a", "prosp-link", "✉ E-mail");
+        ea.href = "mailto:" + c.email;
+        ea.title = c.email;
+        linksRow.appendChild(ea);
+      }
+      if (c.whatsapp) {
+        var wa = el("a", "prosp-link", "WhatsApp");
+        wa.href = waLink(c.whatsapp);
+        wa.target = "_blank";
+        wa.rel = "noopener noreferrer";
+        wa.title = c.whatsapp;
+        linksRow.appendChild(wa);
       }
       if (c.videoRef) {
         var va = el("a", "prosp-link", "Vídeo");
@@ -410,6 +435,8 @@
     var inpEmpresa  = inp(c.empresa, "Nome da empresa / organização");
     var inpArea     = inp(c.area, "ex.: Agilidade, PMO, IA, Liderança");
     var inpLinkedin = inp(c.linkedin, "https://linkedin.com/in/...");
+    var inpEmail    = inp(c.email, "email@exemplo.com", "email");
+    var inpWhatsapp = inp(c.whatsapp, "(51) 99999-9999", "tel");
     var inpVideo    = inp(c.videoRef, "https://youtube.com/... (palestra anterior)");
     var DISPONIBILIDADE_OPCOES = [
       { value: "Dia 13", label: "Dia 13" },
@@ -444,6 +471,8 @@
     grid.appendChild(field("Empresa", inpEmpresa));
     grid.appendChild(field("Área de expertise", inpArea));
     grid.appendChild(field("LinkedIn", inpLinkedin));
+    grid.appendChild(field("E-mail", inpEmail));
+    grid.appendChild(field("WhatsApp", inpWhatsapp, "Com DDD · ex.: (51) 99109-4427"));
     grid.appendChild(field("Vídeo de referência", inpVideo));
     grid.appendChild(field("Disponibilidade", selDisp));
     grid.appendChild(field("Cachê estimado (R$)", inpCache, "Deixe vazio se voluntário"));
@@ -664,6 +693,8 @@
         empresa:         inpEmpresa.value.trim(),
         area:            inpArea.value.trim(),
         linkedin:        inpLinkedin.value.trim(),
+        email:           inpEmail.value.trim(),
+        whatsapp:        inpWhatsapp.value.trim(),
         videoRef:        inpVideo.value.trim(),
         disponibilidade: selDisp.value,
         cache:           (cacheNum === null || isNaN(cacheNum)) ? null : cacheNum,
@@ -797,6 +828,10 @@
         "Cachê: " + (c.cache === 0 ? "Voluntário" : "R$ " + Number(c.cache).toLocaleString("pt-BR"))));
       if (c.indicadoPor)    right.appendChild(el("p", "prosp-comite-card__detail",
         "Indicado por: " + c.indicadoPor));
+      if (c.email)          right.appendChild(el("p", "prosp-comite-card__detail",
+        "E-mail: " + c.email));
+      if (c.whatsapp)       right.appendChild(el("p", "prosp-comite-card__detail",
+        "WhatsApp: " + c.whatsapp));
 
       if (Array.isArray(c.temasProposto) && c.temasProposto.length) {
         var temasEl = el("div", "prosp-comite-card__temas");
