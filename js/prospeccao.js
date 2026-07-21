@@ -556,6 +556,11 @@
     ratingWrap.appendChild(starsEl);
     form.appendChild(ratingWrap);
 
+    /* -- Bio pública (vai para o card do site quando Confirmado) -- */
+    var taBio = ta(c.bioPublica,
+      "Bio curta que aparece no card do site do evento quando o status for Confirmado (2-3 linhas).", 3);
+    form.appendChild(field("Bio pública (site)", taBio, null, true));
+
     /* -- Notas internas -- */
     var taNotas = ta(c.notas,
       "Histórico de contato, observações, links adicionais…", 4);
@@ -702,6 +707,7 @@
         formato:         selFormato.value,
         status:          selStatus.value,
         temasProposto:   temasState.slice(),
+        bioPublica:      taBio.value.trim(),
         avaliacaoComite: ratingState.value,
         notas:           taNotas.value.trim(),
         anexos:          anexosState.slice(),

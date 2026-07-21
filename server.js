@@ -601,6 +601,40 @@ app.get("/api/votacao/candidatos", async (_req, res) => {
   }
 });
 
+// Palestrantes CONFIRMADOS para o site publico do evento (sem auth, CORS aberto).
+// Projeta SOMENTE campos publicaveis a partir da prospeccao — nunca expoe
+// notas/email/whatsapp/cache/indicadoPor/anexos/avaliacao.
+app.get("/api/palestrantes/publico", async (_req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  if (!pool) return res.status(503).json({ error: "sem_banco" });
+  try {
+    const { rows } = await pool.query("select data from estado where id = 1");
+    const data = rows[0] && rows[0].data ? rows[0].data : {};
+    const candidatos = (data.prospeccao && data.prospeccao.candidatos) || [];
+    const palestrantes = candidatos
+      .filter(function (c) {
+        return c && c.status === "confirmado" && c.nome && String(c.nome).trim();
+      })
+      .map(function (c) {
+        return {
+          nome:          String(c.nome).trim(),
+          cargo:         c.cargo || "",
+          empresa:       c.empresa || "",
+          area:          c.area || "",
+          linkedin:      c.linkedin || "",
+          foto:          c.foto || "",
+          bioPublica:    c.bioPublica || "",
+          temasProposto: Array.isArray(c.temasProposto) ? c.temasProposto : [],
+          formato:       c.formato || ""
+        };
+      });
+    return res.json({ palestrantes: palestrantes });
+  } catch (e) {
+    console.error("[GET /api/palestrantes/publico]", e.message);
+    return res.status(500).json({ error: "erro_interno" });
+  }
+});
+
 // Verifica em quais categorias um código já votou.
 app.get("/api/votacao/situacao", async (req, res) => {
   if (!pool) return res.status(503).json({ error: "sem_banco" });
