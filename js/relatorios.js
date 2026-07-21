@@ -809,6 +809,12 @@
         real += num(tp.valor) * num(tp.qtd_real);
       });
     });
+    (ins.workshops || []).forEach(function (w) {
+      (w.tipos || []).forEach(function (tp) {
+        prev += num(tp.valor) * num(tp.qtd_prev);
+        real += num(tp.valor) * num(tp.qtd_real);
+      });
+    });
     (ins.patrocinio || []).forEach(function (p) {
       prev += num(p.valor) * num(p.qtd_prev);
       real += num(p.valor) * patroCotaConfirmado(p.cota);
@@ -911,6 +917,11 @@
       var s = 0;
       (l.tipos || []).forEach(function (tp) { s += num(tp.valor) * num(tp.qtd_prev); });
       rows.push({ label: "Lote " + l.num, valor: s });
+    });
+    (ins.workshops || []).forEach(function (w) {
+      var sw = 0;
+      (w.tipos || []).forEach(function (tp) { sw += num(tp.valor) * num(tp.qtd_prev); });
+      rows.push({ label: "Workshop " + w.nome, valor: sw });
     });
     var pat = 0;
     (ins.patrocinio || []).forEach(function (p) { pat += num(p.valor) * num(p.qtd_prev); });

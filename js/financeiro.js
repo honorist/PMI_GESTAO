@@ -737,6 +737,20 @@
         { tipo: "Voluntario", valor: 480, qtd_prev: 8,  qtd_real: 0 }
       ]}
     ],
+    workshops: [
+      { nome: "Gino Terentim", tipos: [
+        { tipo: "Geral",      valor: 0, qtd_prev: 0, qtd_real: 0 },
+        { tipo: "Estudante",  valor: 0, qtd_prev: 0, qtd_real: 0 },
+        { tipo: "Filiado",    valor: 0, qtd_prev: 0, qtd_real: 0 },
+        { tipo: "Voluntario", valor: 0, qtd_prev: 0, qtd_real: 0 }
+      ]},
+      { nome: "Gart Capote", tipos: [
+        { tipo: "Geral",      valor: 0, qtd_prev: 0, qtd_real: 0 },
+        { tipo: "Estudante",  valor: 0, qtd_prev: 0, qtd_real: 0 },
+        { tipo: "Filiado",    valor: 0, qtd_prev: 0, qtd_real: 0 },
+        { tipo: "Voluntario", valor: 0, qtd_prev: 0, qtd_real: 0 }
+      ]}
+    ],
     patrocinio: [
       { cota: "Diamante", valor: 0, qtd_prev: 0 },
       { cota: "Premium",  valor: 0, qtd_prev: 0 },
@@ -758,6 +772,7 @@
       }
     } else {
       reconcilePatrocinioCotas(fin.inscricoes);
+      reconcileWorkshops(fin.inscricoes);
     }
     return fin.inscricoes;
   }
@@ -781,10 +796,22 @@
     });
   }
 
+  // Injeta a lista de workshops (dia 13) em blobs antigos que ainda
+  // nao a possuem. Nao sobrescreve dados ja digitados (so semeia se
+  // ausente/vazia), espelhando o comportamento aditivo de patrocinio.
+  function reconcileWorkshops(ins) {
+    if (!Array.isArray(ins.workshops) || ins.workshops.length === 0) {
+      ins.workshops = JSON.parse(JSON.stringify(DEFAULT_INSCRICOES.workshops));
+    }
+  }
+
   function calcInscricoesPrev(ins) {
     var t = ins.cegas ? toNumber(ins.cegas.valor) * toNumber(ins.cegas.qtd_prev) : 0;
     (ins.lotes || []).forEach(function (l) {
       (l.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_prev); });
+    });
+    (ins.workshops || []).forEach(function (w) {
+      (w.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_prev); });
     });
     (ins.patrocinio || []).forEach(function (p) { t += toNumber(p.valor) * toNumber(p.qtd_prev); });
     return t;
@@ -794,6 +821,9 @@
     var t = ins.cegas ? toNumber(ins.cegas.valor) * toNumber(ins.cegas.qtd_real) : 0;
     (ins.lotes || []).forEach(function (l) {
       (l.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_real); });
+    });
+    (ins.workshops || []).forEach(function (w) {
+      (w.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_real); });
     });
     (ins.patrocinio || []).forEach(function (p) {
       t += toNumber(p.valor) * getPatroCotaConfirmado(p.cota);
@@ -1028,6 +1058,60 @@
       lt.tbody.appendChild(subRow("Subtotal Lote " + lote.num, 5, lPE, lRE));
       card.appendChild(lt.tbl);
     });
+
+    // --- Workshops (dia 13) ---
+    (function renderWorkshops() {
+      var lista = ins.workshops || [];
+      if (!lista.length) return;
+      var wt = mkTbl(["Workshop", "Tipo", "Valor/ing.", "Qtd Prev", "Qtd Real", "Total Prev", "Total Real"]);
+      var wPE = tdR("", true);
+      var wRE = tdR("", false);
+
+      function updWork() {
+        var sp = 0, sr = 0;
+        lista.forEach(function (w) {
+          (w.tipos || []).forEach(function (tp) {
+            sp += toNumber(tp.valor) * toNumber(tp.qtd_prev);
+            sr += toNumber(tp.valor) * toNumber(tp.qtd_real);
+          });
+        });
+        wPE.textContent = Gestao.fmtBRL(sp);
+        wRE.textContent = Gestao.fmtBRL(sr);
+      }
+      updWork();
+
+      lista.forEach(function (w) {
+        (w.tipos || []).forEach(function (tp, ti) {
+          var tr = document.createElement("tr");
+          var tPE = tdR(Gestao.fmtBRL(toNumber(tp.valor) * toNumber(tp.qtd_prev)), true);
+          var tRE = tdR(Gestao.fmtBRL(toNumber(tp.valor) * toNumber(tp.qtd_real)), false);
+          if (ti === 0) tr.appendChild(tdL("Workshop " + w.nome, true));
+          else { var bk = document.createElement("td"); bk.style.cssText = CS; tr.appendChild(bk); }
+          tr.appendChild(tdL(tp.tipo, false));
+          tr.appendChild(tdR(moneyInp(tp.valor, function (v) {
+            tp.valor = v;
+            tPE.textContent = Gestao.fmtBRL(v * tp.qtd_prev);
+            tRE.textContent = Gestao.fmtBRL(v * tp.qtd_real);
+            updWork();
+          })));
+          tr.appendChild(tdR(numInp(tp.qtd_prev, function (v) {
+            tp.qtd_prev = v;
+            tPE.textContent = Gestao.fmtBRL(tp.valor * v);
+            updWork();
+          })));
+          tr.appendChild(tdR(numInp(tp.qtd_real, function (v) {
+            tp.qtd_real = v;
+            tRE.textContent = Gestao.fmtBRL(tp.valor * v);
+            updWork();
+          })));
+          tr.appendChild(tPE);
+          tr.appendChild(tRE);
+          wt.tbody.appendChild(tr);
+        });
+      });
+      wt.tbody.appendChild(subRow("Subtotal Workshops", 5, wPE, wRE));
+      card.appendChild(wt.tbl);
+    })();
 
     // --- Patrocinio ---
     var pt = mkTbl(["Cota", "Valor/cota", "Qtd Prev", "Qtd Real*", "Total Prev", "Total Real*"]);

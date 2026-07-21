@@ -284,6 +284,12 @@
         real += n(tp.valor) * n(tp.qtd_real);
       });
     });
+    (ins.workshops || []).forEach(function (w) {
+      (w.tipos || []).forEach(function (tp) {
+        prev += n(tp.valor) * n(tp.qtd_prev);
+        real += n(tp.valor) * n(tp.qtd_real);
+      });
+    });
     (ins.patrocinio || []).forEach(function (p) {
       prev += n(p.valor) * n(p.qtd_prev);
       real += n(p.valor) * vgPatroConfirmado(p.cota);
