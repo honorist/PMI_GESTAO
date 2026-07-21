@@ -1059,59 +1059,53 @@
       card.appendChild(lt.tbl);
     });
 
-    // --- Workshops (dia 13) ---
-    (function renderWorkshops() {
-      var lista = ins.workshops || [];
-      if (!lista.length) return;
+    // --- Workshops (dia 13) — uma tabela por workshop, com subtotal proprio ---
+    (ins.workshops || []).forEach(function (w) {
       var wt = mkTbl(["Workshop", "Tipo", "Valor/ing.", "Qtd Prev", "Qtd Real", "Total Prev", "Total Real"]);
       var wPE = tdR("", true);
       var wRE = tdR("", false);
 
-      function updWork() {
+      function updSubW() {
         var sp = 0, sr = 0;
-        lista.forEach(function (w) {
-          (w.tipos || []).forEach(function (tp) {
-            sp += toNumber(tp.valor) * toNumber(tp.qtd_prev);
-            sr += toNumber(tp.valor) * toNumber(tp.qtd_real);
-          });
+        (w.tipos || []).forEach(function (tp) {
+          sp += toNumber(tp.valor) * toNumber(tp.qtd_prev);
+          sr += toNumber(tp.valor) * toNumber(tp.qtd_real);
         });
         wPE.textContent = Gestao.fmtBRL(sp);
         wRE.textContent = Gestao.fmtBRL(sr);
       }
-      updWork();
+      updSubW();
 
-      lista.forEach(function (w) {
-        (w.tipos || []).forEach(function (tp, ti) {
-          var tr = document.createElement("tr");
-          var tPE = tdR(Gestao.fmtBRL(toNumber(tp.valor) * toNumber(tp.qtd_prev)), true);
-          var tRE = tdR(Gestao.fmtBRL(toNumber(tp.valor) * toNumber(tp.qtd_real)), false);
-          if (ti === 0) tr.appendChild(tdL("Workshop " + w.nome, true));
-          else { var bk = document.createElement("td"); bk.style.cssText = CS; tr.appendChild(bk); }
-          tr.appendChild(tdL(tp.tipo, false));
-          tr.appendChild(tdR(moneyInp(tp.valor, function (v) {
-            tp.valor = v;
-            tPE.textContent = Gestao.fmtBRL(v * tp.qtd_prev);
-            tRE.textContent = Gestao.fmtBRL(v * tp.qtd_real);
-            updWork();
-          })));
-          tr.appendChild(tdR(numInp(tp.qtd_prev, function (v) {
-            tp.qtd_prev = v;
-            tPE.textContent = Gestao.fmtBRL(tp.valor * v);
-            updWork();
-          })));
-          tr.appendChild(tdR(numInp(tp.qtd_real, function (v) {
-            tp.qtd_real = v;
-            tRE.textContent = Gestao.fmtBRL(tp.valor * v);
-            updWork();
-          })));
-          tr.appendChild(tPE);
-          tr.appendChild(tRE);
-          wt.tbody.appendChild(tr);
-        });
+      (w.tipos || []).forEach(function (tp, ti) {
+        var tr = document.createElement("tr");
+        var tPE = tdR(Gestao.fmtBRL(toNumber(tp.valor) * toNumber(tp.qtd_prev)), true);
+        var tRE = tdR(Gestao.fmtBRL(toNumber(tp.valor) * toNumber(tp.qtd_real)), false);
+        if (ti === 0) tr.appendChild(tdL("Workshop " + w.nome, true));
+        else { var bk = document.createElement("td"); bk.style.cssText = CS; tr.appendChild(bk); }
+        tr.appendChild(tdL(tp.tipo, false));
+        tr.appendChild(tdR(moneyInp(tp.valor, function (v) {
+          tp.valor = v;
+          tPE.textContent = Gestao.fmtBRL(v * tp.qtd_prev);
+          tRE.textContent = Gestao.fmtBRL(v * tp.qtd_real);
+          updSubW();
+        })));
+        tr.appendChild(tdR(numInp(tp.qtd_prev, function (v) {
+          tp.qtd_prev = v;
+          tPE.textContent = Gestao.fmtBRL(tp.valor * v);
+          updSubW();
+        })));
+        tr.appendChild(tdR(numInp(tp.qtd_real, function (v) {
+          tp.qtd_real = v;
+          tRE.textContent = Gestao.fmtBRL(tp.valor * v);
+          updSubW();
+        })));
+        tr.appendChild(tPE);
+        tr.appendChild(tRE);
+        wt.tbody.appendChild(tr);
       });
-      wt.tbody.appendChild(subRow("Subtotal Workshops", 5, wPE, wRE));
+      wt.tbody.appendChild(subRow("Subtotal " + w.nome, 5, wPE, wRE));
       card.appendChild(wt.tbl);
-    })();
+    });
 
     // --- Patrocinio ---
     var pt = mkTbl(["Cota", "Valor/cota", "Qtd Prev", "Qtd Real*", "Total Prev", "Total Real*"]);
