@@ -42,7 +42,8 @@
       equipe: { membros: [] },
       checklist: { itens: [] },
       palestrantes: { palcos: [] },
-      prospeccao: { candidatos: [] }
+      prospeccao: { candidatos: [] },
+      areas: { responsaveis: {} }
     };
   }
 
@@ -465,6 +466,7 @@
      não têm chave própria => só o master edita.               */
   var TAB_KEYS = {
     "tab-visao": null,
+    "tab-areas": null,
     "tab-cronograma": "cronograma",
     "tab-eap": "eap",
     "tab-disciplinas": null,
