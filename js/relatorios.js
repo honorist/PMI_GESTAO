@@ -810,9 +810,11 @@
       });
     });
     (ins.workshops || []).forEach(function (w) {
-      (w.tipos || []).forEach(function (tp) {
-        prev += num(tp.valor) * num(tp.qtd_prev);
-        real += num(tp.valor) * num(tp.qtd_real);
+      (w.lotes || []).forEach(function (l) {
+        (l.tipos || []).forEach(function (tp) {
+          prev += num(tp.valor) * num(tp.qtd_prev);
+          real += num(tp.valor) * num(tp.qtd_real);
+        });
       });
     });
     (ins.patrocinio || []).forEach(function (p) {
@@ -920,7 +922,9 @@
     });
     (ins.workshops || []).forEach(function (w) {
       var sw = 0;
-      (w.tipos || []).forEach(function (tp) { sw += num(tp.valor) * num(tp.qtd_prev); });
+      (w.lotes || []).forEach(function (l) {
+        (l.tipos || []).forEach(function (tp) { sw += num(tp.valor) * num(tp.qtd_prev); });
+      });
       rows.push({ label: "Workshop " + w.nome, valor: sw });
     });
     var pat = 0;

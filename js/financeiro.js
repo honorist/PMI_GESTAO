@@ -706,6 +706,19 @@
   /* ============================================================
      Inscricoes — plano de receitas (ingressos + patrocinio)
      ============================================================ */
+  // Cada workshop vende ingressos em 3 lotes (1, 2, 3), com as mesmas 4
+  // categorias das Palestras. Precos iniciam zerados (preencher no app).
+  function defaultWorkshopLotes() {
+    return [1, 2, 3].map(function (num) {
+      return { num: num, tipos: [
+        { tipo: "Geral",      valor: 0, qtd_prev: 0, qtd_real: 0 },
+        { tipo: "Estudante",  valor: 0, qtd_prev: 0, qtd_real: 0 },
+        { tipo: "Filiado",    valor: 0, qtd_prev: 0, qtd_real: 0 },
+        { tipo: "Voluntario", valor: 0, qtd_prev: 0, qtd_real: 0 }
+      ]};
+    });
+  }
+
   var DEFAULT_INSCRICOES = {
     cegas: {
       label: "PMI-RS Summit 2026 - Lote Blind (Venda as Cegas) - CBGPL",
@@ -738,18 +751,8 @@
       ]}
     ],
     workshops: [
-      { nome: "Gino Terentim", tipos: [
-        { tipo: "Geral",      valor: 0, qtd_prev: 0, qtd_real: 0 },
-        { tipo: "Estudante",  valor: 0, qtd_prev: 0, qtd_real: 0 },
-        { tipo: "Filiado",    valor: 0, qtd_prev: 0, qtd_real: 0 },
-        { tipo: "Voluntario", valor: 0, qtd_prev: 0, qtd_real: 0 }
-      ]},
-      { nome: "Gart Capote", tipos: [
-        { tipo: "Geral",      valor: 0, qtd_prev: 0, qtd_real: 0 },
-        { tipo: "Estudante",  valor: 0, qtd_prev: 0, qtd_real: 0 },
-        { tipo: "Filiado",    valor: 0, qtd_prev: 0, qtd_real: 0 },
-        { tipo: "Voluntario", valor: 0, qtd_prev: 0, qtd_real: 0 }
-      ]}
+      { nome: "Gino Terentim", lotes: defaultWorkshopLotes() },
+      { nome: "Gart Capote",   lotes: defaultWorkshopLotes() }
     ],
     patrocinio: [
       { cota: "Diamante", valor: 0, qtd_prev: 0 },
@@ -802,7 +805,19 @@
   function reconcileWorkshops(ins) {
     if (!Array.isArray(ins.workshops) || ins.workshops.length === 0) {
       ins.workshops = JSON.parse(JSON.stringify(DEFAULT_INSCRICOES.workshops));
+      return;
     }
+    // Migra blobs antigos (workshop com `tipos` direto, sem lotes) para a
+    // nova forma { nome, lotes:[{num,tipos}] }. Preserva o que ja foi
+    // digitado movendo os tipos existentes para o Lote 1.
+    ins.workshops.forEach(function (w) {
+      if (!Array.isArray(w.lotes) || w.lotes.length === 0) {
+        var lotes = defaultWorkshopLotes();
+        if (Array.isArray(w.tipos) && w.tipos.length) lotes[0].tipos = w.tipos;
+        w.lotes = lotes;
+        delete w.tipos;
+      }
+    });
   }
 
   function calcInscricoesPrev(ins) {
@@ -811,7 +826,9 @@
       (l.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_prev); });
     });
     (ins.workshops || []).forEach(function (w) {
-      (w.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_prev); });
+      (w.lotes || []).forEach(function (l) {
+        (l.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_prev); });
+      });
     });
     (ins.patrocinio || []).forEach(function (p) { t += toNumber(p.valor) * toNumber(p.qtd_prev); });
     return t;
@@ -823,7 +840,9 @@
       (l.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_real); });
     });
     (ins.workshops || []).forEach(function (w) {
-      (w.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_real); });
+      (w.lotes || []).forEach(function (l) {
+        (l.tipos || []).forEach(function (tp) { t += toNumber(tp.valor) * toNumber(tp.qtd_real); });
+      });
     });
     (ins.patrocinio || []).forEach(function (p) {
       t += toNumber(p.valor) * getPatroCotaConfirmado(p.cota);
@@ -1011,15 +1030,16 @@
     ct.tbody.appendChild(cRow);
     card.appendChild(ct.tbl);
 
-    // --- Lotes ---
-    (ins.lotes || []).forEach(function (lote) {
+    // Monta uma tabela de lote (Lote N + 4 categorias + subtotal).
+    // Reutilizada pelas Palestras e por cada workshop.
+    function loteTable(lote) {
       var lt = mkTbl(["Lote", "Tipo", "Valor/ing.", "Qtd Prev", "Qtd Real", "Total Prev", "Total Real"]);
       var lPE = tdR("", true);
       var lRE = tdR("", false);
 
       function updSub() {
         var sp = 0, sr = 0;
-        lote.tipos.forEach(function (tp) {
+        (lote.tipos || []).forEach(function (tp) {
           sp += toNumber(tp.valor) * toNumber(tp.qtd_prev);
           sr += toNumber(tp.valor) * toNumber(tp.qtd_real);
         });
@@ -1056,55 +1076,22 @@
         lt.tbody.appendChild(tr);
       });
       lt.tbody.appendChild(subRow("Subtotal Lote " + lote.num, 5, lPE, lRE));
-      card.appendChild(lt.tbl);
+      return lt.tbl;
+    }
+
+    // --- Lotes (Palestras) ---
+    (ins.lotes || []).forEach(function (lote) {
+      card.appendChild(loteTable(lote));
     });
 
-    // --- Workshops (dia 13) — uma tabela por workshop, com subtotal proprio ---
+    // --- Workshops (dia 13) — Lote 1, 2 e 3 por workshop ---
     (ins.workshops || []).forEach(function (w) {
-      var wt = mkTbl(["Workshop", "Tipo", "Valor/ing.", "Qtd Prev", "Qtd Real", "Total Prev", "Total Real"]);
-      var wPE = tdR("", true);
-      var wRE = tdR("", false);
-
-      function updSubW() {
-        var sp = 0, sr = 0;
-        (w.tipos || []).forEach(function (tp) {
-          sp += toNumber(tp.valor) * toNumber(tp.qtd_prev);
-          sr += toNumber(tp.valor) * toNumber(tp.qtd_real);
-        });
-        wPE.textContent = Gestao.fmtBRL(sp);
-        wRE.textContent = Gestao.fmtBRL(sr);
-      }
-      updSubW();
-
-      (w.tipos || []).forEach(function (tp, ti) {
-        var tr = document.createElement("tr");
-        var tPE = tdR(Gestao.fmtBRL(toNumber(tp.valor) * toNumber(tp.qtd_prev)), true);
-        var tRE = tdR(Gestao.fmtBRL(toNumber(tp.valor) * toNumber(tp.qtd_real)), false);
-        if (ti === 0) tr.appendChild(tdL("Workshop " + w.nome, true));
-        else { var bk = document.createElement("td"); bk.style.cssText = CS; tr.appendChild(bk); }
-        tr.appendChild(tdL(tp.tipo, false));
-        tr.appendChild(tdR(moneyInp(tp.valor, function (v) {
-          tp.valor = v;
-          tPE.textContent = Gestao.fmtBRL(v * tp.qtd_prev);
-          tRE.textContent = Gestao.fmtBRL(v * tp.qtd_real);
-          updSubW();
-        })));
-        tr.appendChild(tdR(numInp(tp.qtd_prev, function (v) {
-          tp.qtd_prev = v;
-          tPE.textContent = Gestao.fmtBRL(tp.valor * v);
-          updSubW();
-        })));
-        tr.appendChild(tdR(numInp(tp.qtd_real, function (v) {
-          tp.qtd_real = v;
-          tRE.textContent = Gestao.fmtBRL(tp.valor * v);
-          updSubW();
-        })));
-        tr.appendChild(tPE);
-        tr.appendChild(tRE);
-        wt.tbody.appendChild(tr);
+      var wh = el("h4", null, "Workshop " + w.nome);
+      wh.style.cssText = "font-size:.82rem;font-weight:700;margin:12px 0 4px;";
+      card.appendChild(wh);
+      (w.lotes || []).forEach(function (lote) {
+        card.appendChild(loteTable(lote));
       });
-      wt.tbody.appendChild(subRow("Subtotal " + w.nome, 5, wPE, wRE));
-      card.appendChild(wt.tbl);
     });
 
     // --- Patrocinio ---

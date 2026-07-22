@@ -285,9 +285,11 @@
       });
     });
     (ins.workshops || []).forEach(function (w) {
-      (w.tipos || []).forEach(function (tp) {
-        prev += n(tp.valor) * n(tp.qtd_prev);
-        real += n(tp.valor) * n(tp.qtd_real);
+      (w.lotes || []).forEach(function (l) {
+        (l.tipos || []).forEach(function (tp) {
+          prev += n(tp.valor) * n(tp.qtd_prev);
+          real += n(tp.valor) * n(tp.qtd_real);
+        });
       });
     });
     (ins.patrocinio || []).forEach(function (p) {
