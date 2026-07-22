@@ -294,7 +294,9 @@
     });
     (ins.patrocinio || []).forEach(function (p) {
       prev += n(p.valor) * n(p.qtd_prev);
-      real += n(p.valor) * vgPatroConfirmado(p.cota);
+      // qtd_real e manual (aba Financeiro); fallback ao nº de confirmados
+      // enquanto ainda nao foi semeado no estado.
+      real += n(p.valor) * (p.qtd_real != null ? n(p.qtd_real) : vgPatroConfirmado(p.cota));
     });
     return { prev: prev, real: real };
   }

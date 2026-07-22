@@ -819,7 +819,9 @@
     });
     (ins.patrocinio || []).forEach(function (p) {
       prev += num(p.valor) * num(p.qtd_prev);
-      real += num(p.valor) * patroCotaConfirmado(p.cota);
+      // qtd_real e manual (aba Financeiro); fallback ao nº de confirmados
+      // enquanto ainda nao foi semeado no estado.
+      real += num(p.valor) * (p.qtd_real != null ? num(p.qtd_real) : patroCotaConfirmado(p.cota));
     });
     return { temInscricoes: true, prev: prev, real: real };
   }

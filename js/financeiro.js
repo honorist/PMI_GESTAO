@@ -755,9 +755,9 @@
       { nome: "Gart Capote",   lotes: defaultWorkshopLotes() }
     ],
     patrocinio: [
-      { cota: "Diamante", valor: 0, qtd_prev: 0 },
-      { cota: "Premium",  valor: 0, qtd_prev: 0 },
-      { cota: "Master",   valor: 0, qtd_prev: 0 }
+      { cota: "Diamante", valor: 0, qtd_prev: 0, qtd_real: 0 },
+      { cota: "Premium",  valor: 0, qtd_prev: 0, qtd_real: 0 },
+      { cota: "Master",   valor: 0, qtd_prev: 0, qtd_real: 0 }
     ]
   };
 
@@ -790,12 +790,23 @@
     atual.forEach(function (p) { byCota[p.cota] = p; });
     var precisaTrocar = atual.length !== canon.length ||
       canon.some(function (c) { return !byCota[c]; });
-    if (!precisaTrocar) return;
-    ins.patrocinio = canon.map(function (c) {
-      var prev = byCota[c];
-      return prev
-        ? { cota: c, valor: toNumber(prev.valor), qtd_prev: toNumber(prev.qtd_prev) }
-        : { cota: c, valor: 0, qtd_prev: 0 };
+    if (precisaTrocar) {
+      ins.patrocinio = canon.map(function (c) {
+        var prev = byCota[c];
+        return prev
+          ? { cota: c, valor: toNumber(prev.valor), qtd_prev: toNumber(prev.qtd_prev), qtd_real: prev.qtd_real }
+          : { cota: c, valor: 0, qtd_prev: 0 }; // qtd_real cai no seed abaixo
+      });
+    }
+    // qtd_real do patrocinio agora e MANUAL. Semeia nas cotas que ainda
+    // nao o tem com a contagem atual de confirmados, p/ nao zerar o
+    // realizado ao migrar do modo derivado; dai em diante e editavel.
+    (ins.patrocinio || []).forEach(function (p) {
+      if (p.qtd_real === undefined || p.qtd_real === null) {
+        p.qtd_real = getPatroCotaConfirmado(p.cota);
+      } else {
+        p.qtd_real = toNumber(p.qtd_real);
+      }
     });
   }
 
@@ -845,7 +856,7 @@
       });
     });
     (ins.patrocinio || []).forEach(function (p) {
-      t += toNumber(p.valor) * getPatroCotaConfirmado(p.cota);
+      t += toNumber(p.valor) * toNumber(p.qtd_real);
     });
     return t;
   }
@@ -1095,7 +1106,7 @@
     });
 
     // --- Patrocinio ---
-    var pt = mkTbl(["Cota", "Valor/cota", "Qtd Prev", "Qtd Real*", "Total Prev", "Total Real*"]);
+    var pt = mkTbl(["Cota", "Valor/cota", "Qtd Prev", "Qtd Real", "Total Prev", "Total Real"]);
     var ptPE = tdR("", true);
     var ptRE = tdR("", false);
 
@@ -1103,7 +1114,7 @@
       var sp = 0, sr = 0;
       (ins.patrocinio || []).forEach(function (p) {
         sp += toNumber(p.valor) * toNumber(p.qtd_prev);
-        sr += toNumber(p.valor) * getPatroCotaConfirmado(p.cota);
+        sr += toNumber(p.valor) * toNumber(p.qtd_real);
       });
       ptPE.textContent = Gestao.fmtBRL(sp);
       ptRE.textContent = Gestao.fmtBRL(sr);
@@ -1111,15 +1122,14 @@
     updPat();
 
     (ins.patrocinio || []).forEach(function (p) {
-      var qr = getPatroCotaConfirmado(p.cota);
       var pPE = tdR(Gestao.fmtBRL(toNumber(p.valor) * toNumber(p.qtd_prev)), true);
-      var pRE = tdR(Gestao.fmtBRL(toNumber(p.valor) * qr), false);
+      var pRE = tdR(Gestao.fmtBRL(toNumber(p.valor) * toNumber(p.qtd_real)), false);
       var tr = document.createElement("tr");
       tr.appendChild(tdL(p.cota, true));
       tr.appendChild(tdR(moneyInp(p.valor, function (v) {
         p.valor = v;
         pPE.textContent = Gestao.fmtBRL(v * p.qtd_prev);
-        pRE.textContent = Gestao.fmtBRL(v * getPatroCotaConfirmado(p.cota));
+        pRE.textContent = Gestao.fmtBRL(v * toNumber(p.qtd_real));
         updPat();
       })));
       tr.appendChild(tdR(numInp(p.qtd_prev, function (v) {
@@ -1127,18 +1137,15 @@
         pPE.textContent = Gestao.fmtBRL(p.valor * v);
         updPat();
       })));
-      tr.appendChild(tdR(String(qr)));
+      tr.appendChild(tdR(numInp(p.qtd_real, function (v) {
+        p.qtd_real = v;
+        pRE.textContent = Gestao.fmtBRL(p.valor * v);
+        updPat();
+      })));
       tr.appendChild(pPE);
       tr.appendChild(pRE);
       pt.tbody.appendChild(tr);
     });
-    var notaTd = document.createElement("td");
-    notaTd.colSpan = 6;
-    notaTd.style.cssText = CS + "font-size:.7rem;color:var(--muted);font-style:italic;";
-    notaTd.textContent = "* Qtd Real derivado automaticamente de patrocinadores com status Confirmado.";
-    var notaTr = document.createElement("tr");
-    notaTr.appendChild(notaTd);
-    pt.tbody.appendChild(notaTr);
     pt.tbody.appendChild(subRow("Subtotal Patrocinio", 4, ptPE, ptRE));
     card.appendChild(pt.tbl);
 
