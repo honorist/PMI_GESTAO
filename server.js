@@ -88,7 +88,7 @@ const AREA_ROLES = {
   },
   experiencia: {
     senha: process.env.EXPERIENCIA_PASSWORD || "",
-    edita: ["patrocinio", "voluntarios"]
+    edita: ["patrocinio", "voluntarios", "cronograma"]
   }
 };
 
