@@ -975,6 +975,22 @@
     return unidade ? num + " " + unidade : num;
   }
 
+  // Total de ingressos vendidos (qtd_real), lido do mesmo blob de
+  // inscrições que o Financeiro usa (cegas + lotes; patrocínio não
+  // conta como "participante" pago via ingresso). Retorna null se a
+  // aba Financeiro ainda não inicializou fin.inscricoes.
+  function vgParticipantesReal() {
+    var g = window.Gestao;
+    var ins = g && g.data && g.data.financeiro && g.data.financeiro.inscricoes;
+    if (!ins) return null;
+    var n = function (v) { return parseFloat(v) || 0; };
+    var t = ins.cegas ? n(ins.cegas.qtd_real) : 0;
+    (ins.lotes || []).forEach(function (l) {
+      (l.tipos || []).forEach(function (tp) { t += n(tp.qtd_real); });
+    });
+    return t;
+  }
+
   function buildMetas(data) {
     var card = el("div", "card");
     var title = el("h3", "section-title", "Metas & KPIs");
@@ -987,10 +1003,17 @@
       return card;
     }
 
+    var participantesReal = vgParticipantesReal();
+
     var box = el("div", "vg-metas");
     metas.forEach(function (m) {
       var alvo = Number(m.alvo) || 0;
       var atual = Number(m.atual) || 0;
+      // A meta "Participantes" é sincronizada com os ingressos
+      // vendidos no Financeiro, em vez do valor manual salvo em Metas.
+      var isParticipantes = String(m.nome || "").trim().toLowerCase() === "participantes";
+      var auto = isParticipantes && participantesReal !== null;
+      if (auto) atual = participantesReal;
       var pct = alvo > 0 ? Math.round((atual / alvo) * 100) : 0;
 
       var bloco = el("div", "vg-meta");
@@ -1011,6 +1034,11 @@
             formatarValorMeta(alvo, m.unidade)
         )
       );
+      if (auto) {
+        foot.appendChild(
+          el("span", "vg-meta__auto muted-text", "sincronizado com ingressos vendidos")
+        );
+      }
       bloco.appendChild(foot);
       box.appendChild(bloco);
     });

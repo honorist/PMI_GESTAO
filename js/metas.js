@@ -325,13 +325,48 @@
   }
 
   /* ============================================================
+     Sincronização com o Financeiro — meta "Participantes"
+     ------------------------------------------------------------
+     A meta chamada "Participantes" não é editada manualmente: seu
+     valor "atual" é a soma dos ingressos realmente vendidos
+     (fin.inscricoes.cegas + lotes[].tipos[], mesmo blob que a aba
+     Financeiro usa). Patrocínio não entra — não é um ingresso.
+     Retorna null se o Financeiro ainda não inicializou os dados.
+     ============================================================ */
+  function participantesReal() {
+    var g = window.Gestao;
+    var ins = g && g.data && g.data.financeiro && g.data.financeiro.inscricoes;
+    if (!ins) return null;
+    var n = function (v) { return parseFloat(v) || 0; };
+    var t = ins.cegas ? n(ins.cegas.qtd_real) : 0;
+    (ins.lotes || []).forEach(function (l) {
+      (l.tipos || []).forEach(function (tp) { t += n(tp.qtd_real); });
+    });
+    return t;
+  }
+
+  function isMetaParticipantes(meta) {
+    return String((meta && meta.nome) || "").trim().toLowerCase() === "participantes";
+  }
+
+  // Valor "atual" efetivo: sincronizado com o Financeiro para a meta
+  // "Participantes" (quando já há dados), manual nas demais metas.
+  function atualEfetivo(meta) {
+    if (isMetaParticipantes(meta)) {
+      var real = participantesReal();
+      if (real !== null) return real;
+    }
+    return meta.atual;
+  }
+
+  /* ============================================================
      Cabeçalho padrão da aba (logo + título + cartão com nº de metas)
      ============================================================ */
   function buildHeader(metas) {
     var Gestao = window.Gestao;
     var n = metas.length;
     var atingidas = metas.filter(function (m) {
-      return pctAtingido(m.atual, m.alvo) >= LIMIAR_ALTO;
+      return pctAtingido(atualEfetivo(m), m.alvo) >= LIMIAR_ALTO;
     }).length;
 
     var right = Gestao.headerStat({
@@ -369,8 +404,10 @@
   // valor por um input; Enter/blur salva, Esc cancela.
   function buildAtualInline(meta) {
     var wrap = el("div", "mt-atual");
+    var auto = isMetaParticipantes(meta) && participantesReal() !== null;
+    var atual = atualEfetivo(meta);
 
-    var valorTxt = el("span", "mt-atual__valor", fmtValor(meta.atual, meta.unidade));
+    var valorTxt = el("span", "mt-atual__valor", fmtValor(atual, meta.unidade));
     var alvoTxt = el(
       "span",
       "mt-atual__alvo",
@@ -378,6 +415,14 @@
     );
     wrap.appendChild(valorTxt);
     wrap.appendChild(alvoTxt);
+
+    // Sincronizada com o Financeiro: sem edição manual do "atual".
+    if (auto) {
+      wrap.appendChild(
+        el("span", "mt-atual__auto muted-text", "sincronizado com ingressos vendidos (Financeiro)")
+      );
+      return wrap;
+    }
 
     var editBtn = el("button", "btn btn-ghost sm mt-atual__edit", "Editar atual");
     editBtn.type = "button";
@@ -427,7 +472,7 @@
   }
 
   function buildMetaCard(meta) {
-    var pct = pctAtingido(meta.atual, meta.alvo);
+    var pct = pctAtingido(atualEfetivo(meta), meta.alvo);
     var card = el("div", "card mt-card");
 
     // Cabeçalho do card: nome + % atingido + ações.
