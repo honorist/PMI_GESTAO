@@ -635,6 +635,46 @@ app.get("/api/palestrantes/publico", async (_req, res) => {
   }
 });
 
+// Programacao (palcos + sessoes) para o site publico do evento.
+// Sem auth, CORS aberto. Espelha a aba "Palestrantes" do app: palco,
+// horario e titulo sao sempre publicos; nome/empresa/tema da sessao so
+// saem quando o status e "confirmado" — convidados e sessoes a definir
+// aparecem no site apenas com horario e titulo.
+app.get("/api/programacao/publico", async (_req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  if (!pool) return res.status(503).json({ error: "sem_banco" });
+  try {
+    const { rows } = await pool.query("select data from estado where id = 1");
+    const data = rows[0] && rows[0].data ? rows[0].data : {};
+    const palcos = (data.palestrantes && data.palestrantes.palcos) || [];
+
+    const publico = palcos.map(function (p) {
+      const sessoes = (p.sessoes || []).map(function (s) {
+        // Status explicito manda; fallback legado = tem nome preenchido.
+        const confirmado = s.status
+          ? s.status === "confirmado"
+          : !!(s.palestrante && String(s.palestrante).trim());
+        return {
+          id:          s.id || "",
+          horario:     s.horario || "",
+          titulo:      s.titulo || "",
+          tipo:        s.tipo || "sessao",
+          confirmado:  confirmado,
+          palestrante: confirmado ? String(s.palestrante || "").trim() : "",
+          empresa:     confirmado ? String(s.empresa || "").trim() : "",
+          tema:        confirmado ? String(s.tema || "").trim() : ""
+        };
+      });
+      return { id: p.id || "", nome: p.nome || "", sessoes: sessoes };
+    });
+
+    return res.json({ palcos: publico });
+  } catch (e) {
+    console.error("[GET /api/programacao/publico]", e.message);
+    return res.status(500).json({ error: "erro_interno" });
+  }
+});
+
 // Verifica em quais categorias um código já votou.
 app.get("/api/votacao/situacao", async (req, res) => {
   if (!pool) return res.status(503).json({ error: "sem_banco" });
