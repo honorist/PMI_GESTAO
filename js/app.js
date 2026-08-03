@@ -37,7 +37,7 @@
       contratacoes: { fornecedores: [] },
       eap: { disciplinas: [], pacotes: [] },
       canvas: {},
-      reunioes: { reunioes: [] },
+      reunioes: { reunioes: [], agenda: [] },
       documentos: { documentos: [] },
       equipe: { membros: [] },
       checklist: { itens: [] },

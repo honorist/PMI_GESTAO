@@ -28,13 +28,6 @@
   // Data-âncora para a contagem regressiva (1º dia do evento, local).
   var EVENTO_INICIO = "2026-11-13";
 
-  // Reunião geral: quinzenal ("quarta sim, quarta não"), a partir da
-  // âncora e até o 1º dia do evento. A âncora É a fonte da verdade do
-  // dia da semana — a série avança em saltos de 14 dias a partir dela,
-  // em vez de procurar "a próxima quarta" no calendário.
-  var REUNIAO_ANCORA = "2026-07-22"; // quarta-feira
-  var REUNIAO_INTERVALO_DIAS = 14;
-  var REUNIAO_HORA = "19h30";
   var MAX_PRAZOS = 6;
   var MAX_MARCOS = 6;
   var MAX_ACOES = 5;
@@ -101,25 +94,23 @@
     return fim.getDate() + " " + MESES_ABREV[fim.getMonth()];
   }
 
-  // Primeira reunião a partir de `hoje` (inclusive), ou null se a série
-  // já se esgotou (passou do 1º dia do evento).
-  //
-  // O salto usa o campo `dia` do construtor de Date, e não soma de
-  // milissegundos: somar 14*86400000 escorrega um dia quando há mudança
-  // de horário de verão no intervalo.
-  function proximaReuniao(hoje, ancoraIso, limiteIso) {
-    var d = parseISO(ancoraIso || REUNIAO_ANCORA);
-    var limite = parseISO(limiteIso || EVENTO_INICIO);
-    if (!d || !limite || !hoje) return null;
-
-    while (d.getTime() < hoje.getTime()) {
-      d = new Date(
-        d.getFullYear(),
-        d.getMonth(),
-        d.getDate() + REUNIAO_INTERVALO_DIAS
-      );
-    }
-    return d.getTime() <= limite.getTime() ? d : null;
+  // Próxima reunião cadastrada em Gestao.data.reunioes.agenda (aba
+  // Reuniões) a partir de `hoje` (inclusive) — ou null se não há
+  // nenhuma agendada. Vem de dados reais, não de fórmula.
+  function proximaReuniaoAgendada(hoje, data) {
+    var lista = (data && data.reunioes && data.reunioes.agenda) || [];
+    var melhor = null;
+    var melhorData = null;
+    lista.forEach(function (item) {
+      var d = parseISO(item && item.data);
+      if (!d || d.getTime() < hoje.getTime()) return;
+      if (!melhorData || d.getTime() < melhorData.getTime()) {
+        melhorData = d;
+        melhor = item;
+      }
+    });
+    if (!melhor) return null;
+    return { data: melhorData, horario: melhor.horario || "", titulo: melhor.titulo || "" };
   }
 
   // "é hoje" / "é amanhã" / "em N dias".
@@ -1096,20 +1087,20 @@
   }
 
   /* ============================================================
-     Aviso da próxima reunião geral (topo da Visão Geral)
+     Aviso da próxima reunião agendada (topo da Visão Geral)
      ============================================================ */
   var DIAS_SEMANA = [
     "domingo", "segunda-feira", "terça-feira", "quarta-feira",
     "quinta-feira", "sexta-feira", "sábado"
   ];
 
-  // Devolve null quando a série já acabou — o aviso simplesmente não
-  // aparece, em vez de mostrar uma data no passado.
-  function buildAvisoReuniao(hoje) {
-    var data = proximaReuniao(hoje);
-    if (!data) return null;
+  // Devolve null quando não há nenhuma reunião agendada — o aviso
+  // simplesmente não aparece, em vez de mostrar uma data no passado.
+  function buildAvisoReuniao(hoje, dadosApp) {
+    var reuniao = proximaReuniaoAgendada(hoje, dadosApp);
+    if (!reuniao) return null;
 
-    var dias = diffDias(hoje, data);
+    var dias = diffDias(hoje, reuniao.data);
 
     var box = el("div", "vg-aviso" + (dias <= 0 ? " is-hoje" : ""));
     // role="status" faz o leitor de tela anunciar o aviso ao abrir a aba.
@@ -1120,24 +1111,20 @@
     box.appendChild(icone);
 
     var texto = el("div", "vg-aviso__texto");
-    texto.appendChild(el("span", "vg-aviso__tag", "Próxima reunião geral"));
+    texto.appendChild(el("span", "vg-aviso__tag", "Próxima reunião"));
 
     var linha = el("span", "vg-aviso__data");
     linha.appendChild(
       document.createTextNode(
-        dataCurta(data) + " · " + DIAS_SEMANA[data.getDay()] + " · "
+        dataCurta(reuniao.data) + " · " + DIAS_SEMANA[reuniao.data.getDay()] + " · "
       )
     );
-    linha.appendChild(el("strong", "vg-aviso__hora", REUNIAO_HORA));
+    linha.appendChild(el("strong", "vg-aviso__hora", reuniao.horario));
     texto.appendChild(linha);
 
-    texto.appendChild(
-      el(
-        "span",
-        "vg-aviso__nota",
-        "Quinzenal, sempre às quartas-feiras às " + REUNIAO_HORA + ", até o evento."
-      )
-    );
+    if (reuniao.titulo) {
+      texto.appendChild(el("span", "vg-aviso__nota", reuniao.titulo));
+    }
     box.appendChild(texto);
 
     box.appendChild(el("span", "vg-aviso__prazo", prazoTexto(dias)));
@@ -1155,8 +1142,8 @@
 
     var root = el("div", "vg-root");
 
-    // 0. Aviso da próxima reunião geral — primeiro elemento da tela.
-    var aviso = buildAvisoReuniao(hoje);
+    // 0. Aviso da próxima reunião agendada — primeiro elemento da tela.
+    var aviso = buildAvisoReuniao(hoje, data);
     if (aviso) root.appendChild(aviso);
 
     // 1. Cabeçalho + contagem regressiva.
@@ -1216,7 +1203,7 @@
       arcosDonut: arcosDonut,
       clampPct: clampPct,
       formatarValorMeta: formatarValorMeta,
-      proximaReuniao: proximaReuniao,
+      proximaReuniaoAgendada: proximaReuniaoAgendada,
       prazoTexto: prazoTexto
     };
   }

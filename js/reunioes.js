@@ -138,6 +138,39 @@
     };
   }
 
+  /* ============================================================
+     Agenda: próximas reuniões planejadas (data + horário + título).
+     Ao contrário do array `reunioes` acima (atas de reuniões já
+     realizadas), este bloco é só um planejamento leve — sem pauta,
+     decisões ou ações — que alimenta o aviso da Visão Geral.
+     ============================================================ */
+  function getAgenda() {
+    var data = (window.Gestao && window.Gestao.data) || {};
+    var bloco = data.reunioes || {};
+    if (!Array.isArray(bloco.agenda)) bloco.agenda = [];
+    data.reunioes = bloco;
+    if (window.Gestao) window.Gestao.data = data;
+    return bloco.agenda;
+  }
+
+  function findAgendaItem(id) {
+    var list = getAgenda();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === id) return list[i];
+    }
+    return null;
+  }
+
+  function normalizeAgendaItem(a) {
+    a = a || {};
+    return {
+      id: a.id,
+      data: trimStr(a.data),
+      horario: trimStr(a.horario),
+      titulo: trimStr(a.titulo)
+    };
+  }
+
   function isStatusValido(s) {
     return ACAO_STATUSES.some(function (x) {
       return x.id === s;
@@ -216,6 +249,36 @@
     });
   }
 
+  function upsertAgenda(id, values) {
+    var list = getAgenda();
+    if (id) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === id) {
+          list[i] = Object.assign({}, list[i], values, { id: id });
+          break;
+        }
+      }
+    } else {
+      list.push(Object.assign({ id: window.Gestao.uid("ag") }, values));
+    }
+    window.Gestao.save();
+    window.Gestao.toast("Reunião agendada salva");
+    render();
+  }
+
+  function removeAgenda(id, titulo) {
+    var label = trimStr(titulo) ? '"' + titulo + '"' : "esta reunião agendada";
+    window.Gestao.confirm("Excluir " + label + "?", function () {
+      var data = window.Gestao.data;
+      data.reunioes.agenda = getAgenda().filter(function (x) {
+        return x.id !== id;
+      });
+      window.Gestao.save();
+      window.Gestao.toast("Reunião agendada removida");
+      render();
+    });
+  }
+
   // Define o status de uma ação específica (por reunião + índice).
   function setAcaoStatus(reuniaoId, acaoIndex, status) {
     if (!isStatusValido(status)) return;
@@ -240,6 +303,161 @@
     var idx = order.indexOf(isStatusValido(current) ? current : "pendente");
     var next = order[(idx + 1) % order.length];
     setAcaoStatus(reuniaoId, acaoIndex, next);
+  }
+
+  /* ============================================================
+     UI: painel "Próximas reuniões" (agenda)
+     ============================================================ */
+  var DIAS_SEMANA_AGENDA = [
+    "domingo", "segunda-feira", "terça-feira", "quarta-feira",
+    "quinta-feira", "sexta-feira", "sábado"
+  ];
+
+  // 'AAAA-MM-DD' -> Date local à meia-noite (evita deslocamento por UTC).
+  function parseISOLocal(iso) {
+    var m = trimStr(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+
+  function renderPainelAgenda(agendaRaw) {
+    var Gestao = window.Gestao;
+    var agenda = sortAgendaAsc(agendaRaw.map(normalizeAgendaItem));
+    var hojeIso = todayISO();
+
+    var card = el("div", "card reu-agenda-painel");
+
+    var head = el("div", "spread reu-painel-head");
+    var titleWrap = el("div", null);
+    titleWrap.appendChild(el("h3", "section-title", "Próximas reuniões"));
+    titleWrap.appendChild(
+      el(
+        "p",
+        "muted-text reu-painel-sub",
+        agenda.length
+          ? agenda.length + (agenda.length === 1 ? " reunião agendada" : " reuniões agendadas")
+          : "Nenhuma reunião agendada."
+      )
+    );
+    head.appendChild(titleWrap);
+
+    var addBtn = el("button", "btn btn-primary sm", "+ Nova reunião agendada");
+    addBtn.type = "button";
+    addBtn.addEventListener("click", function () {
+      openAgendaForm(null);
+    });
+    head.appendChild(addBtn);
+    card.appendChild(head);
+
+    if (!agenda.length) {
+      card.appendChild(
+        el("div", "empty", "Cadastre a próxima reunião para ela aparecer na Visão Geral.")
+      );
+      return card;
+    }
+
+    var list = el("div", "reu-agenda-list");
+    agenda.forEach(function (a) {
+      var isHoje = a.data === hojeIso;
+      var row = el("div", "reu-agenda-row" + (isHoje ? " is-hoje" : ""));
+
+      var info = el("div", "reu-agenda-row__info");
+      info.appendChild(el("span", "reu-agenda-row__titulo", a.titulo || "(sem título)"));
+      var d = parseISOLocal(a.data);
+      var detalhe =
+        (d ? Gestao.fmtData(a.data) + " · " + DIAS_SEMANA_AGENDA[d.getDay()] : "sem data") +
+        (a.horario ? " · " + a.horario : "");
+      info.appendChild(el("span", "reu-agenda-row__data", detalhe));
+      row.appendChild(info);
+
+      if (isHoje) row.appendChild(el("span", "badge orange reu-agenda-row__hoje", "Hoje"));
+
+      var actions = el("div", "reu-agenda-row__actions");
+      var btnEdit = el("button", "btn btn-ghost sm", "Editar");
+      btnEdit.type = "button";
+      btnEdit.addEventListener("click", function () {
+        openAgendaForm(a.id);
+      });
+      actions.appendChild(btnEdit);
+
+      var btnDel = el("button", "btn btn-ghost sm", "Excluir");
+      btnDel.type = "button";
+      btnDel.addEventListener("click", function () {
+        removeAgenda(a.id, a.titulo);
+      });
+      actions.appendChild(btnDel);
+
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
+    card.appendChild(list);
+
+    return card;
+  }
+
+  function openAgendaForm(id) {
+    var existing = id ? normalizeAgendaItem(findAgendaItem(id)) : null;
+    closeForm();
+
+    _backdrop = el("div", "reu-modal-backdrop");
+    _backdrop.addEventListener("click", function (e) {
+      void e; /* clicar fora NÃO fecha (evita perda acidental); use Cancelar ou Esc */
+    });
+
+    var modal = el("div", "reu-modal");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute(
+      "aria-label",
+      existing ? "Editar reunião agendada" : "Nova reunião agendada"
+    );
+    modal.appendChild(
+      el("h3", "section-title", existing ? "Editar reunião agendada" : "Nova reunião agendada")
+    );
+
+    var form = document.createElement("form");
+    form.className = "reu-form";
+
+    var inData = makeInput("date", existing ? existing.data : todayISO());
+    form.appendChild(field("Data", inData, true));
+
+    var inHorario = makeInput("time", existing ? existing.horario : "");
+    form.appendChild(field("Horário", inHorario, true));
+
+    var inTitulo = makeInput("text", existing ? existing.titulo : "");
+    inTitulo.placeholder = "Ex.: Alinhamento quinzenal dos GTs";
+    form.appendChild(field("Título", inTitulo, true));
+
+    var actions = el("div", "reu-form-actions");
+    var cancel = el("button", "btn", "Cancelar");
+    cancel.type = "button";
+    cancel.addEventListener("click", closeForm);
+    actions.appendChild(cancel);
+    var salvar = el("button", "btn btn-primary", "Salvar");
+    salvar.type = "submit";
+    actions.appendChild(salvar);
+    form.appendChild(actions);
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var values = {
+        data: inData.value.trim(),
+        horario: inHorario.value.trim(),
+        titulo: inTitulo.value.trim()
+      };
+      if (!values.data || !values.horario || !values.titulo) {
+        window.Gestao.toast("Preencha data, horário e título.", "error");
+        return;
+      }
+      upsertAgenda(id, values);
+      closeForm();
+    });
+
+    modal.appendChild(form);
+    _backdrop.appendChild(modal);
+    document.body.appendChild(_backdrop);
+    document.addEventListener("keydown", onEscClose);
+    inData.focus();
   }
 
   /* ============================================================
@@ -362,6 +580,26 @@
     return reunioes.slice().sort(function (a, b) {
       return key(b) - key(a);
     });
+  }
+
+  // Data+horário asc (mais próxima primeiro), só itens de hoje em diante —
+  // uma reunião agendada que já passou perde o sentido de "próxima" e some
+  // da lista (o histórico de reuniões realizadas fica a cargo das atas).
+  function sortAgendaAsc(agenda) {
+    var hojeKey = dateKey(todayISO());
+    function key(a) {
+      return dateKey(a && a.data);
+    }
+    return agenda
+      .slice()
+      .filter(function (a) {
+        return key(a) >= hojeKey;
+      })
+      .sort(function (a, b) {
+        var d = key(a) - key(b);
+        if (d !== 0) return d;
+        return trimStr(a.horario).localeCompare(trimStr(b.horario));
+      });
   }
 
   function renderListaReunioes(reunioes) {
@@ -995,6 +1233,10 @@
 
     var root = el("div", "stack");
 
+    // Próximas reuniões (agenda) — primeiro bloco da aba, é o que
+    // alimenta o aviso de destaque na Visão Geral.
+    root.appendChild(renderPainelAgenda(getAgenda()));
+
     // Barra de ação (nova reunião).
     var bar = el("div", "spread reu-bar");
     bar.appendChild(
@@ -1047,7 +1289,9 @@
       statusMeta: statusMeta,
       normalizeReuniao: normalizeReuniao,
       coletarAcoesAbertas: coletarAcoesAbertas,
-      sortReunioesDesc: sortReunioesDesc
+      sortReunioesDesc: sortReunioesDesc,
+      normalizeAgendaItem: normalizeAgendaItem,
+      sortAgendaAsc: sortAgendaAsc
     };
   }
 })();

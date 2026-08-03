@@ -41,6 +41,73 @@
   font-size: .85rem;
 }
 
+/* ============================================================
+   Painel "Próximas reuniões" (agenda) — mesmo padrão do painel
+   de ações, com destaque azul para diferenciar visualmente.
+   ============================================================ */
+.reu-agenda-painel {
+  border-top: 4px solid var(--blue);
+}
+
+.reu-agenda-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reu-agenda-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.reu-agenda-row.is-hoje {
+  border-color: var(--reu-atraso);
+  background: var(--reu-atraso-bg);
+}
+
+.reu-agenda-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.reu-agenda-row__titulo {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.reu-agenda-row__data {
+  font-size: .85rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.reu-agenda-row__hoje {
+  flex: 0 0 auto;
+}
+
+.reu-agenda-row__actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+}
+
+@media (max-width: 560px) {
+  .reu-agenda-row {
+    flex-wrap: wrap;
+  }
+  .reu-agenda-row__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
 /* Tabela rola horizontalmente em telas estreitas sem quebrar o card. */
 .reu-table-wrap {
   width: 100%;
