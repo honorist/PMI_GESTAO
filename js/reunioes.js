@@ -313,6 +313,10 @@
     "quinta-feira", "sexta-feira", "sábado"
   ];
 
+  // Estado do colapso do painel — sobrevive aos re-renders da sessão
+  // (que acontecem a cada save), mas não é persistido entre recargas.
+  var _agendaAberta = true;
+
   // 'AAAA-MM-DD' -> Date local à meia-noite (evita deslocamento por UTC).
   function parseISOLocal(iso) {
     var m = trimStr(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -341,13 +345,33 @@
     );
     head.appendChild(titleWrap);
 
+    var headActions = el("div", "reu-agenda-head-actions");
+
     var addBtn = el("button", "btn btn-primary sm", "+ Nova reunião agendada");
     addBtn.type = "button";
     addBtn.addEventListener("click", function () {
       openAgendaForm(null);
     });
-    head.appendChild(addBtn);
+    headActions.appendChild(addBtn);
+
+    var toggleBtn = el(
+      "button",
+      "btn btn-ghost sm reu-agenda-toggle",
+      _agendaAberta ? "▴ Recolher" : "▾ Expandir"
+    );
+    toggleBtn.type = "button";
+    toggleBtn.setAttribute("aria-expanded", _agendaAberta ? "true" : "false");
+    toggleBtn.title = _agendaAberta ? "Recolher próximas reuniões" : "Expandir próximas reuniões";
+    toggleBtn.addEventListener("click", function () {
+      _agendaAberta = !_agendaAberta;
+      render();
+    });
+    headActions.appendChild(toggleBtn);
+
+    head.appendChild(headActions);
     card.appendChild(head);
+
+    if (!_agendaAberta) return card; // colapsado: só cabeçalho + contagem
 
     if (!agenda.length) {
       card.appendChild(

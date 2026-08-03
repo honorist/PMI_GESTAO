@@ -55,7 +55,7 @@
   white-space: nowrap;
 }
 
-/* ---- Palco "GP com Elas" (rosa) ---- */
+/* ---- Palco "Palco 3" (id gp_elas, rosa) ---- */
 .spk-card[data-cor="rosa"] .spk-card__head {
   background: #C2185B;
 }

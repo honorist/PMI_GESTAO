@@ -56,7 +56,7 @@
       ]
     },
     {
-      id: "gp_elas", nome: "GP com Elas", cor: "rosa",
+      id: "gp_elas", nome: "Palco 3", cor: "rosa",
       sessoes: [
         { id: "gp1", horario: "10h00 - 10h20", titulo: "Sessão GP com Elas 1", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
         { id: "gp2", horario: "10h20 - 10h40", titulo: "Sessão GP com Elas 2", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
@@ -107,6 +107,20 @@
     var novoPalco = JSON.parse(JSON.stringify(PALCOS_DEFAULT[PALCOS_DEFAULT.length - 1]));
     palcos.push(novoPalco);
     return true;
+  }
+
+  /* ---- Migração: renomeia o palco "GP com Elas" (id gp_elas) para
+     "Palco 3" — mantém o id e a cor "rosa" (ambos usados na Prospecção
+     para destacar as sessões desse palco), só muda o rótulo exibido. */
+  function migrarNomePalcoGpElas(palcos) {
+    var mudou = false;
+    palcos.forEach(function (p) {
+      if (p.id === "gp_elas" && p.nome !== "Palco 3") {
+        p.nome = "Palco 3";
+        mudou = true;
+      }
+    });
+    return mudou;
   }
 
   /* ---- Migração: dá um status explícito a sessões que não têm ---- */
@@ -731,6 +745,7 @@
       var precisaSalvar = false;
       if (migrarMelhoresDoAno(palcos)) precisaSalvar = true;
       if (migrarPalcoGpElas(palcos)) precisaSalvar = true;
+      if (migrarNomePalcoGpElas(palcos)) precisaSalvar = true;
       if (migrarStatus(palcos)) precisaSalvar = true;
       if (precisaSalvar) {
         data.palestrantes = plData;

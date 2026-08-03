@@ -49,6 +49,13 @@
   border-top: 4px solid var(--blue);
 }
 
+.reu-agenda-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .reu-agenda-list {
   display: flex;
   flex-direction: column;
