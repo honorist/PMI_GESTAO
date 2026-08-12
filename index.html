@@ -120,6 +120,7 @@
               <button class="tab-btn" type="button" role="tab" data-tab="tab-reunioes" aria-selected="false" aria-controls="tab-reunioes" tabindex="-1">Reuniões</button>
               <button class="tab-btn" type="button" role="tab" data-tab="tab-documentos" aria-selected="false" aria-controls="tab-documentos" tabindex="-1">Documentos</button>
               <button class="tab-btn" type="button" role="tab" data-tab="tab-relatorios" aria-selected="false" aria-controls="tab-relatorios" tabindex="-1">Relatórios</button>
+              <button class="tab-btn" type="button" role="tab" data-tab="tab-apresentacao" aria-selected="false" aria-controls="tab-apresentacao" tabindex="-1">Apresentação</button>
               <button class="tab-btn" type="button" role="tab" data-tab="tab-agenda" aria-selected="false" aria-controls="tab-agenda" tabindex="-1">Agenda da GP</button>
             </div>
           </div>
@@ -195,6 +196,7 @@
       <section id="tab-equipe" class="tab-panel" role="tabpanel" aria-label="Equipe" hidden><div class="placeholder">Carregando…</div></section>
       <section id="tab-documentos" class="tab-panel" role="tabpanel" aria-label="Documentos" hidden><div class="placeholder">Carregando…</div></section>
       <section id="tab-relatorios" class="tab-panel" role="tabpanel" aria-label="Relatórios" hidden><div class="placeholder">Carregando…</div></section>
+      <section id="tab-apresentacao" class="tab-panel" role="tabpanel" aria-label="Apresentação" hidden><div class="placeholder">Carregando…</div></section>
       <section id="tab-palestrantes" class="tab-panel" role="tabpanel" aria-label="Palestras" hidden><div class="placeholder">Carregando…</div></section>
       <section id="tab-prospeccao" class="tab-panel" role="tabpanel" aria-label="Prospecção de Palestrantes" hidden><div class="placeholder">Carregando…</div></section>
       <section id="tab-voluntarios" class="tab-panel" role="tabpanel" aria-label="Voluntários" hidden><div class="placeholder">Carregando…</div></section>
@@ -220,7 +222,9 @@
   <script src="js/reunioes.js?v=4" defer></script>
   <script src="js/equipe.js?v=3" defer></script>
   <script src="js/documentos.js?v=2" defer></script>
-  <script src="js/relatorios.js?v=7" defer></script>
+  <script src="js/relatorios.js?v=8" defer></script>
+  <!-- apresentacao.js consome window.Relatorios: precisa vir DEPOIS de relatorios.js -->
+  <script src="js/apresentacao.js?v=1" defer></script>
   <script src="js/palestrantes.js?v=3" defer></script>
   <script src="js/prospeccao.js?v=7" defer></script>
   <script src="js/voluntarios.js?v=3" defer></script>

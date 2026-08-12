@@ -43,7 +43,8 @@
       checklist: { itens: [] },
       palestrantes: { palcos: [] },
       prospeccao: { candidatos: [] },
-      areas: { responsaveis: {} }
+      areas: { responsaveis: {} },
+      apresentacao: { notas: {} }
     };
   }
 
@@ -480,6 +481,7 @@
     "tab-reunioes": "reunioes",
     "tab-documentos": "documentos",
     "tab-relatorios": null,
+    "tab-apresentacao": null,
     "tab-metas": "metas",
     "tab-checklist": "checklist"
   };

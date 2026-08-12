@@ -1408,6 +1408,50 @@
     });
   }
 
+  /* ============================================================
+     Núcleo de cálculo compartilhado (window.Relatorios)
+     ------------------------------------------------------------
+     A aba "Apresentação" (js/apresentacao.js) monta os mesmos
+     números num formato de slides. Para que relatório e deck
+     NUNCA divirjam, a matemática mora só aqui e é exposta —
+     não duplicada lá.
+
+     Só funções puras (números, sem DOM). Os blocos visuais
+     continuam privados: o deck tem layout próprio.
+     ============================================================ */
+  if (typeof window !== "undefined") {
+    window.Relatorios = {
+      // Financeiro
+      computeFinanceiro: computeFinanceiro,
+      inscricoesTotais: inscricoesTotais,
+      receitaCategorias: receitaCategorias,
+      computePorCategoria: computePorCategoria,
+      somaDesembolsos: somaDesembolsos,
+      // Contratações
+      computePipeline: computePipeline,
+      temProposta: temProposta,
+      // Conformidade
+      computeCompliance: computeCompliance,
+      COMPLIANCE_LEMBRETES: COMPLIANCE_LEMBRETES,
+      // Metas
+      formatMetaValor: formatMetaValor,
+      // Utilitários (mesma semântica de arredondamento/fuso)
+      toNumber: toNumber,
+      sumBy: sumBy,
+      pct: pct,
+      parseISO: parseISO,
+      hojeISO: hojeISO,
+      hojeLocal: hojeLocal,
+      diasParaEvento: diasParaEvento,
+      groupByCategoria: groupByCategoria,
+      // Constantes do evento (capa/rodapé do deck)
+      EVENTO_ISO: EVENTO_ISO,
+      EVENTO_LABEL: EVENTO_LABEL,
+      LOGO_SRC: LOGO_SRC,
+      LOGO_ALT: LOGO_ALT
+    };
+  }
+
   // Exposto para testes headless (Node não tem window.Gestao real).
   if (typeof module !== "undefined" && module.exports) {
     module.exports = {

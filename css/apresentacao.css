@@ -1,0 +1,916 @@
+/* ============================================================
+   apresentacao.css — Aba "Apresentação" (deck de slides 16:9)
+   ------------------------------------------------------------
+   Na TELA: um slide por vez (.apr-slide.is-ativo), em proporção
+   16:9, com navegação por setas.
+
+   Na IMPRESSÃO: todos os slides aparecem, um por página, em
+   paisagem. A orientação usa uma @page NOMEADA (page: aprslide)
+   para não vazar para a aba Relatórios, cujo CSS pode estar
+   carregado no mesmo <head>.
+
+   Identidade: variáveis de css/tokens.css (roxo PMIRS, creme,
+   Fraunces nos títulos). Nada de cor fixa fora do bloco print.
+   ============================================================ */
+
+/* ============================================================
+   Controles (navegação + imprimir) — escondidos na impressão
+   ============================================================ */
+.apr-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0 12px;
+}
+
+.apr-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.apr-nav__btn {
+  min-width: 40px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.apr-nav__btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.apr-nav__contador {
+  min-width: 62px;
+  text-align: center;
+  font-weight: 700;
+  font-size: .88rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Deck e slide
+   ============================================================ */
+.apr-deck {
+  display: block;
+}
+
+.apr-slide {
+  display: none;
+  flex-direction: column;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 26px 32px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.apr-slide.is-ativo {
+  display: flex;
+}
+
+/* Navegadores sem aspect-ratio: garante altura mínima utilizável. */
+@supports not (aspect-ratio: 16 / 9) {
+  .apr-slide {
+    min-height: 560px;
+  }
+}
+
+/* ---- Cabeçalho do slide ---- */
+.apr-slide__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid var(--purple);
+  flex: 0 0 auto;
+}
+
+.apr-slide__title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 1.5rem;
+  color: var(--purple);
+  line-height: 1.15;
+}
+
+.apr-slide__sub {
+  margin: 4px 0 0;
+  font-size: .84rem;
+  color: var(--muted);
+}
+
+.apr-slide__logo {
+  height: 30px;
+  width: auto;
+  flex: 0 0 auto;
+}
+
+/* ---- Corpo do slide ---- */
+.apr-slide__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+}
+
+/* Duas colunas lado a lado dentro do corpo. */
+.apr-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  align-content: start;
+}
+
+.apr-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Elemento que atravessa as duas colunas. */
+.apr-span2 {
+  grid-column: 1 / -1;
+}
+
+.apr-bloco__titulo {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: .95rem;
+  color: var(--purple-2);
+}
+
+/* ---- Rodapé do slide ---- */
+.apr-slide__foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: .72rem;
+  color: var(--muted);
+}
+
+.apr-slide__num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+/* ============================================================
+   Slide de capa
+   ============================================================ */
+.apr-slide--capa {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(150deg, var(--purple) 0%, var(--purple-dark) 100%);
+  border-color: var(--purple-dark);
+}
+
+.apr-capa__logo {
+  height: 54px;
+  width: auto;
+  margin-bottom: 26px;
+  background: #fff;
+  padding: 10px 16px;
+  border-radius: var(--rad-sm);
+}
+
+.apr-capa__eyebrow {
+  margin: 0 0 8px;
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+
+.apr-capa__title {
+  margin: 0 0 10px;
+  font-family: var(--font-title);
+  font-size: 2.6rem;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.apr-capa__sub {
+  margin: 0 0 26px;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, .82);
+}
+
+.apr-capa__chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.apr-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .28);
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+/* O rodapé da capa herda cores claras. margin-top:auto absorve a
+   folga e prende o rodapé no pé do slide, mesmo com o conteúdo
+   centralizado verticalmente. */
+.apr-slide--capa .apr-slide__foot {
+  width: 100%;
+  margin-top: auto;
+  border-top-color: rgba(255, 255, 255, .22);
+  color: rgba(255, 255, 255, .7);
+}
+
+/* ============================================================
+   Cartões de indicador (KPI)
+   ============================================================ */
+.apr-kpi-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.apr-kpi-grid--2 { grid-template-columns: repeat(2, 1fr); }
+.apr-kpi-grid--3 { grid-template-columns: repeat(3, 1fr); }
+.apr-kpi-grid--4 { grid-template-columns: repeat(4, 1fr); }
+
+.apr-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--rad-sm);
+  background: var(--card-cream);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+
+.apr-kpi__label {
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Os valores saem em BRL exato (R$ 376.600,00), então a fonte é
+   dimensionada para o número inteiro caber sem quebrar o cartão. */
+.apr-kpi__value {
+  font-family: var(--font-title);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* Quatro cartões na largura do slide: número um pouco menor. */
+.apr-kpi-grid--4 .apr-kpi__value {
+  font-size: 1.08rem;
+}
+
+.apr-kpi__sub {
+  font-size: .72rem;
+  color: var(--muted);
+}
+
+.apr-kpi.is-destaque .apr-kpi__value { color: var(--purple); }
+.apr-kpi.is-positivo .apr-kpi__value { color: var(--green-bright); }
+.apr-kpi.is-negativo .apr-kpi__value { color: var(--orange); }
+
+/* ============================================================
+   Gráfico de barras horizontais
+   ============================================================ */
+.apr-hbar {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* A coluna de valor comporta o BRL exato + o percentual
+   (ex.: "R$ 159.000,00 · 42%") sem quebrar linha. */
+.apr-hbar__row {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) minmax(60px, 1.6fr) minmax(146px, auto);
+  align-items: center;
+  gap: 8px;
+}
+
+.apr-hbar__label {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apr-hbar__track {
+  height: 14px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.apr-hbar__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.apr-hbar__val {
+  font-size: .74rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Barra de progresso (previsto × realizado)
+   ============================================================ */
+.apr-prog {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.apr-prog__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: .84rem;
+}
+
+.apr-prog__cap {
+  font-size: .76rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.apr-prog__track {
+  height: 16px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.apr-prog__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--purple);
+}
+
+.apr-prog__pct {
+  font-size: .72rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* ============================================================
+   Gráfico de colunas (pipeline de contratações)
+   ============================================================ */
+.apr-colchart {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 26px;
+  align-items: end;
+  flex: 1 1 auto;          /* ocupa a altura livre do slide */
+  min-height: 200px;
+  padding: 0 8px;
+}
+
+.apr-colchart__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+
+.apr-colchart__val {
+  font-size: .84rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.apr-colchart__area {
+  flex: 1 1 auto;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.apr-colchart__bar {
+  display: block;
+  width: 62%;
+  border-radius: var(--rad-sm) var(--rad-sm) 0 0;
+  background: var(--purple);
+}
+
+.apr-colchart__foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding-top: 6px;
+  border-top: 2px solid var(--line);
+  width: 100%;
+}
+
+.apr-colchart__label {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.apr-colchart__qtd {
+  font-size: .72rem;
+  color: var(--muted);
+}
+
+/* ============================================================
+   Tabela compacta
+   ============================================================ */
+.apr-table-wrap {
+  overflow: hidden;
+}
+
+.apr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .78rem;
+}
+
+.apr-table th,
+.apr-table td {
+  padding: 5px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.apr-table th {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom-width: 2px;
+}
+
+.apr-table th.num,
+.apr-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.apr-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.apr-atrasado {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+/* Mini barra de avanço dentro da tabela. */
+.apr-minibar {
+  height: 7px;
+  min-width: 52px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.apr-minibar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green-bright);
+}
+
+.apr-empty {
+  margin: 0;
+  padding: 10px 0;
+  font-size: .8rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ============================================================
+   Metas & KPIs
+   ============================================================ */
+.apr-metas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 26px;
+  align-content: start;
+}
+
+.apr-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.apr-meta__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.apr-meta__nome {
+  font-size: .86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apr-meta__val {
+  font-size: .74rem;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.apr-meta__pct {
+  font-size: .7rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ============================================================
+   Conformidade
+   ============================================================ */
+.apr-score {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: var(--rad-sm);
+  background: var(--card-cream);
+  border: 1px solid var(--line);
+}
+
+.apr-score__num {
+  font-family: var(--font-title);
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--orange);
+}
+
+.apr-score.is-full .apr-score__num {
+  color: var(--green-bright);
+}
+
+.apr-score__lab {
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+.apr-comp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.apr-comp {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  border-radius: var(--rad-sm);
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  background: var(--card-cream);
+  min-width: 0;
+}
+
+.apr-comp.is-ok { border-left-color: var(--green-bright); }
+.apr-comp.is-warn { border-left-color: var(--orange); }
+
+.apr-comp__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.apr-comp__icon {
+  font-weight: 700;
+  font-size: .9rem;
+}
+
+.apr-comp.is-ok .apr-comp__icon { color: var(--green-bright); }
+.apr-comp.is-warn .apr-comp__icon { color: var(--orange); }
+
+.apr-comp__titulo {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.apr-comp__status {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.apr-comp.is-ok .apr-comp__status { color: var(--green-bright); }
+.apr-comp.is-warn .apr-comp__status { color: var(--orange); }
+
+.apr-comp__list {
+  margin: 2px 0 0;
+  padding-left: 16px;
+  font-size: .72rem;
+  color: var(--muted);
+}
+
+.apr-comp__list li {
+  margin-bottom: 1px;
+}
+
+.apr-comp__mais {
+  font-style: italic;
+}
+
+/* ============================================================
+   Notas editáveis
+   ============================================================ */
+/* Compacto por padrão (slide de resumo, onde os KPIs são o assunto). */
+.apr-nota {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+
+/* Versão que ocupa a altura livre — usada quando a nota É o slide
+   (Próximos passos). */
+.apr-nota--grande {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.apr-nota__label {
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.apr-nota__input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 76px;
+  resize: none;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--rad-sm);
+  background: var(--card-cream);
+  color: var(--ink);
+  font-size: .84rem;
+  line-height: 1.45;
+}
+
+.apr-nota__input:disabled {
+  opacity: 1;               /* leitura continua legível no perfil viewer */
+  background: transparent;
+  border-color: transparent;
+  padding-left: 0;
+}
+
+/* Espelho do texto para a impressão (ver bloco @media print). */
+.apr-nota__print {
+  display: none;
+  margin: 0;
+  font-size: .84rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   Lembretes de processo
+   ============================================================ */
+.apr-lembretes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.apr-lembretes__list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+.apr-lembretes__list li {
+  margin-bottom: 3px;
+}
+
+/* ============================================================
+   Cores das barras (utilitários)
+   ------------------------------------------------------------
+   Declaradas DEPOIS de .apr-prog__fill e .apr-colchart__bar de
+   propósito: têm a mesma especificidade (0,1,0), então quem vem
+   por último vence. Se subirem no arquivo, todas as barras
+   voltam a sair roxas.
+   ============================================================ */
+
+/* Rodízio automático (hbar sem cor fixa). */
+.apr-c0 { background: var(--purple); }
+.apr-c1 { background: var(--blue); }
+.apr-c2 { background: var(--green); }
+.apr-c3 { background: var(--orange); }
+
+/* Cores fixas por tema. */
+.apr-c-verde   { background: var(--green-bright); }
+.apr-c-laranja { background: var(--orange); }
+.apr-c-azul    { background: var(--blue); }
+.apr-c-roxo    { background: var(--purple); }
+
+/* ============================================================
+   Responsivo — abaixo de 900px o deck vira coluna única
+   ------------------------------------------------------------
+   Restrito a `screen` de propósito: na impressão o Chrome avalia
+   a largura contra a caixa da página, e sem o `screen` o deck
+   colapsaria para uma coluna na folha.
+   ============================================================ */
+@media screen and (max-width: 900px) {
+  .apr-slide {
+    aspect-ratio: auto;
+    padding: 20px;
+  }
+
+  .apr-cols,
+  .apr-metas,
+  .apr-comp-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .apr-kpi-grid--4 { grid-template-columns: repeat(2, 1fr); }
+  .apr-kpi-grid--3 { grid-template-columns: repeat(2, 1fr); }
+
+  .apr-capa__title { font-size: 1.8rem; }
+}
+
+/* ============================================================
+   IMPRESSÃO — todos os slides, um por página, em paisagem
+   ------------------------------------------------------------
+   A @page é NOMEADA (aprslide) e aplicada só ao deck, para não
+   forçar paisagem nos relatórios da aba Relatórios, cujo CSS
+   pode estar carregado no mesmo documento.
+   ============================================================ */
+@page aprslide {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
+@media print {
+  /* Esconde o cromo do app e os controles do módulo. */
+  .topbar,
+  .tabs,
+  .apr-controls,
+  #app-banner {
+    display: none !important;
+  }
+
+  /* Painéis de outras abas não vazam para a folha. */
+  .tab-panel[hidden] {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  /* Remove as molduras do app ao redor do deck. */
+  .app,
+  .container,
+  #tab-apresentacao {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  /* O cabeçalho da aba não entra na apresentação impressa. */
+  #tab-apresentacao > .page-head {
+    display: none !important;
+  }
+
+  .apr-deck {
+    page: aprslide;
+  }
+
+  /* TODOS os slides são impressos — não só o ativo na tela.
+     A altura é fixada em mm (não vh) porque vh na impressão é
+     ambíguo entre caixa da página e área útil: 210mm de A4
+     paisagem menos as margens de 10mm, com folga para não
+     empurrar uma página em branco. */
+  .apr-slide {
+    display: flex !important;
+    max-width: none !important;
+    width: 100% !important;
+    height: 186mm;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .apr-slide:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  /* Fundos e cores de marca preservados na folha. */
+  .apr-slide--capa,
+  .apr-capa__logo,
+  .apr-chip,
+  .apr-kpi,
+  .apr-hbar__track,
+  .apr-hbar__fill,
+  .apr-prog__track,
+  .apr-prog__fill,
+  .apr-colchart__bar,
+  .apr-minibar,
+  .apr-minibar > span,
+  .apr-score,
+  .apr-comp {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* A capa mantém o fundo roxo impresso. */
+  .apr-slide--capa {
+    background: var(--purple) !important;
+  }
+
+  /* O campo sai da folha e o espelho entra no lugar: um <textarea>
+     imprime só o que cabe na sua altura, o <p> imprime tudo. */
+  .apr-nota__input {
+    display: none !important;
+  }
+
+  .apr-nota__print {
+    display: block !important;
+  }
+
+  /* Não cortar blocos no meio. */
+  .apr-kpi,
+  .apr-hbar__row,
+  .apr-colchart,
+  .apr-comp,
+  .apr-meta,
+  .apr-table tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
