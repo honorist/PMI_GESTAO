@@ -161,17 +161,6 @@ const CREATE_TABLE_SQL = `
   );
 `;
 
-const CREATE_VOTOS_SQL = `
-  create table if not exists votos (
-    id          serial primary key,
-    codigo      text        not null,
-    categoria   text        not null,
-    candidato_id text       not null,
-    criado_em   timestamptz not null default now(),
-    unique (codigo, categoria)
-  );
-`;
-
 // Anexos (arquivos) enviados pela aba Documentos — guardados à parte
 // do JSONB de "estado" (que só referencia { id, nome, tamanho }), para
 // não inflar o corpo/registro reenviado a cada save de qualquer aba.
@@ -263,7 +252,6 @@ function estaVazio(data) {
 async function migrarESemear() {
   if (!pool) return;
   await pool.query(CREATE_TABLE_SQL);
-  await pool.query(CREATE_VOTOS_SQL);
   await pool.query(CREATE_ANEXOS_SQL);
 
   const { rows } = await pool.query(
@@ -566,40 +554,8 @@ app.get("/api/anexos/:id", exigeSessao, async (req, res) => {
 });
 
 /* ============================================================
-   Rotas de votação (públicas — sem autenticação)
+   Rotas públicas do site do evento (sem autenticação, CORS aberto)
    ============================================================ */
-
-// Retorna as sessões votáveis (tipo "especial", exceto Premiação)
-// agrupadas por categoria, a partir do estado atual.
-app.get("/api/votacao/candidatos", async (_req, res) => {
-  if (!pool) return res.status(503).json({ error: "sem_banco" });
-  try {
-    const { rows } = await pool.query("select data from estado where id = 1");
-    const data = rows[0] && rows[0].data ? rows[0].data : {};
-    const palcos = (data.palestrantes && data.palestrantes.palcos) || [];
-
-    const categorias = {
-      "melhor-projeto": { label: "Melhor Projeto", candidatos: [] },
-      "melhor-pmo":     { label: "Melhor PMO",     candidatos: [] }
-    };
-
-    palcos.forEach(function (palco) {
-      (palco.sessoes || []).forEach(function (s) {
-        if (s.tipo !== "especial" || s.id === "prem") return;
-        if (s.titulo.toLowerCase().includes("projeto")) {
-          categorias["melhor-projeto"].candidatos.push({ id: s.id, titulo: s.titulo, palestrante: s.palestrante || "", empresa: s.empresa || "" });
-        } else if (s.titulo.toLowerCase().includes("pmo")) {
-          categorias["melhor-pmo"].candidatos.push({ id: s.id, titulo: s.titulo, palestrante: s.palestrante || "", empresa: s.empresa || "" });
-        }
-      });
-    });
-
-    return res.json(categorias);
-  } catch (e) {
-    console.error("[GET /api/votacao/candidatos]", e.message);
-    return res.status(500).json({ error: "erro_interno" });
-  }
-});
 
 // Palestrantes CONFIRMADOS para o site publico do evento (sem auth, CORS aberto).
 // Projeta SOMENTE campos publicaveis a partir da prospeccao — nunca expoe
@@ -671,85 +627,6 @@ app.get("/api/programacao/publico", async (_req, res) => {
     return res.json({ palcos: publico });
   } catch (e) {
     console.error("[GET /api/programacao/publico]", e.message);
-    return res.status(500).json({ error: "erro_interno" });
-  }
-});
-
-// Verifica em quais categorias um código já votou.
-app.get("/api/votacao/situacao", async (req, res) => {
-  if (!pool) return res.status(503).json({ error: "sem_banco" });
-  const codigo = req.query.codigo && String(req.query.codigo).trim().toUpperCase();
-  if (!codigo) return res.status(400).json({ error: "codigo_obrigatorio" });
-  try {
-    const { rows } = await pool.query(
-      "select categoria from votos where codigo = $1", [codigo]
-    );
-    const jaVotou = rows.map(function (r) { return r.categoria; });
-    return res.json({ codigo: codigo, ja_votou: jaVotou });
-  } catch (e) {
-    console.error("[GET /api/votacao/situacao]", e.message);
-    return res.status(500).json({ error: "erro_interno" });
-  }
-});
-
-// Registra um voto. Retorna 409 se o código já votou nessa categoria.
-app.post("/api/votacao/votar", async (req, res) => {
-  if (!pool) return res.status(503).json({ error: "sem_banco" });
-  const { codigo, categoria, candidato_id } = req.body || {};
-  if (!codigo || !categoria || !candidato_id) {
-    return res.status(400).json({ error: "campos_obrigatorios" });
-  }
-  const cod = String(codigo).trim().toUpperCase();
-  const cat = String(categoria).trim();
-  const cid = String(candidato_id).trim();
-
-  const categoriasValidas = ["melhor-projeto", "melhor-pmo"];
-  if (!categoriasValidas.includes(cat)) {
-    return res.status(400).json({ error: "categoria_invalida" });
-  }
-
-  try {
-    await pool.query(
-      "insert into votos (codigo, categoria, candidato_id) values ($1, $2, $3)",
-      [cod, cat, cid]
-    );
-    return res.json({ ok: true });
-  } catch (e) {
-    if (e.code === "23505") { // unique_violation
-      return res.status(409).json({ error: "ja_votou" });
-    }
-    console.error("[POST /api/votacao/votar]", e.message);
-    return res.status(500).json({ error: "erro_interno" });
-  }
-});
-
-// Zera todos os votos (somente master).
-app.delete("/api/votacao/zerar", exigeMaster, async (_req, res) => {
-  if (!pool) return res.status(503).json({ error: "sem_banco" });
-  try {
-    await pool.query("delete from votos");
-    return res.json({ ok: true });
-  } catch (e) {
-    console.error("[DELETE /api/votacao/zerar]", e.message);
-    return res.status(500).json({ error: "erro_interno" });
-  }
-});
-
-// Resultado da votação: contagem por categoria e candidato.
-app.get("/api/votacao/resultado", async (_req, res) => {
-  if (!pool) return res.status(503).json({ error: "sem_banco" });
-  try {
-    const { rows } = await pool.query(
-      "select categoria, candidato_id, count(*)::int as votos from votos group by categoria, candidato_id order by categoria, votos desc"
-    );
-    const resultado = {};
-    rows.forEach(function (r) {
-      if (!resultado[r.categoria]) resultado[r.categoria] = [];
-      resultado[r.categoria].push({ candidato_id: r.candidato_id, votos: r.votos });
-    });
-    return res.json(resultado);
-  } catch (e) {
-    console.error("[GET /api/votacao/resultado]", e.message);
     return res.status(500).json({ error: "erro_interno" });
   }
 });
