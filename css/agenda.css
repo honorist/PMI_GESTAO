@@ -34,6 +34,56 @@
   color: var(--muted);
 }
 
+/* ---- Seção de agendamento de horários ---- */
+.agd-barra-acoes {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.agd-secao {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.agd-secao-titulo {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* O widget de agendamento é mais curto que o calendário cheio;
+   herdar os 75vh de .agd-frame deixaria uma faixa vazia grande. */
+.agd-frame--booking {
+  height: min(60vh, 640px);
+}
+
+.agd-vazio {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 16px 20px;
+  background: #fff;
+  font-size: .82rem;
+  color: var(--muted);
+}
+
+.agd-vazio-titulo {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: var(--purple);
+}
+
+.agd-vazio p { margin: 0 0 8px; }
+
+.agd-vazio-passos {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.7;
+}
+
 @media (max-width: 580px) {
   .agd-frame { height: 68vh; }
+  .agd-frame--booking { height: 62vh; }
+  .agd-barra-acoes { gap: 12px; }
 }
