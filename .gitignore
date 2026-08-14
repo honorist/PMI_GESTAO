@@ -1,0 +1,15 @@
+# Dependências instaladas pelo npm (reconstruídas com `npm install`).
+node_modules/
+
+# Logs e artefatos locais
+npm-debug.log*
+*.log
+
+# Variáveis de ambiente — DATABASE_URL, SESSION_SECRET, senhas.
+# Nunca versionar: em produção vêm das env vars do Railway.
+.env
+.env.*
+
+# Sistema operacional / editor
+.DS_Store
+Thumbs.db
