@@ -89,6 +89,12 @@
 .spk-sess--keynote { background: #FAF8FF; }
 .spk-sess--especial { background: #FFFBF5; }
 
+/* ---- Palco HP (id secundario, azul-petróleo) ---- */
+.spk-card[data-cor="petroleo"] { border-color: #CFE3EA; }
+.spk-card[data-cor="petroleo"] .spk-card__head { background: #1D6F8A; }
+.spk-card[data-cor="petroleo"] .spk-sess--keynote,
+.spk-card[data-cor="petroleo"] .spk-sess--especial { background: #F3F9FB; }
+
 .spk-sess__time {
   font-size: 12px;
   font-weight: 600;

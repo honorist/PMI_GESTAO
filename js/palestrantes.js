@@ -106,6 +106,9 @@
     return mudou;
   }
 
+  /* ---- Cor de cada palco (data-cor do card; estilos em palestrantes.css) ---- */
+  var CORES_PALCOS = { principal: "roxo", secundario: "petroleo" };
+
   /* ---- Migração: dá um status explícito a sessões que não têm ---- */
   function migrarStatus(palcos) {
     var mudou = false;
@@ -131,7 +134,7 @@
     }
     if (!document.getElementById("spk-css")) {
       var l = document.createElement("link");
-      l.id = "spk-css"; l.rel = "stylesheet"; l.href = "css/palestrantes.css?v=4";
+      l.id = "spk-css"; l.rel = "stylesheet"; l.href = "css/palestrantes.css?v=5";
       document.head.appendChild(l);
     }
   }
@@ -683,7 +686,7 @@
     var total = (palco.sessoes || []).length;
 
     var card = el("div", "spk-card");
-    card.setAttribute("data-cor", palco.cor || "roxo");
+    card.setAttribute("data-cor", palco.cor || CORES_PALCOS[palco.id] || "roxo");
 
     var head = el("div", "spk-card__head");
     head.appendChild(el("h2", "spk-card__title", palco.nome || "Palco"));
