@@ -131,7 +131,7 @@
     }
     if (!document.getElementById("spk-css")) {
       var l = document.createElement("link");
-      l.id = "spk-css"; l.rel = "stylesheet"; l.href = "css/palestrantes.css?v=3";
+      l.id = "spk-css"; l.rel = "stylesheet"; l.href = "css/palestrantes.css?v=4";
       document.head.appendChild(l);
     }
   }
