@@ -2,7 +2,7 @@
   "palcos": [
     {
       "id": "principal",
-      "nome": "Palco Principal",
+      "nome": "Palco South Summit",
       "sessoes": [
         { "id": "kn1",  "horario": "08h30 - 09h30", "titulo": "Keynote 1",           "tipo": "keynote",  "palestrante": "",              "empresa": "", "tema": "" },
         { "id": "a1",   "horario": "10h00 - 11h00", "titulo": "Sessão paralela A1",  "tipo": "sessao",   "palestrante": "",              "empresa": "", "tema": "" },
@@ -15,7 +15,7 @@
     },
     {
       "id": "secundario",
-      "nome": "Palco Secundário",
+      "nome": "Palco HP",
       "sessoes": [
         { "id": "proj1", "horario": "10h00 - 10h20", "titulo": "Melhores do Ano – Projeto · Apresentação 1", "tipo": "especial", "palestrante": "", "empresa": "", "tema": "" },
         { "id": "proj2", "horario": "10h20 - 10h40", "titulo": "Melhores do Ano – Projeto · Apresentação 2", "tipo": "especial", "palestrante": "", "empresa": "", "tema": "" },

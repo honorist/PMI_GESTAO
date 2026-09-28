@@ -1,7 +1,7 @@
 /* ============================================================
    palestrantes.js — Aba "Palestrantes" do app de gestão
    ------------------------------------------------------------
-   Exibe os 2 palcos (Principal e Secundário) com a lista de
+   Exibe os 2 palcos (South Summit e HP) com a lista de
    sessões. Palestrante, empresa e tema são editáveis em modo
    master. Sessões sem palestrante aparecem como "(a definir)".
 
@@ -30,7 +30,7 @@
   /* ---- Dados padrão dos palcos (usados quando o banco não tem ainda) ---- */
   var PALCOS_DEFAULT = [
     {
-      id: "principal", nome: "Palco Principal",
+      id: "principal", nome: "Palco South Summit",
       sessoes: [
         { id: "kn1", horario: "08h30 - 09h30", titulo: "Keynote 1",            tipo: "keynote",  palestrante: "",               empresa: "", tema: "" },
         { id: "a1",  horario: "10h00 - 11h00", titulo: "Sessão paralela A1",   tipo: "sessao",   palestrante: "",               empresa: "", tema: "" },
@@ -42,7 +42,7 @@
       ]
     },
     {
-      id: "secundario", nome: "Palco Secundário",
+      id: "secundario", nome: "Palco HP",
       sessoes: [
         { id: "proj1", horario: "10h00 - 10h20", titulo: "Melhores do Ano – Projeto · Apresentação 1", tipo: "especial", palestrante: "", empresa: "", tema: "" },
         { id: "proj2", horario: "10h20 - 10h40", titulo: "Melhores do Ano – Projeto · Apresentação 2", tipo: "especial", palestrante: "", empresa: "", tema: "" },
@@ -53,20 +53,6 @@
         { id: "pmo3",  horario: "15h10 - 15h30", titulo: "Melhores do Ano – PMO · Apresentação 3",     tipo: "especial", palestrante: "", empresa: "", tema: "" },
         { id: "b4",    horario: "16h00 - 17h00", titulo: "Sessão paralela B4",                          tipo: "sessao",   palestrante: "", empresa: "", tema: "" },
         { id: "prem",  horario: "17h00 - 18h00", titulo: "Premiação",                                   tipo: "especial", palestrante: "", empresa: "", tema: "" }
-      ]
-    },
-    {
-      id: "gp_elas", nome: "Palco 3", cor: "rosa",
-      sessoes: [
-        { id: "gp1", horario: "10h00 - 10h20", titulo: "Sessão GP com Elas 1", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
-        { id: "gp2", horario: "10h20 - 10h40", titulo: "Sessão GP com Elas 2", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
-        { id: "gp3", horario: "10h40 - 11h00", titulo: "Sessão GP com Elas 3", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
-        { id: "gp4", horario: "11h00 - 12h00", titulo: "Sessão GP com Elas 4", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
-        { id: "gp5", horario: "14h30 - 14h50", titulo: "Sessão GP com Elas 5", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
-        { id: "gp6", horario: "14h50 - 15h10", titulo: "Sessão GP com Elas 6", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
-        { id: "gp7", horario: "15h10 - 15h30", titulo: "Sessão GP com Elas 7", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
-        { id: "gp8", horario: "16h00 - 17h00", titulo: "Sessão GP com Elas 8", tipo: "sessao", palestrante: "", empresa: "", tema: "" },
-        { id: "gp9", horario: "17h00 - 18h00", titulo: "Sessão GP com Elas 9", tipo: "sessao", palestrante: "", empresa: "", tema: "" }
       ]
     }
   ];
@@ -100,25 +86,22 @@
     return mudou;
   }
 
-  /* ---- Migração: adiciona o palco "GP com Elas" se ainda não existir ---- */
-  function migrarPalcoGpElas(palcos) {
-    var jaTem = palcos.some(function (p) { return p.id === "gp_elas"; });
-    if (jaTem) return false;
-    var novoPalco = JSON.parse(JSON.stringify(PALCOS_DEFAULT[PALCOS_DEFAULT.length - 1]));
-    palcos.push(novoPalco);
-    return true;
+  /* ---- Migração: remove o palco "Palco 3" (id gp_elas, antigo "GP com Elas") ---- */
+  function migrarRemovePalcoGpElas(palcos) {
+    var mudou = false;
+    for (var i = palcos.length - 1; i >= 0; i--) {
+      if (palcos[i].id === "gp_elas") { palcos.splice(i, 1); mudou = true; }
+    }
+    return mudou;
   }
 
-  /* ---- Migração: renomeia o palco "GP com Elas" (id gp_elas) para
-     "Palco 3" — mantém o id e a cor "rosa" (ambos usados na Prospecção
-     para destacar as sessões desse palco), só muda o rótulo exibido. */
-  function migrarNomePalcoGpElas(palcos) {
+  /* ---- Migração: nomes dos palcos iguais ao site do evento ---- */
+  var NOMES_PALCOS = { principal: "Palco South Summit", secundario: "Palco HP" };
+  function migrarNomesPalcos(palcos) {
     var mudou = false;
     palcos.forEach(function (p) {
-      if (p.id === "gp_elas" && p.nome !== "Palco 3") {
-        p.nome = "Palco 3";
-        mudou = true;
-      }
+      var nome = NOMES_PALCOS[p.id];
+      if (nome && p.nome !== nome) { p.nome = nome; mudou = true; }
     });
     return mudou;
   }
@@ -744,8 +727,8 @@
     } else {
       var precisaSalvar = false;
       if (migrarMelhoresDoAno(palcos)) precisaSalvar = true;
-      if (migrarPalcoGpElas(palcos)) precisaSalvar = true;
-      if (migrarNomePalcoGpElas(palcos)) precisaSalvar = true;
+      if (migrarRemovePalcoGpElas(palcos)) precisaSalvar = true;
+      if (migrarNomesPalcos(palcos)) precisaSalvar = true;
       if (migrarStatus(palcos)) precisaSalvar = true;
       if (precisaSalvar) {
         data.palestrantes = plData;

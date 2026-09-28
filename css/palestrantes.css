@@ -55,11 +55,6 @@
   white-space: nowrap;
 }
 
-/* ---- Palco "Palco 3" (id gp_elas, rosa) ---- */
-.spk-card[data-cor="rosa"] .spk-card__head {
-  background: #C2185B;
-}
-
 /* ---- Linhas de sessão ---- */
 .spk-sess {
   border-bottom: 1px solid #F0EBE3;
@@ -97,8 +92,6 @@
 
 .spk-sess--keynote { background: #FAF8FF; }
 .spk-sess--especial { background: #FFFBF5; }
-
-.spk-card[data-cor="rosa"] .spk-sess { background: #FFF5F8; }
 
 .spk-sess__time {
   font-size: 12px;
