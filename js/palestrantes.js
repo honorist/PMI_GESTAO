@@ -167,7 +167,7 @@
     }
     if (!document.getElementById("spk-css")) {
       var l = document.createElement("link");
-      l.id = "spk-css"; l.rel = "stylesheet"; l.href = "css/palestrantes.css?v=6";
+      l.id = "spk-css"; l.rel = "stylesheet"; l.href = "css/palestrantes.css?v=7";
       document.head.appendChild(l);
     }
   }
@@ -490,7 +490,9 @@
     else criarLinha(null);
 
     btnAddPal.addEventListener("click", function () {
-      criarLinha(null).sel.focus();
+      var nova = criarLinha(null);
+      if (nova.row.scrollIntoView) nova.row.scrollIntoView({ block: "nearest" });
+      nova.sel.focus();
     });
 
     var wrapStatus = el("div", "spk-modal__field");

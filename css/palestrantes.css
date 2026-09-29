@@ -290,7 +290,16 @@
   max-width: 480px;
   box-shadow: 0 24px 64px rgba(36,32,22,0.18);
   overflow: hidden;
+  /* Cabe na tela: só o corpo rola; título e botões ficam sempre visíveis
+     (painéis com muitos palestrantes deixam o formulário comprido). */
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  display: flex;
+  flex-direction: column;
 }
+
+.spk-modal__head,
+.spk-modal__foot { flex-shrink: 0; }
 
 .spk-modal__head {
   background: #36177B;
@@ -316,6 +325,9 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .spk-modal__field label {
