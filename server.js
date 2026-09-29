@@ -604,21 +604,41 @@ app.get("/api/programacao/publico", async (_req, res) => {
     const data = rows[0] && rows[0].data ? rows[0].data : {};
     const palcos = (data.palestrantes && data.palestrantes.palcos) || [];
 
+    // Sessao guarda uma lista `palestrantes` (paineis tem varias pessoas);
+    // formato legado tinha um so, em `palestrante`/`empresa`.
+    function palestrantesDaSessao(s) {
+      const lista = Array.isArray(s.palestrantes)
+        ? s.palestrantes
+        : [{ nome: s.palestrante, empresa: s.empresa }];
+      return lista
+        .map(function (pal) {
+          return {
+            nome:    String((pal && pal.nome) || "").trim(),
+            empresa: String((pal && pal.empresa) || "").trim()
+          };
+        })
+        .filter(function (pal) { return pal.nome; });
+    }
+
     const publico = palcos.map(function (p) {
       const sessoes = (p.sessoes || []).map(function (s) {
+        const pals = palestrantesDaSessao(s);
         // Status explicito manda; fallback legado = tem nome preenchido.
-        const confirmado = s.status
-          ? s.status === "confirmado"
-          : !!(s.palestrante && String(s.palestrante).trim());
+        const confirmado = s.status ? s.status === "confirmado" : pals.length > 0;
+        const empresas = pals
+          .map(function (pal) { return pal.empresa; })
+          .filter(function (e, i, arr) { return e && arr.indexOf(e) === i; });
         return {
-          id:          s.id || "",
-          horario:     s.horario || "",
-          titulo:      s.titulo || "",
-          tipo:        s.tipo || "sessao",
-          confirmado:  confirmado,
-          palestrante: confirmado ? String(s.palestrante || "").trim() : "",
-          empresa:     confirmado ? String(s.empresa || "").trim() : "",
-          tema:        confirmado ? String(s.tema || "").trim() : ""
+          id:           s.id || "",
+          horario:      s.horario || "",
+          titulo:       s.titulo || "",
+          tipo:         s.tipo || "sessao",
+          confirmado:   confirmado,
+          palestrantes: confirmado ? pals : [],
+          // `palestrante`/`empresa` em texto unico: compatibilidade com o site
+          palestrante:  confirmado ? pals.map(function (pal) { return pal.nome; }).join(", ") : "",
+          empresa:      confirmado ? empresas.join(", ") : "",
+          tema:         confirmado ? String(s.tema || "").trim() : ""
         };
       });
       return { id: p.id || "", nome: p.nome || "", sessoes: sessoes };

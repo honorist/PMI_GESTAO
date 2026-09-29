@@ -1,9 +1,10 @@
 /* ============================================================
    palestrantes.js — Aba "Palestrantes" do app de gestão
    ------------------------------------------------------------
-   Exibe os 2 palcos (South Summit e HP) com a lista de
-   sessões. Palestrante, empresa e tema são editáveis em modo
-   master. Sessões sem palestrante aparecem como "(a definir)".
+   Exibe os 2 palcos (South Summit e HP) com a lista de sessões.
+   Cada sessão tem uma lista de palestrantes (painéis de debate têm
+   vários), editável em modo master. Sessões sem palestrante
+   aparecem como "(a definir)".
 
    Dados em: Gestao.data.palestrantes.palcos (array de palcos).
    Salva via Gestao.save() após cada edição.
@@ -56,6 +57,38 @@
       ]
     }
   ];
+
+  /* ---- Lista de palestrantes da sessão (aceita o formato legado de um
+     palestrante só em campos soltos: palestrante/empresa/linkedin/...) ---- */
+  function palestrantesDaSessao(s) {
+    if (Array.isArray(s.palestrantes)) return s.palestrantes;
+    var nome = (s.palestrante || "").trim();
+    if (!nome) return [];
+    return [{
+      nome: nome,
+      empresa: s.empresa || "",
+      linkedin: s.linkedin || "",
+      fotoDataUrl: s.fotoDataUrl || "",
+      bio: s.bio || ""
+    }];
+  }
+
+  var CAMPOS_LEGADOS = ["palestrante", "empresa", "linkedin", "fotoDataUrl", "bio"];
+
+  /* ---- Migração: campos soltos de um palestrante viram o array
+     `palestrantes` (sessões de painel têm várias pessoas) ---- */
+  function migrarListaPalestrantes(palcos) {
+    var mudou = false;
+    palcos.forEach(function (p) {
+      (p.sessoes || []).forEach(function (s) {
+        if (Array.isArray(s.palestrantes)) return;
+        s.palestrantes = palestrantesDaSessao(s);
+        CAMPOS_LEGADOS.forEach(function (c) { delete s[c]; });
+        mudou = true;
+      });
+    });
+    return mudou;
+  }
 
   /* ---- Migração: expande b1/b3 legados para 3 slots de 20 min ---- */
   function migrarMelhoresDoAno(palcos) {
@@ -117,7 +150,7 @@
       for (var j = 0; j < sessoes.length; j++) {
         var s = sessoes[j];
         if (!s.status || !STATUS[s.status]) {
-          s.status = (s.palestrante && s.palestrante.trim()) ? "confirmado" : "a_definir";
+          s.status = palestrantesDaSessao(s).length ? "confirmado" : "a_definir";
           mudou = true;
         }
       }
@@ -134,7 +167,7 @@
     }
     if (!document.getElementById("spk-css")) {
       var l = document.createElement("link");
-      l.id = "spk-css"; l.rel = "stylesheet"; l.href = "css/palestrantes.css?v=5";
+      l.id = "spk-css"; l.rel = "stylesheet"; l.href = "css/palestrantes.css?v=6";
       document.head.appendChild(l);
     }
   }
@@ -158,6 +191,36 @@
     wrap.appendChild(inp);
     body.appendChild(wrap);
     return inp;
+  }
+
+  /* ---- Tipos de sessão ("painel" = debate com vários palestrantes) ---- */
+  var TIPOS = [
+    { value: "sessao",   label: "Sessão" },
+    { value: "keynote",  label: "Keynote" },
+    { value: "painel",   label: "Painel" },
+    { value: "especial", label: "Especial" }
+  ];
+
+  function rotuloTipo(tipo) {
+    for (var i = 0; i < TIPOS.length; i++) if (TIPOS[i].value === tipo) return TIPOS[i].label;
+    return "Sessão";
+  }
+
+  /* ---- Campo de tipo de sessão (label + select) ---- */
+  function campoTipo(body, valor) {
+    var wrap = el("div", "spk-modal__field");
+    wrap.appendChild(el("label", null, "Tipo"));
+    var sel = document.createElement("select");
+    TIPOS.forEach(function (o) {
+      var opt = document.createElement("option");
+      opt.value = o.value;
+      opt.textContent = o.label;
+      sel.appendChild(opt);
+    });
+    sel.value = valor || "sessao";
+    wrap.appendChild(sel);
+    body.appendChild(wrap);
+    return sel;
   }
 
   /* ---- Campo de horário (label + input type=time) ---- */
@@ -220,7 +283,7 @@
   /* ---- Uma sessão está confirmada? (status explícito, com fallback legado) ---- */
   function estaConfirmada(s) {
     if (s.status) return s.status === "confirmado";
-    return !!(s.palestrante && s.palestrante.trim());
+    return palestrantesDaSessao(s).length > 0;
   }
 
   /* ---- Contar confirmados num palco ---- */
@@ -278,91 +341,157 @@
     var body = el("div", "spk-modal__body");
 
     var inpTitulo = campoTexto(body, "Título da sessão", sess.titulo, "Ex.: Keynote 3");
+    var selTipo = campoTipo(body, sess.tipo);
 
     var rangeAtual = parseHorarioStorage(sess.horario);
     var inpInicio = campoHora(body, "Início", rangeAtual ? minutosParaInput(rangeAtual.inicio) : "");
     var inpFim    = campoHora(body, "Fim",    rangeAtual ? minutosParaInput(rangeAtual.fim) : "");
 
-    /* Palestrante só pode vir da lista de confirmados em Prospecção —
-       não dá pra digitar um nome novo direto aqui. Sessões antigas com
-       um nome que não está mais na lista ganham uma opção extra
-       "fora da lista", pra não perder o dado sem querer. Se a pessoa já
-       estiver escalada em outra sessão, o rótulo mostra onde. */
-    var wrapPalestrante = el("div", "spk-modal__field");
-    wrapPalestrante.appendChild(el("label", null, "Palestrante"));
-    var selPalestrante = document.createElement("select");
-    var optVazio = document.createElement("option");
-    optVazio.value = "";
-    optVazio.textContent = "— Nenhum / a definir —";
-    selPalestrante.appendChild(optVazio);
+    /* Palestrantes: uma linha por pessoa (painéis de debate têm várias).
+       Cada pessoa só pode vir da lista de confirmados em Prospecção —
+       não dá pra digitar um nome novo direto aqui. Nomes antigos que não
+       estão mais na lista ganham uma opção extra "fora da lista", pra não
+       perder o dado sem querer. Se a pessoa já estiver escalada em outra
+       sessão, o rótulo mostra onde. */
+    var wrapPals = el("div", "spk-modal__field");
+    wrapPals.appendChild(el("label", null, "Palestrantes"));
+    var listaPalsEl = el("div", "spk-modal__pal-list");
+    wrapPals.appendChild(listaPalsEl);
+    var btnAddPal = el("button", "btn sm spk-modal__pal-add", "+ Adicionar palestrante");
+    btnAddPal.type = "button";
+    wrapPals.appendChild(btnAddPal);
+    body.appendChild(wrapPals);
 
-    var nomeAtual = (sess.palestrante || "").trim();
-    var opcoesPalestrante = listaConfirmados.slice();
-    var idxAtual = -1;
-    for (var oi = 0; oi < opcoesPalestrante.length; oi++) {
-      if (opcoesPalestrante[oi].nome.toLowerCase() === nomeAtual.toLowerCase()) { idxAtual = oi; break; }
+    var linhas = [];
+
+    function contarEscolhidos() {
+      return linhas.filter(function (l) { return l.sel.value !== ""; }).length;
     }
-    if (nomeAtual && idxAtual === -1) {
-      opcoesPalestrante = [{
-        nome: nomeAtual,
-        empresa: sess.empresa || "",
-        linkedin: sess.linkedin || "",
-        fotoDataUrl: sess.fotoDataUrl || "",
-        _foraDaLista: true
-      }].concat(opcoesPalestrante);
-      idxAtual = 0;
-    }
-    opcoesPalestrante.forEach(function (perfil, idx) {
-      var opt = document.createElement("option");
-      opt.value = String(idx);
-      var rotulo = perfil.empresa ? (perfil.nome + " · " + perfil.empresa) : perfil.nome;
-      if (perfil._foraDaLista) {
-        rotulo += " (fora da lista de confirmados)";
-      } else if (typeof localAtualDoPalestrante === "function") {
-        var ocupacao = localAtualDoPalestrante(perfil.nome);
-        if (ocupacao && ocupacao.sessId !== sess.id) {
-          rotulo += " (" + ocupacao.palco + " · " + ocupacao.horario + ")";
+
+    function criarLinha(atual) {
+      var nomeAtual = atual ? (atual.nome || "").trim() : "";
+      var row = el("div", "spk-modal__pal-row");
+
+      var topo = el("div", "spk-modal__pal-top");
+      var sel = document.createElement("select");
+      var optVazio = document.createElement("option");
+      optVazio.value = "";
+      optVazio.textContent = "— Nenhum / a definir —";
+      sel.appendChild(optVazio);
+
+      var opcoes = listaConfirmados.slice();
+      var idxAtual = -1;
+      for (var oi = 0; oi < opcoes.length; oi++) {
+        if (opcoes[oi].nome.toLowerCase() === nomeAtual.toLowerCase()) { idxAtual = oi; break; }
+      }
+      if (nomeAtual && idxAtual === -1) {
+        opcoes = [{
+          nome: nomeAtual,
+          empresa: atual.empresa || "",
+          linkedin: atual.linkedin || "",
+          fotoDataUrl: atual.fotoDataUrl || "",
+          _foraDaLista: true
+        }].concat(opcoes);
+        idxAtual = 0;
+      }
+      opcoes.forEach(function (perfil, idx) {
+        var opt = document.createElement("option");
+        opt.value = String(idx);
+        var rotulo = perfil.empresa ? (perfil.nome + " · " + perfil.empresa) : perfil.nome;
+        if (perfil._foraDaLista) {
+          rotulo += " (fora da lista de confirmados)";
+        } else if (typeof localAtualDoPalestrante === "function") {
+          var ocupacao = localAtualDoPalestrante(perfil.nome);
+          if (ocupacao && ocupacao.sessId !== sess.id) {
+            rotulo += " (" + ocupacao.palco + " · " + ocupacao.horario + ")";
+          }
+        }
+        opt.textContent = rotulo;
+        sel.appendChild(opt);
+      });
+      if (idxAtual !== -1) sel.value = String(idxAtual);
+      topo.appendChild(sel);
+
+      var btnRem = el("button", "btn sm btn-danger", "Remover");
+      btnRem.type = "button";
+      btnRem.title = "Tirar esta pessoa da sessão";
+      topo.appendChild(btnRem);
+      row.appendChild(topo);
+
+      /* -- Preview só leitura do perfil (empresa/foto/LinkedIn vêm de Prospecção) -- */
+      var wrapPreview = el("div", "spk-modal__preview");
+      var previewFoto = document.createElement("img");
+      previewFoto.alt = "Foto";
+      previewFoto.style.cssText = "display:none;width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;";
+      wrapPreview.appendChild(previewFoto);
+      var previewTexto = el("span", "spk-modal__preview-texto", "");
+      wrapPreview.appendChild(previewTexto);
+      var previewLink = document.createElement("a");
+      previewLink.target = "_blank";
+      previewLink.rel = "noopener noreferrer";
+      previewLink.textContent = "LinkedIn ↗";
+      previewLink.style.cssText = "display:none;margin-left:8px;";
+      wrapPreview.appendChild(previewLink);
+      row.appendChild(wrapPreview);
+
+      function atualizarPreview(perfil) {
+        if (perfil && perfil.fotoDataUrl) {
+          previewFoto.src = perfil.fotoDataUrl;
+          previewFoto.style.display = "block";
+        } else {
+          previewFoto.style.display = "none";
+        }
+        previewTexto.textContent = perfil ? (perfil.empresa || "Sem empresa cadastrada em Prospecção") : "";
+        if (perfil && perfil.linkedin) {
+          previewLink.href = perfil.linkedin;
+          previewLink.style.display = "inline";
+        } else {
+          previewLink.style.display = "none";
         }
       }
-      opt.textContent = rotulo;
-      selPalestrante.appendChild(opt);
-    });
-    if (idxAtual !== -1) selPalestrante.value = String(idxAtual);
-    wrapPalestrante.appendChild(selPalestrante);
-    body.appendChild(wrapPalestrante);
+      atualizarPreview(idxAtual !== -1 ? opcoes[idxAtual] : null);
 
-    /* -- Preview só leitura do perfil (empresa/foto/LinkedIn vêm de Prospecção) -- */
-    var wrapPreview = el("div", "spk-modal__preview");
-    var previewFoto = document.createElement("img");
-    previewFoto.alt = "Foto";
-    previewFoto.style.cssText = "display:none;width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;";
-    wrapPreview.appendChild(previewFoto);
-    var previewTexto = el("span", "spk-modal__preview-texto", "");
-    wrapPreview.appendChild(previewTexto);
-    var previewLink = document.createElement("a");
-    previewLink.target = "_blank";
-    previewLink.rel = "noopener noreferrer";
-    previewLink.textContent = "LinkedIn ↗";
-    previewLink.style.cssText = "display:none;margin-left:8px;";
-    wrapPreview.appendChild(previewLink);
-    body.appendChild(wrapPreview);
+      /* -- Bio (de cada pessoa) -- */
+      var txtBio = document.createElement("textarea");
+      txtBio.rows = 2;
+      txtBio.value = (atual && atual.bio) || "";
+      txtBio.placeholder = "Mini-biografia (será exibida no programa)";
+      row.appendChild(txtBio);
 
-    function atualizarPreview(perfil) {
-      if (perfil && perfil.fotoDataUrl) {
-        previewFoto.src = perfil.fotoDataUrl;
-        previewFoto.style.display = "block";
-      } else {
-        previewFoto.style.display = "none";
-      }
-      previewTexto.textContent = perfil ? (perfil.empresa || "Sem empresa cadastrada em Prospecção") : "";
-      if (perfil && perfil.linkedin) {
-        previewLink.href = perfil.linkedin;
-        previewLink.style.display = "inline";
-      } else {
-        previewLink.style.display = "none";
-      }
+      var linha = { row: row, sel: sel, txtBio: txtBio, opcoes: opcoes };
+      linhas.push(linha);
+      listaPalsEl.appendChild(row);
+
+      /* Status acompanha a lista: 1ª pessoa escolhida → confirmado;
+         lista esvaziada → a definir. */
+      var tinhaAntes = sel.value !== "";
+      sel.addEventListener("change", function () {
+        var antes = contarEscolhidos() - (sel.value !== "" ? 1 : 0) + (tinhaAntes ? 1 : 0);
+        tinhaAntes = sel.value !== "";
+        atualizarPreview(sel.value === "" ? null : opcoes[Number(sel.value)]);
+        var agora = contarEscolhidos();
+        if (agora === 0) selStatus.value = "a_definir";
+        else if (antes === 0) selStatus.value = "confirmado";
+      });
+
+      btnRem.addEventListener("click", function () {
+        var tinha = sel.value !== "";
+        linhas.splice(linhas.indexOf(linha), 1);
+        listaPalsEl.removeChild(row);
+        if (!linhas.length) criarLinha(null);
+        if (tinha && contarEscolhidos() === 0) selStatus.value = "a_definir";
+      });
+
+      return linha;
     }
-    atualizarPreview(idxAtual !== -1 ? opcoesPalestrante[idxAtual] : null);
+
+    var palsAtuais = palestrantesDaSessao(sess);
+    if (palsAtuais.length) palsAtuais.forEach(criarLinha);
+    else criarLinha(null);
+
+    btnAddPal.addEventListener("click", function () {
+      criarLinha(null).sel.focus();
+    });
 
     var wrapStatus = el("div", "spk-modal__field");
     wrapStatus.appendChild(el("label", null, "Status"));
@@ -374,7 +503,7 @@
       selStatus.appendChild(opt);
     });
     selStatus.value = (sess.status && STATUS[sess.status]) ? sess.status
-      : ((sess.palestrante && sess.palestrante.trim()) ? "confirmado" : "a_definir");
+      : (palsAtuais.length ? "confirmado" : "a_definir");
     wrapStatus.appendChild(selStatus);
     body.appendChild(wrapStatus);
 
@@ -386,28 +515,6 @@
     txtTema.placeholder = "Descreva o tema (opcional)";
     wrapTema.appendChild(txtTema);
     body.appendChild(wrapTema);
-
-    /* -- Bio -- */
-    var wrapBio = el("div", "spk-modal__field");
-    wrapBio.appendChild(el("label", null, "Mini-biografia"));
-    var txtBio = document.createElement("textarea");
-    txtBio.rows = 3;
-    txtBio.value = sess.bio || "";
-    txtBio.placeholder = "Mini-biografia do palestrante (será exibida no programa)";
-    wrapBio.appendChild(txtBio);
-    body.appendChild(wrapBio);
-
-    selPalestrante.addEventListener("change", function () {
-      if (selPalestrante.value === "") {
-        atualizarPreview(null);
-        selStatus.value = "a_definir";
-        return;
-      }
-      var perfil = opcoesPalestrante[Number(selPalestrante.value)];
-      if (!perfil) return;
-      atualizarPreview(perfil);
-      selStatus.value = "confirmado";
-    });
 
     var erroEl = el("p", "spk-field-hint spk-field-hint--error", "");
     erroEl.style.display = "none";
@@ -430,7 +537,7 @@
     modal.appendChild(foot);
 
     document.body.appendChild(overlay);
-    selPalestrante.focus();
+    linhas[0].sel.focus();
 
     function fechar() { document.body.removeChild(overlay); }
 
@@ -450,17 +557,30 @@
         }
         horarioNovo = formatarHorario(iniMin, fimMin);
       }
-      var perfilEscolhido = selPalestrante.value !== "" ? opcoesPalestrante[Number(selPalestrante.value)] : null;
+      var palestrantes = [];
+      var vistos = {};
+      for (var li = 0; li < linhas.length; li++) {
+        var linha = linhas[li];
+        if (linha.sel.value === "") continue;
+        var perfil = linha.opcoes[Number(linha.sel.value)];
+        var chave = perfil.nome.toLowerCase();
+        if (vistos[chave]) { mostrarErro(perfil.nome + " aparece mais de uma vez nesta sessão."); return; }
+        vistos[chave] = true;
+        palestrantes.push({
+          nome:        perfil.nome,
+          empresa:     perfil.empresa || "",
+          linkedin:    perfil.linkedin || "",
+          fotoDataUrl: perfil.fotoDataUrl || "",
+          bio:         linha.txtBio.value.trim()
+        });
+      }
       onSave({
-        horario:     horarioNovo,
-        titulo:      inpTitulo.value.trim() || sess.titulo,
-        palestrante: perfilEscolhido ? perfilEscolhido.nome : "",
-        status:      selStatus.value,
-        empresa:     perfilEscolhido ? (perfilEscolhido.empresa || "") : "",
-        tema:        txtTema.value.trim(),
-        bio:         txtBio.value.trim(),
-        linkedin:    perfilEscolhido ? (perfilEscolhido.linkedin || "") : "",
-        fotoDataUrl: perfilEscolhido ? (perfilEscolhido.fotoDataUrl || "") : ""
+        horario:      horarioNovo,
+        titulo:       inpTitulo.value.trim() || sess.titulo,
+        tipo:         selTipo.value,
+        status:       selStatus.value,
+        tema:         txtTema.value.trim(),
+        palestrantes: palestrantes
       });
       fechar();
     });
@@ -481,21 +601,7 @@
 
     var inpTitulo = campoTexto(body, "Título da sessão", "", "Ex.: Sessão paralela C1");
 
-    var wrapTipo = el("div", "spk-modal__field");
-    wrapTipo.appendChild(el("label", null, "Tipo"));
-    var selTipo = document.createElement("select");
-    [
-      { value: "sessao", label: "Sessão" },
-      { value: "keynote", label: "Keynote" },
-      { value: "especial", label: "Especial" }
-    ].forEach(function (o) {
-      var opt = document.createElement("option");
-      opt.value = o.value;
-      opt.textContent = o.label;
-      selTipo.appendChild(opt);
-    });
-    wrapTipo.appendChild(selTipo);
-    body.appendChild(wrapTipo);
+    var selTipo = campoTipo(body, "sessao");
 
     var inpInicio = campoHora(body, "Início", "");
     var inpFim = campoHora(body, "Fim", "");
@@ -547,6 +653,56 @@
     });
   }
 
+  /* ---- Uma pessoa dentro da linha de sessão ----
+     Empresa/LinkedIn/Foto vêm ao vivo do perfil confirmado em
+     Prospecção (por nome); nome sem correspondência cai no valor já
+     gravado na sessão, sem perder dado. */
+  function buildSpeaker(pal, listaConfirmados) {
+    var nome = (pal.nome || "").trim();
+    var perfil = null;
+    for (var pi = 0; pi < (listaConfirmados || []).length; pi++) {
+      if (listaConfirmados[pi].nome.toLowerCase() === nome.toLowerCase()) {
+        perfil = listaConfirmados[pi];
+        break;
+      }
+    }
+    var empresa  = perfil ? perfil.empresa     : (pal.empresa || "");
+    var linkedin = perfil ? perfil.linkedin    : (pal.linkedin || "");
+    var foto     = perfil ? perfil.fotoDataUrl : (pal.fotoDataUrl || "");
+
+    var wrap = el("div", "spk-speaker");
+    var info = el("div", "spk-speaker__info");
+
+    var speakerDiv = el("div", "spk-sess__speaker");
+    speakerDiv.appendChild(el("span", null, nome));
+    if (linkedin) {
+      var lkEl = document.createElement("a");
+      lkEl.href = linkedin;
+      lkEl.target = "_blank";
+      lkEl.rel = "noopener noreferrer";
+      lkEl.textContent = " 🔗";
+      lkEl.style.cssText = "margin-left:4px;text-decoration:none;";
+      speakerDiv.appendChild(lkEl);
+    }
+    info.appendChild(speakerDiv);
+
+    if (empresa) info.appendChild(el("div", "spk-sess__empresa", empresa));
+    if (pal.bio) {
+      var bioTxt = pal.bio.length > 80 ? pal.bio.slice(0, 80) + "…" : pal.bio;
+      info.appendChild(el("p", "spk-sess__bio", bioTxt));
+    }
+    wrap.appendChild(info);
+
+    if (foto) {
+      var fotoEl = document.createElement("img");
+      fotoEl.src = foto;
+      fotoEl.alt = nome;
+      fotoEl.className = "spk-sess__foto";
+      wrap.appendChild(fotoEl);
+    }
+    return wrap;
+  }
+
   /* ---- Linha de sessão ---- */
   function buildSessao(sess, palco, isMaster, onEdit, onSwap, onRemove, listaConfirmados, localAtualDoPalestrante) {
     var tipo = sess.tipo || "sessao";
@@ -590,71 +746,31 @@
     var body = el("div", "spk-sess__body");
 
     var tipoBadge = el("span", "spk-tipo spk-tipo--" + tipo);
-    tipoBadge.textContent = { keynote: "Keynote", especial: "Especial", sessao: "Sessão" }[tipo] || "Sessão";
+    tipoBadge.textContent = rotuloTipo(tipo);
     body.appendChild(tipoBadge);
 
     body.appendChild(el("div", "spk-sess__titulo", sess.titulo));
 
-    var temPalestrante = sess.palestrante && sess.palestrante.trim();
+    var pals = palestrantesDaSessao(sess);
     var confirmada = estaConfirmada(sess);
-    var speakerDiv = el("div", "spk-sess__speaker" + (temPalestrante ? "" : " is-empty"));
 
-    /* Empresa/LinkedIn/Foto vêm ao vivo do perfil confirmado em
-       Prospecção (por nome); sessão antiga sem correspondência cai no
-       valor já gravado nela mesma, sem perder dado. */
-    var perfilExibir = null;
-    if (temPalestrante) {
-      for (var pi = 0; pi < (listaConfirmados || []).length; pi++) {
-        if (listaConfirmados[pi].nome.toLowerCase() === sess.palestrante.trim().toLowerCase()) {
-          perfilExibir = listaConfirmados[pi];
-          break;
-        }
-      }
-    }
-    var empresaExibir  = perfilExibir ? perfilExibir.empresa  : (sess.empresa  || "");
-    var linkedinExibir = perfilExibir ? perfilExibir.linkedin : (sess.linkedin || "");
-    var fotoExibir     = perfilExibir ? perfilExibir.fotoDataUrl : (sess.fotoDataUrl || "");
-
-    if (temPalestrante) {
-      if (!confirmada) {
-        speakerDiv.appendChild(el("span", "spk-status-badge spk-status-badge--" + sess.status, STATUS[sess.status] ? STATUS[sess.status].label : "Convidado"));
-      }
-      speakerDiv.appendChild(el("span", null, sess.palestrante));
-      if (linkedinExibir) {
-        var lkEl = document.createElement("a");
-        lkEl.href = linkedinExibir;
-        lkEl.target = "_blank";
-        lkEl.rel = "noopener noreferrer";
-        lkEl.textContent = " 🔗";
-        lkEl.style.cssText = "margin-left:4px;text-decoration:none;";
-        speakerDiv.appendChild(lkEl);
-      }
+    if (!pals.length) {
+      body.appendChild(el("div", "spk-sess__speaker is-empty", "(a definir)"));
     } else {
-      speakerDiv.textContent = "(a definir)";
-    }
-    body.appendChild(speakerDiv);
-
-    if (temPalestrante && sess.bio) {
-      var bioTxt = sess.bio.length > 80 ? sess.bio.slice(0, 80) + "…" : sess.bio;
-      body.appendChild(el("p", "spk-sess__bio", bioTxt));
-    }
-
-    if (temPalestrante && empresaExibir) {
-      body.appendChild(el("div", "spk-sess__empresa", empresaExibir));
-    }
-    if (temPalestrante && sess.tema) {
-      body.appendChild(el("div", "spk-sess__tema", "“" + sess.tema + "”"));
+      if (!confirmada) {
+        body.appendChild(el("span", "spk-status-badge spk-status-badge--" + sess.status, STATUS[sess.status] ? STATUS[sess.status].label : "Convidado"));
+      }
+      var speakersEl = el("div", "spk-sess__speakers");
+      pals.forEach(function (pal) {
+        speakersEl.appendChild(buildSpeaker(pal, listaConfirmados));
+      });
+      body.appendChild(speakersEl);
+      if (sess.tema) {
+        body.appendChild(el("div", "spk-sess__tema", "“" + sess.tema + "”"));
+      }
     }
 
     row.appendChild(body);
-
-    if (temPalestrante && fotoExibir) {
-      var fotoEl = document.createElement("img");
-      fotoEl.src = fotoExibir;
-      fotoEl.alt = sess.palestrante;
-      fotoEl.className = "spk-sess__foto";
-      row.appendChild(fotoEl);
-    }
 
     if (isMaster) {
       var actions = el("div", "spk-sess__actions");
@@ -724,6 +840,7 @@
     if (!palcos) {
       palcos = JSON.parse(JSON.stringify(PALCOS_DEFAULT));
       migrarStatus(palcos);
+      migrarListaPalestrantes(palcos);
       plData.palcos = palcos;
       data.palestrantes = plData;
       if (window.Gestao && window.Gestao.save) window.Gestao.save();
@@ -733,6 +850,7 @@
       if (migrarRemovePalcoGpElas(palcos)) precisaSalvar = true;
       if (migrarNomesPalcos(palcos)) precisaSalvar = true;
       if (migrarStatus(palcos)) precisaSalvar = true;
+      if (migrarListaPalestrantes(palcos)) precisaSalvar = true;
       if (precisaSalvar) {
         data.palestrantes = plData;
         if (window.Gestao && window.Gestao.save) window.Gestao.save();
@@ -777,13 +895,11 @@
               mudouHorario = true;
             }
             s.titulo       = vals.titulo;
-            s.palestrante  = vals.palestrante;
+            s.tipo         = vals.tipo;
             s.status       = vals.status;
-            s.empresa      = vals.empresa;
             s.tema         = vals.tema;
-            s.bio          = vals.bio;
-            s.linkedin     = vals.linkedin;
-            s.fotoDataUrl  = vals.fotoDataUrl;
+            s.palestrantes = vals.palestrantes;
+            CAMPOS_LEGADOS.forEach(function (c) { delete s[c]; });
           }
         });
         if (mudouHorario) {
@@ -799,7 +915,7 @@
       render(mount, data);
     }
 
-    var CAMPOS_PALESTRANTE = ["palestrante", "status", "empresa", "tema", "bio", "linkedin", "fotoDataUrl"];
+    var CAMPOS_PALESTRANTE = ["palestrantes", "status", "tema"];
 
     function onSwap(origemId, destId) {
       var origem = null, destino = null;
@@ -832,13 +948,9 @@
         horario: formatarHorario(vals.iniMin, vals.fimMin),
         titulo: vals.titulo,
         tipo: vals.tipo,
-        palestrante: "",
         status: "a_definir",
-        empresa: "",
         tema: "",
-        bio: "",
-        linkedin: "",
-        fotoDataUrl: ""
+        palestrantes: []
       };
       palco.sessoes = palco.sessoes || [];
       palco.sessoes.push(novaSessao);
@@ -879,9 +991,10 @@
         var p = palcos[pi];
         for (var si = 0; si < (p.sessoes || []).length; si++) {
           var s = p.sessoes[si];
-          if (s.palestrante && s.palestrante.trim().toLowerCase() === alvo) {
-            return { sessId: s.id, palco: p.nome, horario: s.horario };
-          }
+          var escalado = palestrantesDaSessao(s).some(function (pal) {
+            return (pal.nome || "").trim().toLowerCase() === alvo;
+          });
+          if (escalado) return { sessId: s.id, palco: p.nome, horario: s.horario };
         }
       }
       return null;

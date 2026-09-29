@@ -119,7 +119,13 @@
     var res = [];
     palcos.forEach(function (p) {
       (p.sessoes || []).forEach(function (s) {
-        if (s.palestrante && s.palestrante.trim().toLowerCase() === alvo) {
+        /* Sessão tem lista `palestrantes` (painéis); formato antigo tinha
+           um nome só em `palestrante`. */
+        var nomes = Array.isArray(s.palestrantes)
+          ? s.palestrantes.map(function (pal) { return pal.nome || ""; })
+          : [s.palestrante || ""];
+        var escalado = nomes.some(function (n) { return n.trim().toLowerCase() === alvo; });
+        if (escalado) {
           res.push({ palco: p.nome || "Palco", horario: s.horario || "" });
         }
       });

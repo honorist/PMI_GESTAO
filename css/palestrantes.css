@@ -189,6 +189,55 @@
 .spk-tipo--keynote { background: #EDE8FB; color: #36177B; }
 .spk-tipo--especial { background: #FEF3E2; color: #B06A00; }
 .spk-tipo--sessao { background: #EEF7F0; color: #2E6B38; }
+.spk-tipo--painel { background: #E3F2F7; color: #1C5E73; }
+
+.spk-sess--painel { background: #F5FAFC; }
+
+/* ---- Vários palestrantes na mesma sessão (painéis) ---- */
+.spk-sess__speakers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.spk-speaker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spk-speaker__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.spk-speaker .spk-sess__foto {
+  width: 44px;
+  height: 44px;
+}
+
+/* ---- Modal: lista de palestrantes ---- */
+.spk-modal__pal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.spk-modal__pal-row {
+  border: 1px solid #EAE2D3;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.spk-modal__pal-top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.spk-modal__pal-top select { flex: 1; }
+.spk-modal__pal-top .btn { flex-shrink: 0; width: auto; }
 
 /* ---- Resumo do progresso ---- */
 .spk-progress {
